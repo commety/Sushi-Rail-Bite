@@ -112,3 +112,7 @@ InitTestScene*.unity*
 # environment
 .env
 .env.*
+
+# Agent related
+.claude
+.codex
