@@ -16,10 +16,15 @@ This document defines the rules and context that Claude (and any other AI coding
   2. At stage start, sushi from the deck spawns randomly onto the rotating belt line.
   3. Customers are placed at fixed tables and each has the following stats:
      - **Reach**: the physical range on the belt where they can grab sushi
-     - **Price range**: the range of sushi prices they're willing to eat
+     - **Targeting**: the price band this customer prefers. **This is a priority hint, not a hard constraint** — see 3a
      - **Eating speed**: time taken to consume a piece of sushi
      - **Satiety**: total amount they can eat before becoming full
      - **Digestion time**: cooldown after becoming full before they can eat again
+  3a. **How a sushi gets claimed** — the rule that Targeting participates in:
+     - By default a customer takes whatever sushi enters its reach, **FIFO (first-come, first-served), regardless of price**. A customer never sits and watches sushi it could physically reach — that is a bad play experience and is treated as a bug.
+     - Targeting only matters when **two or more customers can reach the same piece of sushi**. Among those contenders, Targeting decides who gets it.
+     - If the resulting priority ties, the winner is broken arbitrarily (random or equivalent).
+     - Consequence: a price band that a customer "does not prefer" still gets eaten by that customer when nobody else is contending for it.
   4. Score increases by the price of every sushi a customer eats.
   5. Reaching the target score within the time limit clears the stage; bonus objectives grant extra rewards.
   6. Clearing a stage grants roguelite meta-progression (new sushi/customer cards, etc.).
@@ -51,6 +56,8 @@ Agents must not rename these terms arbitrarily anywhere in code, commits, or PRs
 |---|---|---|
 | Sushi | Score unit flowing on the belt | `SushiData`, `SushiItem` |
 | Customer | Tower-role customer | `CustomerData`, `Customer` |
+| Targeting | A customer's preferred price band. Used **only** to rank contenders when several customers can reach the same sushi — never to forbid eating (§1.1-3a) | `TargetingRange`, `TargetingPriority` |
+| Claim | Resolving which customer takes a contested piece of sushi | `SushiClaimResolver` |
 | Table | Fixed slot where a customer is placed | `TableSlot` |
 | Belt | The rotating line sushi flows on | `SushiBelt` |
 | Deck | The set of sushi/customer cards assembled before a stage | `SushiDeck`, `CustomerDeck` |
@@ -152,7 +159,7 @@ Tests.PlayMode.asmdef    # PlayMode integration tests (Assets/Tests/PlayMode)
 
 ### 5.3 Naming/Structure
 - Test method naming: `MethodName_StateUnderTest_ExpectedBehavior`
-  - e.g. `TryEat_PriceAboveRange_ReturnsFalse`, `Digest_AfterCooldown_ResetsSaturation`
+  - e.g. `TryTake_SushiInReach_TakesRegardlessOfPrice`, `ResolveClaim_TwoCustomersInRange_HigherTargetingPriorityWins`, `Digest_AfterCooldown_ResetsSaturation`
 - Separate Arrange-Act-Assert with blank lines even without comments.
 - Prefer hand-written stubs/fakes for test doubles; evaluate NSubstitute only if needed (adding a new package requires team agreement — Claude does not add packages unilaterally, see §7).
 
@@ -238,12 +245,20 @@ When any of these are needed, Claude presents a change plan and diff, then reque
 
 ## 10. Directory Structure
 
-Agent-facing material (`docs/`, `skills/`, `tests/`) lives at the **project root, outside `Assets/`**, with one exception: `Assets/Tests` remains in place because Unity Test Framework requires test assemblies to live under `Assets` (or `Packages/`) to be discovered by the Test Runner. The root-level `tests/` directory is unrelated to gameplay tests — it holds the CI/CD feedback loop: pipeline scripts, linter configs, and other non-Unity tooling.
+Agent-facing material (`docs/`, `.claude/`, `tests/`) lives at the **project root, outside `Assets/`**, with one exception: `Assets/Tests` remains in place because Unity Test Framework requires test assemblies to live under `Assets` (or `Packages/`) to be discovered by the Test Runner. The root-level `tests/` directory is unrelated to gameplay tests — it holds the CI/CD feedback loop: pipeline scripts, linter configs, and other non-Unity tooling.
+
+Agent skills live in **`.claude/skills/`**, not a root-level `skills/`. That path is fixed by Claude Code — it is where the tooling actually discovers them, so it is not a free choice. Everything else the agents read (`INDEX.md`, `knowledge/`, `rules/`, `domain/`, `agents/`) sits alongside them under `.claude/`.
 
 ```
 ProjectRoot
 ├── docs/                       # GDD, architecture notes, agent-facing documentation
-├── skills/                     # Reusable agent skill/playbook definitions
+├── .claude/                    # Agent layer — loaded by Claude Code
+│   ├── INDEX.md                # Selective-load routing index (read this first)
+│   ├── knowledge/              # Engine/language knowledge (project-agnostic)
+│   ├── rules/                  # Path-scoped rules (scripts, asmdef, tests, SO, worktree)
+│   ├── domain/                 # This project's design/system knowledge
+│   ├── agents/                 # Sub-agent definitions (researcher / engineer)
+│   └── skills/                 # Agent skills — /task-start, /run, /qa, /debug, ...
 ├── tests/                      # CI/CD feedback loop: pipeline scripts, linter configs, non-Unity tooling
 ├── Assets/
 │   ├── Art/
@@ -270,18 +285,24 @@ ProjectRoot
 │   │       │   ├── Views/
 │   │       │   └── Presenters/
 │   │       └── Editor/           # Editor.asmdef — editor tooling
+│   ├── Editor/                   # Agent harness tooling — ClaudeBridge, RunBuildCommand
+│   │   └── ClaudeBridge/         #   namespace `Editor.ClaudeBridge` (NOT SushiDefense.*)
 │   ├── Level/
 │   │   ├── Prefabs/
 │   │   ├── Scenes/
 │   │   └── UI/
+│   ├── Settings/                 # URP render pipeline assets
 │   └── Tests/                    # Unity Test Framework only — must stay inside Assets
 │       ├── EditMode/              # Tests.EditMode.asmdef
 │       └── PlayMode/              # Tests.PlayMode.asmdef
+├── scripts/                      # Harness scripts — run.sh, bridge-run.sh, worktree setup
 ├── Packages/
 ├── ProjectSettings/
 ├── CLAUDE.md
 └── AGENTS.md
 ```
+
+`Assets/Editor/` is **agent harness infrastructure**, distinct from `Assets/Code/Scripts/Editor/` (game-facing editor tooling). It keeps its own `Editor` / `Editor.ClaudeBridge` namespaces; game code must not depend on it.
 
 ---
 
