@@ -112,3 +112,6 @@ InitTestScene*.unity*
 # environment
 .env
 .env.*
+
+# only macOS
+.DS_Store
