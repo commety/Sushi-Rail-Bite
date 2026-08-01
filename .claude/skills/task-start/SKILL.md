@@ -63,8 +63,8 @@ grep -rn "TargetMethod"      Assets/ --include="*.cs" -l
 
 ### STEP 3.5 — 브랜치 확인
 
-- 현재 브랜치가 `feature/*` 인지 확인한다 (`git branch --show-current`).
-- `main` / `develop` / `release/*` 위에 있으면 **작업 전에** `feature/*` 브랜치를 제안한다. `CLAUDE.md` §6 의 3-way handshake 1단계(propose)다.
+- 현재 브랜치가 `feat/*` 인지 확인한다 (`git branch --show-current`).
+- `main` / `dev` / `release/*` 위에 있으면 **작업 전에** `feat/*` 브랜치를 제안한다. `CLAUDE.md` §6 의 3-way handshake 1단계(propose)다.
 - 브랜치 생성은 제안 후 사용자 확인을 받고 진행한다.
 
 ---
@@ -104,7 +104,7 @@ grep -rn "TargetMethod"      Assets/ --include="*.cs" -l
 테스트 계획: {먼저 실패시킬 EditMode 테스트} 또는 {해당 없음 + 사유}
 §7 승인 필요 항목: {없음 | 목록}
 
-[STEP 3.5] 브랜치: {feature/xxx 확인됨 | main 위 — feature 브랜치 제안}
+[STEP 3.5] 브랜치: {feat/xxx 확인됨 | dev 위 — feat 브랜치 제안}
 
 [STEP 4] Lock: {획득 또는 하네스 비활성}
 

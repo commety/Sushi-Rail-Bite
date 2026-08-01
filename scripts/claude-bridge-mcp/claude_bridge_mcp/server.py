@@ -22,7 +22,7 @@ Claude Code / Claude Desktop에 등록하면 파일 read/write 루프 없이
         Windows:      powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 레거시 실행 (pipx, Claude Desktop 전용):
-    pipx install /absolute/path/to/unity-claude-template/scripts/claude-bridge-mcp
+    pipx install /absolute/path/to/Sushi-Rail-Bite/scripts/claude-bridge-mcp
 
 프로젝트 루트 해석 순서:
     1) env var CLAUDE_BRIDGE_PROJECT      — 명시적 우선
@@ -45,11 +45,16 @@ try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
     sys.stderr.write(
-        "ERROR: `mcp` 패키지를 찾을 수 없습니다.\n"
-        "권장 실행 (프로젝트 로컬 uv):\n"
+        "ERROR: `mcp` 패키지를 임포트하지 못했습니다.\n"
+        "권장 실행 (프로젝트 로컬 uv, 저장소 루트에서):\n"
         "  uv run --directory scripts/claude-bridge-mcp claude-bridge-mcp\n"
         "또는 pipx:\n"
-        "  pipx install /path/to/unity-claude-template/scripts/claude-bridge-mcp\n"
+        "  pipx install /path/to/Sushi-Rail-Bite/scripts/claude-bridge-mcp\n"
+        "\n"
+        "mcp 는 설치돼 있는데 이 오류가 난다면 버전 문제일 수 있습니다.\n"
+        "mcp 2.x 에는 `mcp.server.fastmcp` 가 없습니다. pyproject 가\n"
+        "`mcp>=1.0.0,<2` 로 고정돼 있는지, uv.lock 이 반영됐는지 확인하세요:\n"
+        "  uv sync --frozen --directory scripts/claude-bridge-mcp\n"
     )
     sys.exit(1)
 
