@@ -115,3 +115,15 @@ InitTestScene*.unity*
 
 # only macOS
 .DS_Store
+
+# Python — ClaudeBridge MCP 서버(scripts/claude-bridge-mcp)와 chiptune-synth
+# `uv run` 이 .venv 를 만들고, 파이썬 실행이 __pycache__ 를 남긴다. 커밋 대상 아님.
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ClaudeBridge 런타임 큐 — 에이전트↔Unity 커맨드/결과가 오가는 임시 파일
+.claude-bridge/inbox/
+.claude-bridge/outbox/
+.claude-bridge/logs/

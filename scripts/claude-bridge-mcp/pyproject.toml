@@ -7,7 +7,10 @@ requires-python = ">=3.10"
 authors = [{ name = "zaffre" }]
 license = { text = "MIT" }
 dependencies = [
-    "mcp>=1.0.0",
+    # 상한 고정: mcp 2.0.0 에서 `mcp.server.fastmcp` 가 제거되어
+    # server.py 의 `from mcp.server.fastmcp import FastMCP` 가 깨진다.
+    # 2.x 로 올리려면 server.py 를 새 API 로 마이그레이션한 뒤 해제할 것.
+    "mcp>=1.0.0,<2",
 ]
 
 [project.scripts]

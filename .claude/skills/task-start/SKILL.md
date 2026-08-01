@@ -64,7 +64,7 @@ grep -rn "TargetMethod"      Assets/ --include="*.cs" -l
 ### STEP 3.5 — 브랜치 확인
 
 - 현재 브랜치가 `feature/*` 인지 확인한다 (`git branch --show-current`).
-- `main` / `develop` / `release/*` 위에 있으면 **작업 전에** `feature/*` 브랜치를 제안한다. `CLAUDE.md` §6 의 3-way handshake 1단계(propose)다.
+- `main` / `dev` / `release/*` 위에 있으면 **작업 전에** `feature/*` 브랜치를 제안한다. `CLAUDE.md` §6 의 3-way handshake 1단계(propose)다.
 - 브랜치 생성은 제안 후 사용자 확인을 받고 진행한다.
 
 ---

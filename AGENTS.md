@@ -170,19 +170,19 @@ Tests.PlayMode.asmdef    # PlayMode integration tests (Assets/Tests/PlayMode)
 
 ## 6. Git Branching Strategy (Git Flow + 3-Way Handshake)
 
-"3-way handshake" is defined here — analogous to TCP's 3-step handshake — as: **propose (branch) → confirm (PR/review) → finalize (merge approval)**. Nothing lands on `develop`/`main` until all three steps complete.
+"3-way handshake" is defined here — analogous to TCP's 3-step handshake — as: **propose (branch) → confirm (PR/review) → finalize (merge approval)**. Nothing lands on `dev`/`main` until all three steps complete.
 
 ### 6.1 Branch Structure
 ```
 main        # Deployable stable version (only release tags merge here)
-develop     # Integration branch
+dev         # Integration branch
 feature/*   # Per-feature work (e.g. feature/customer-digestion)
 release/*   # Demo release preparation
 hotfix/*    # Urgent fixes on main
 ```
 
 ### 6.2 The 3-Step Handshake Procedure
-1. **Propose (SYN)**: Branch `feature/*` off `develop` and work there. Freely deletable/restartable at this point — nothing is committed to shared history yet.
+1. **Propose (SYN)**: Branch `feature/*` off `dev` and work there. Freely deletable/restartable at this point — nothing is committed to shared history yet.
 2. **Confirm (SYN-ACK)**: Open a PR once work is done; it must pass the §8 checklist (lint/type-check/tests). Review is performed by a human.
 3. **Finalize (ACK)**: Merge only proceeds once a human explicitly approves it.
 
