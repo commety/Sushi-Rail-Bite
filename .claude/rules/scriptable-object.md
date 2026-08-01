@@ -11,10 +11,12 @@ globs: ["Assets/Code/Scripts/Runtime.Data/**/*.cs", "Assets/**/*.asset"]
 
 | 타입 | 담는 것 |
 |---|---|
-| `SushiData` | 초밥 가격, 손님이 느끼는 포화도, 스프라이트, 태그(연어·알 등 시너지 키) |
-| `CustomerData` | 집기 범위(reach), **타겟팅 가격대(선호 대역 — 제약이 아님, §7)**, 먹는 속도, 최대 포화도, 소화 시간 |
-| `StageConfig` | 목표 매출, 제한 시간, 테이블 배치, 보너스 목표, 등장 기믹 |
+| `SushiData` | 가격, 포화도 기여량, 특성(Trait — 시너지 키), 스프라이트 |
+| `CustomerData` | 집기 범위(reach), **타겟팅(선호 가격 — 단일 값, 제약이 아님, §7)**, 먹는 시간, 최대 포화도, 소화 시간, **영입 비용** |
+| `StageConfig` | 목표 매출, 제한 시간, **최대 배치 손님 수**, **초기 영입 예산**, 테이블 배치, 벨트 속도, 초밥 스폰 구성, 보너스 목표 |
 | `~EventChannelSO` | 시스템 간 통신 채널 (`SushiEatenEventChannelSO` 등) |
+
+**순차번호(SequenceNumber)는 SO 에 넣지 않는다.** 초밥은 스폰 시, 손님은 배치 시 발급되는 **런타임 값**이다. 필드 전체 목록과 근거는 [`../domain/data-model.md`](../domain/data-model.md).
 
 ## 2. 정적 데이터 ↔ 런타임 상태 분리
 
@@ -41,14 +43,22 @@ globs: ["Assets/Code/Scripts/Runtime.Data/**/*.cs", "Assets/**/*.asset"]
 
 ## 6. 검증
 
-새 SO 타입에는 데이터 유효성 EditMode 테스트를 붙인다 (`CLAUDE.md` §5.2-4). 예: 음수 가격 거부, 타겟팅 대역의 `min <= max`, 소화 시간 > 0.
+새 SO 타입에는 데이터 유효성 EditMode 테스트를 붙인다 (`CLAUDE.md` §5.2-4). 예: 음수 가격 거부, 타겟팅 > 0, 소화 시간 > 0.
 
 ## 7. 타겟팅(Targeting) 필드는 "필터"가 아니다 — 자주 틀리는 지점
 
-`CustomerData` 의 타겟팅 가격대는 **먹을 수 있는 것을 제한하는 값이 아니다** (`CLAUDE.md` §1.1-3a).
+`CustomerData` 의 타겟팅은 **단일 가격 값**이고, **먹을 수 있는 것을 제한하는 값이 아니다** (`CLAUDE.md` §1.1-3a).
 
-- 손님은 집기 범위 안에 들어온 초밥을 **가격과 무관하게 FIFO 로** 집는다.
-- 타겟팅은 **한 초밥을 두 명 이상이 동시에 집을 수 있을 때** 누가 가져갈지 정하는 **우선순위 산정용**이다.
-- 따라서 이 필드를 `if (price < min || price > max) return false;` 같은 **게이트로 쓰면 기획 위반**이다. 손님이 눈앞의 초밥을 두고 구경만 하는 상황은 버그로 취급한다.
+이 필드가 쓰이는 곳은 **배정(누가 무엇을 가져가나) 단 한 군데**다. (손님, 초밥) 쌍의 우선순위를 매기는 데 쓰이고, 동률은 **순차번호**가 끝낸다.
 
-SO 필드 이름을 `MinEatablePrice` / `MaxEatablePrice` 처럼 "먹을 수 있는" 뉘앙스로 짓지 않는다. `TargetingRange`(또는 `TargetingMin`/`TargetingMax`) 처럼 **우선순위용**임이 드러나는 이름을 쓴다. 이름이 잘못되면 다음 사람이 반드시 게이트로 쓴다.
+**자격 판정(먹을 수 있나)에는 절대 쓰이지 않는다.** 다음 코드는 기획 위반이다:
+
+```csharp
+if (Mathf.Abs(price - _data.Targeting) > threshold) return false;   // ❌ 거리를 게이트로
+```
+
+더 맞는 대안이 없으면 손님은 **타겟팅에서 아무리 먼 초밥도 먹는다.** 눈앞의 초밥을 두고 구경만 하는 상황은 버그로 취급한다.
+
+SO 필드 이름을 `MaxEatablePrice` 처럼 "먹을 수 있는" 뉘앙스로 짓지 않는다. `TargetingPrice` 처럼 **선호도용**임이 드러나는 이름을 쓴다. 이름이 잘못되면 다음 사람이 반드시 게이트로 쓴다.
+
+> 우선순위 산정식은 **확정됐다**: `−|가격 − 타겟팅|`, 동거리면 고가 우선. 상세는 [`../domain/sushi-claim-flow.md`](../domain/sushi-claim-flow.md) §2.

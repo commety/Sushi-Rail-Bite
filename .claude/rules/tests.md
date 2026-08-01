@@ -18,7 +18,7 @@ PlayMode 는 느리다. **프레임 단위 정확성이 실제로 필요한 경�
 
 ## 2. 우선순위 (`CLAUDE.md` §5.2)
 
-1. 순수 게임 로직 — 집기 판정(FIFO) / 경합 해소(타겟팅 우선순위) / 포화도 / 소화 타이머 / 점수 누적
+1. 순수 게임 로직 — 자격 판정 / 배정(거리→고가→SeqNo) / 포화도 / 소화 타이머 / 점수 누적
 2. 상태 머신 전이 조건 — `Idle → Eating → Full/Digesting → Idle`
 3. Presenter (View 는 스텁으로 대체)
 4. SO 데이터 검증 (예: 음수 가격 거부)
@@ -27,11 +27,23 @@ PlayMode 는 느리다. **프레임 단위 정확성이 실제로 필요한 경�
 ## 3. 네이밍 · 구조
 
 - 메서드명: `MethodName_StateUnderTest_ExpectedBehavior`
-  - `TryTake_SushiInReach_TakesRegardlessOfPrice`
-  - `TryTake_MultipleSushiInReach_TakesOldestFirst`
-  - `ResolveClaim_TwoCustomersInRange_HigherTargetingPriorityWins`
-  - `Digest_AfterCooldown_ResetsSaturation`
-  - `AddScore_SushiEaten_IncreasesByPrice`
+- **자격과 배정을 테스트에서도 분리**한다. 한 테스트가 둘을 동시에 검증하면 어디가 깨졌는지 알 수 없다.
+
+```
+자격  CanTake_SushiFarFromTargeting_ReturnsTrue          ← 타겟팅에서 멀어도 자격은 있다
+      CanTake_Full_ReturnsFalse
+      CanTake_SushiLatchedPastReach_ReturnsTrue          ← 인식 래치 (§1.1-3c)
+배정  Resolve_OneCustomerManySushi_TakesNearestToTargeting
+      Resolve_EqualDistance_TakesHigherPrice             ← 190 vs 210 → 210
+      Resolve_SamePrice_TakesLowerSushiSequence
+      Resolve_ManyCustomersOneSushi_HigherPriorityWins
+      Resolve_EqualPrioritySameSushi_LowerCustomerSequenceWins
+      Resolve_SameBoardTwice_ProducesIdenticalResult     ← 결정성 회귀 방지
+      Resolve_SushiAlreadyClaimed_NotAssignedAgain
+기타  Digest_AfterCooldown_ResetsSaturation
+      AddScore_SushiEaten_IncreasesByPrice
+      AddRecruitCurrency_ScoreGained_AccruesOneTenth
+```
 - Arrange–Act–Assert 를 주석 없이도 **빈 줄로** 구분한다.
 - 테스트 더블은 손으로 쓴 스텁/페이크 우선. NSubstitute 같은 패키지 추가는 팀 합의 사항이다 (`CLAUDE.md` §7 — 에이전트가 단독으로 패키지를 추가하지 않는다).
 
@@ -41,16 +53,26 @@ PlayMode 는 느리다. **프레임 단위 정확성이 실제로 필요한 경�
 
 밸런스 애셋 자체의 유효성(음수 가격 등)은 **별도의 데이터 검증 테스트**로 분리한다.
 
-## 5. 무작위성이 낀 로직 (경합 동률 처리)
+## 5. 배정은 결정적이다 — 난수를 쓰지 않는다
 
-타겟팅 우선순위가 **동률이면 임의로** 승자를 정한다 (`CLAUDE.md` §1.1-3a). 이건 테스트 가능해야 한다.
+타겟팅 우선순위 동률은 **순차번호**로 끝난다 (`CLAUDE.md` §1.1-3b). 배정 경로에 난수가 없다.
 
-- 경합 해소기가 `UnityEngine.Random` 을 **직접** 호출하면 EditMode 로 검증할 수 없다. 난수원을 주입한다 (`System.Random` 시드 또는 `IRandomSource` 인터페이스).
-- 테스트에서 검증할 것:
-  - 동률이 아닐 때 → **결정적으로** 우선순위 높은 손님이 이긴다
-  - 동률일 때 → 고정 시드로 **재현 가능한** 승자가 나온다
-  - 동률일 때 → 후보 전원이 **언젠가는** 뽑힌다 (한 명만 계속 이기는 편향 없음)
-- 여기서도 "아무도 못 집는 결과"가 나오면 안 된다. 경합 해소기는 **항상 승자 한 명을 반환**한다.
+- **프로덕션 배정 코드에 `Random` 이 등장하면 규칙 위반이다.** 난수원 주입도, 시드 고정도 필요 없다
+- 덕분에 테스트가 단순하다 — 같은 판 상태 → 항상 같은 결과. 반복 실행·통계 검증이 불필요하다
+- 검증할 것:
+  - 거리가 다르면 → 가까운 쪽이 이긴다
+  - 동거리면 → **비싼 초밥** (`타겟팅±d` 두 지점 중 고가)
+  - 동거리 + 같은 가격이면 → **초밥 SeqNo** 낮은 쪽
+  - 같은 초밥을 두고 동거리면 → **손님 SeqNo** 낮은 쪽
+  - 같은 입력을 두 번 넣으면 → **완전히 같은 배정 결과** (결정성 자체를 테스트로 고정)
+  - 후보가 있으면 → 아무도 못 집는 결과가 **나오지 않는다**
+
+```csharp
+// 결정성 회귀 방지 — 이 테스트 하나가 난수 재도입을 막는다
+Assert.AreEqual(resolver.Resolve(board), resolver.Resolve(board));
+```
+
+> 난수가 필요해 보이는 상황이 생기면 그건 **순차번호 설계가 빠진 신호**다. 난수를 넣지 말고 순서 키를 먼저 정한다.
 
 ## 6. 실행
 

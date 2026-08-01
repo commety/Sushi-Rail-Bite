@@ -16,15 +16,28 @@ This document defines the rules and context that Claude (and any other AI coding
   2. At stage start, sushi from the deck spawns randomly onto the rotating belt line.
   3. Customers are placed at fixed tables and each has the following stats:
      - **Reach**: the physical range on the belt where they can grab sushi
-     - **Targeting**: the price band this customer prefers. **This is a priority hint, not a hard constraint** — see 3a
+     - **Targeting**: a **single price** this customer aims for — the tower-defense "attack power" analogue. **This is a preference, not a hard constraint** — see 3a
      - **Eating speed**: time taken to consume a piece of sushi
      - **Satiety**: total amount they can eat before becoming full
      - **Digestion time**: cooldown after becoming full before they can eat again
-  3a. **How a sushi gets claimed** — the rule that Targeting participates in:
-     - By default a customer takes whatever sushi enters its reach, **FIFO (first-come, first-served), regardless of price**. A customer never sits and watches sushi it could physically reach — that is a bad play experience and is treated as a bug.
-     - Targeting only matters when **two or more customers can reach the same piece of sushi**. Among those contenders, Targeting decides who gets it.
-     - If the resulting priority ties, the winner is broken arbitrarily (random or equivalent).
-     - Consequence: a price band that a customer "does not prefer" still gets eaten by that customer when nobody else is contending for it.
+  3a. **How a sushi gets claimed.** Eligibility is separate from who-gets-what, and conflating them is the most common implementation error in this project.
+     - **Eligibility — can this customer take anything at all?** Decided by **reach ∧ satiety headroom ∧ state** only. **Price is never a gate.** A customer never sits and watches sushi it could physically reach — that is a bad play experience and is treated as a bug.
+     - **Assignment — who gets which piece?** Every recognized (customer, sushi) pair is ranked by **one sort key, applied in this order**:
+
+       | # | Key | Direction | Rationale |
+       |---|---|---|---|
+       | 1 | `−\|sushi price − customer Targeting\|` | closest first | Targeting is the primary preference |
+       | 2 | `sushi price` | **higher first** | equal distance ⇒ take the pricier one (the goal is score) |
+       | 3 | sushi Sequence Number | lower first | first onto the belt, first served |
+       | 4 | customer Sequence Number | lower first | first placed, first served |
+
+       Sushi keys outrank customer keys — in TD terms the enemy is primary, the tower secondary. Because Sequence Numbers are unique, this is a **total order**: a winner always exists and is never ambiguous.
+     - The same key covers every case without branching: 1 customer / N sushi resolves on keys 1–3; N customers / 1 sushi resolves on keys 1 and 4; N:M is the same ranking applied repeatedly.
+     - Distance is **symmetric** — a customer targeting 200 prefers a 199 sushi over a 250 one. That is intentional: if everyone simply grabbed the most expensive piece, Targeting and placement would carry no strategy.
+     - Consequence: a price a customer "does not prefer" still gets eaten by that customer when nothing better is in reach and nobody else is contending for it.
+  3b. **Sequence Number makes claiming deterministic.** Sushi are numbered in spawn order, customers in placement order. **There is no randomness in claim resolution** — the same board state always produces the same outcome, which is both fair to the player and directly unit-testable.
+     - SeqNo is a **tiebreaker, not a priority system.** Targeting always outranks it. Placement order therefore matters only for pieces two customers want *equally* — it is a consistency guarantee first and a minor strategic lever second.
+  3c. **Detection is event-driven and recognition latches.** Customers do not scan the belt every frame; entering reach raises the event. Once a sushi is recognized it **stays claimable even if it drifts past the reach edge while resolution is computing** — recognition already happened, and dropping it would feel like a miss. See [`.claude/domain/sushi-claim-flow.md`](.claude/domain/sushi-claim-flow.md).
   4. Score increases by the price of every sushi a customer eats.
   5. Reaching the target score within the time limit clears the stage; bonus objectives grant extra rewards.
   6. Clearing a stage grants roguelite meta-progression (new sushi/customer cards, etc.).
@@ -56,8 +69,11 @@ Agents must not rename these terms arbitrarily anywhere in code, commits, or PRs
 |---|---|---|
 | Sushi | Score unit flowing on the belt | `SushiData`, `SushiItem` |
 | Customer | Tower-role customer | `CustomerData`, `Customer` |
-| Targeting | A customer's preferred price band. Used **only** to rank contenders when several customers can reach the same sushi — never to forbid eating (§1.1-3a) | `TargetingRange`, `TargetingPriority` |
-| Claim | Resolving which customer takes a contested piece of sushi | `SushiClaimResolver` |
+| Targeting | The **single price** a customer aims for (the TD "attack power" analogue). Ranks (customer, sushi) pairs during assignment (§1.1-3a). Never an eligibility gate — it can never make a customer refuse to eat | `TargetingPrice`, `TargetingPriority` |
+| Sequence Number | Deterministic order key. Sushi are numbered on spawn, customers on placement. Breaks Targeting ties — **replaces randomness entirely** (§1.1-3b) | `SequenceNumber` |
+| Claim | Resolving which customer takes which sushi | `SushiClaimResolver` |
+| Trait | A tag on sushi that can trigger a synergy buff on the customer that eats it (optional, demo-scope) | `SushiTrait` |
+| Recruit cost | Price of placing a customer. Paid from recruit currency, which accrues as `score / 10` | `RecruitCost` |
 | Table | Fixed slot where a customer is placed | `TableSlot` |
 | Belt | The rotating line sushi flows on | `SushiBelt` |
 | Deck | The set of sushi/customer cards assembled before a stage | `SushiDeck`, `CustomerDeck` |

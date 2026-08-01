@@ -20,8 +20,10 @@ description: 버그 리포트·예외·오작동을 만났을 때 에이전트�
 | 이벤트 중복 호출 / 구독 누수 | `Grep` 으로 `+=`·`-=` 쌍 전수 매칭 + `LSP.findReferences` | Bridge 로 씬 로드 후 `Component.GetField` 로 델리게이트 체인 조회 | "리스너 한 번 지워 보세요" |
 | 물리 버그 / 벨트 이동 이상 | `Grep` 으로 `AddForce`/`MovePosition`/`velocity` 호출 위치 + `RULES.md` RULE-04 확인 | Bridge `EnterPlaymode` + `Component.GetField` 로 벨트 위치·속도 폴링 | "직접 돌려 보세요" |
 | 밸런스가 의도와 다름 (너무 빨리 배부름 등) | `Grep` 으로 해당 수치가 **코드 상수인지 SO 필드인지** 먼저 판정 (`CLAUDE.md` §3.1) | Bridge `Component.GetField` 로 런타임에 실제 로드된 SO 값 확인 | 값을 임의로 바꿔 "고쳤다" 고 보고 |
-| **손님이 눈앞 초밥을 안 집고 구경함** | 집기 경로에 **가격 비교가 섞였는지** 먼저 본다 — 타겟팅을 게이트로 오용한 것이 1순위 용의자 (`CLAUDE.md` §1.1-3a). 그다음 범위·포화도·상태 순 | Bridge `EnterPlaymode` + 해당 손님의 상태·포화도 폴링 | "밸런스 문제인 것 같다" 로 넘기기 — 이건 기획 위반 버그다 |
-| 경합 시 엉뚱한 손님이 가져감 | `SushiClaimResolver` 의 우선순위 산정 + 동률 tie-break 를 `Read` (`CLAUDE.md` §1.1-3a) | 고정 시드로 EditMode 재현이 우선. Bridge 는 최후 | 한 번 관찰하고 "랜덤이라 어쩔 수 없다" 로 종결 |
+| **손님이 눈앞 초밥을 안 집고 구경함** | **자격 판정 경로**에 가격 비교가 섞였는지 먼저 본다 — 타겟팅을 자격 게이트로 오용한 것이 1순위 용의자 (`CLAUDE.md` §1.1-3a). 그다음 범위·포화도·상태 순 | Bridge `EnterPlaymode` + 해당 손님의 상태·포화도 폴링 | "밸런스 문제인 것 같다" 로 넘기기 — 이건 기획 위반 버그다 |
+| 손님이 엉뚱한 초밥을 집음 (더 맞는 게 옆에 있는데) | **배정** 랭킹을 `Read` (§1.1-3a) — 우선순위 산정식, 그다음 SeqNo 순서. 후보 집합이 실제로 복수였는지부터 확인 (하나뿐이면 정상) | 같은 판 상태로 EditMode 재현이 우선 — **배정은 결정적이라 반드시 재현된다** | 우선순위 공식을 먼저 의심하기. 후보 집합이 잘못 구성된 경우가 더 많다 |
+| 경합 시 엉뚱한 손님이 가져감 | `SushiClaimResolver` 의 우선순위 + SeqNo 순서를 `Read` (§1.1-3a) | EditMode 재현이 우선. Bridge 는 최후 | **"랜덤이라 어쩔 수 없다" 로 종결 — 배정에 난수는 없다.** 재현되지 않으면 그 자체가 버그다 |
+| 초밥이 범위에 들어왔는데 반응이 없음 | **이벤트 배선**을 본다 (§1.1-3c) — 진입 이벤트가 발화하는지, 후보 집합에 추가되는지. 재계산 트리거 누락(먹힘·상태 전이)이 흔한 원인 | Bridge 로 후보 집합 필드 스냅샷 | `Update` 스캔으로 되돌려 "고치기" — 구조 위반이다 |
 | 손님 상태가 멈춤 (Eating/Digesting 에서 안 빠져나옴) | 상태 머신 전이 조건을 순수 클래스에서 `Read` + 대응 EditMode 테스트 확인 | Bridge 로 상태 필드 폴링 | "한참 기다려 보세요" |
 | 도메인 리로드 / static 상태 오염 | `Grep` 으로 `static` 필드 + `[RuntimeInitializeOnLoadMethod]` 쌍 확인 (RULE-01 / RULES.md RULE-01) | Bridge `EnterPlaymode` → `ExitPlaymode` → `EnterPlaymode` 재진입 시 필드값 비교 | "Play 두 번 눌러 보세요" |
 | UI 레이아웃 깨짐 | `LSP.workspaceSymbol` 로 관련 Layout 컴포넌트 심볼 + `Grep` anchor/pivot 설정 | Bridge `Component.GetField` 로 RectTransform 수치 조회 | "씬 열어서 위치 보세요" |
