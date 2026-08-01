@@ -39,7 +39,7 @@ git clone https://github.com/commety/Sushi-Rail-Bite.git
 | 배포 타깃 | **WebGL** (웹 데모) |
 | 언어 | C# |
 | 개발 방식 | **TDD 기본값** — 실패 테스트 → 최소 구현 → 리팩터 |
-| 브랜치 전략 | Git Flow + 3-way handshake (`feature/*` → PR → 사람 승인 후 머지) |
+| 브랜치 전략 | Git Flow + 3-way handshake (`feat/*` → PR → 사람 승인 후 머지) |
 
 Unity 버전은 `ProjectSettings/ProjectVersion.txt` 가 정답이다. Unity Hub 에서 **정확히 이 버전**을 설치한다. 버전이 다르면 프로젝트를 여는 순간 에셋이 업그레이드되어 되돌리기 어렵다.
 
