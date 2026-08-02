@@ -6,8 +6,8 @@
 #   ./tests/run-tests.sh editmode --filter Claim*    NUnit 필터 전달
 #
 # Output:
-#   tests/.results/{platform}-results.xml   NUnit3 원본 (gitignore 대상)
-#   tests/.results/{platform}.log           Unity 배치모드 로그
+#   tests/results/{platform}-results.xml   NUnit3 원본 (gitignore 대상)
+#   tests/results/{platform}.log           Unity 배치모드 로그
 #   stdout                                   parse-results.py 요약
 #
 # Exit:
@@ -19,7 +19,7 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source scripts/lib/unity-path.sh
 
-RESULTS_DIR="tests/.results"
+RESULTS_DIR="tests/results"
 mkdir -p "$RESULTS_DIR"
 
 # ── 인자 ────────────────────────────────────────────────────────────────
@@ -40,15 +40,31 @@ esac
 # ── 에디터 점유 확인 ─────────────────────────────────────────────────────
 # 배치모드는 프로젝트 락을 잡는다. GUI 에디터(ClaudeBridge 용)가 떠 있으면
 # 실패하는데, Unity 의 에러 메시지가 불친절해서 원인을 찾기 어렵다.
+#
+# 락파일 존재만으로 판정하지 않는다: 에디터가 비정상 종료하면 Temp/UnityLockfile
+# 이 그대로 남는다(stale). 실제 프로세스를 확인해야 멀쩡한 상태에서 막지 않는다.
 if [ -f "Temp/UnityLockfile" ]; then
-    cat >&2 <<EOF
+    EDITOR_RUNNING=0
+    if command -v pgrep >/dev/null 2>&1; then
+        pgrep -f "Unity.app/Contents/MacOS/Unity.*$PROJECT_ROOT" >/dev/null 2>&1 && EDITOR_RUNNING=1
+        pgrep -f "Editor/Unity.*$PROJECT_ROOT" >/dev/null 2>&1 && EDITOR_RUNNING=1
+    else
+        # pgrep 이 없는 환경(git-bash 등)에서는 락파일을 신뢰한다.
+        EDITOR_RUNNING=1
+    fi
+
+    if [ $EDITOR_RUNNING -eq 1 ]; then
+        cat >&2 <<EOF
 ERROR: Unity 에디터가 이 프로젝트를 열고 있습니다 (Temp/UnityLockfile).
 
 배치모드 테스트는 프로젝트 락을 단독으로 잡아야 합니다. 둘 중 하나:
   1. 에디터를 닫고 다시 실행
   2. 에디터를 띄운 채로 하려면 Test Runner 창(Window > General > Test Runner) 사용
 EOF
-    exit 4
+        exit 4
+    fi
+
+    echo "note: Temp/UnityLockfile 이 남아 있지만 실행 중인 에디터가 없습니다 (stale). 계속합니다." >&2
 fi
 
 WORST_EXIT=0

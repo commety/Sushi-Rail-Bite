@@ -39,7 +39,7 @@
 | `../.editorconfig` | 포맷·네이밍 규칙. **루트 고정** — `dotnet format` 이 루트에서만 찾는다 |
 | `../scripts/lib/unity-path.sh` | Unity 실행 파일 경로 해석. `run.sh` 와 공유 |
 
-`.results/` 는 실행 산출물(NUnit XML·Unity 로그)이며 `.gitignore` 대상이다.
+`results/` 는 실행 산출물(NUnit XML·Unity 로그)이며 `.gitignore` 대상이다. **점으로 시작하는 이름을 쓰지 않는다** — Unity 가 `-testResults`/`-logFile` 경로에서 숨김 디렉토리를 거부한다(`.results is not a valid directory name`).
 
 ## 종료 코드
 
@@ -54,7 +54,14 @@
 | 4 | Unity 에디터가 프로젝트를 점유 중 |
 | 6 / 7 | `.sln` 없음 / `dotnet` SDK 없음 |
 
-**테스트 0개를 통과로 보지 않는다.** TDD 가 기본값인 프로젝트에서(`CLAUDE.md` §5) 스위트가 빈 채 Green 이 나오면 게이트가 조용히 무력화된다.
+**테스트 0개를 통과로 보지 않는다.** Unity 는 테스트가 0개일 때 `result="Passed"` 로 보고한다 — 실제 출력으로 확인했다. TDD 가 기본값인 프로젝트에서(`CLAUDE.md` §5) 스위트가 빈 채 Green 이 나오면 게이트가 조용히 무력화된다.
+
+단 `preflight.sh` 는 둘을 구분한다:
+
+| 상황 | 판정 |
+|---|---|
+| `Assets/Tests/**/*.cs` 가 하나도 없다 | `skip` — 스위트가 아직 없다 (M0 이전) |
+| 테스트 파일은 있는데 0개가 발견됐다 | `FAIL` — `.asmdef` 오설정이다 |
 
 ## 자주 걸리는 것
 

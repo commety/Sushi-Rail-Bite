@@ -93,10 +93,14 @@ else
 fi
 
 # ── 7. 테스트 (§8-3) ────────────────────────────────────────────────────
+# 테스트 .cs 가 하나도 없으면 스위트가 아직 없는 것이다 (M0 이전).
+# 파일은 있는데 0개가 발견되는 것과는 다르다 — 그건 asmdef 오설정이므로 FAIL.
+TEST_FILES=$(find Assets/Tests -name '*.cs' 2>/dev/null | head -1)
+
 if [ $FAST -eq 1 ]; then
     record "EditMode 테스트 (§8-3)" "SKIP" "--fast"
-elif [ ! -d "Assets/Tests/EditMode" ]; then
-    record "EditMode 테스트 (§8-3)" "SKIP" "테스트 어셈블리 아직 없음"
+elif [ -z "$TEST_FILES" ]; then
+    record "EditMode 테스트 (§8-3)" "SKIP" "테스트 파일 없음 — M0 에서 생성"
 else
     TEST_OUT=$(./tests/run-tests.sh editmode 2>&1)
     TEST_EXIT=$?
@@ -110,7 +114,7 @@ else
         3) record "EditMode 테스트 (§8-3)" "FAIL" "${SUMMARY:-결과 불명}" ;;
         *) record "EditMode 테스트 (§8-3)" "FAIL" "${SUMMARY:-실패}" ;;
     esac
-    echo "$TEST_OUT" > tests/.results/preflight-tests.log
+    echo "$TEST_OUT" > tests/results/preflight-tests.log
 fi
 
 # ── 보고 ────────────────────────────────────────────────────────────────
