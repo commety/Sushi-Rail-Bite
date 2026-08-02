@@ -76,11 +76,21 @@ Assert.AreEqual(resolver.Resolve(board), resolver.Resolve(board));
 
 ## 6. 실행
 
-```
-Unity -batchmode -runTests -testPlatform EditMode -projectPath . -testResults results.xml -quit
+```bash
+./tests/run-tests.sh
 ```
 
-커밋 전 체크리스트(`CLAUDE.md` §8)는 EditMode 전량 + 관련 PlayMode 통과를 요구한다. 실패하면 커밋하지 말고 실패를 보고한다.
+```bash
+./tests/run-tests.sh all
+```
+
+**`Unity -batchmode -runTests` 를 손으로 치지 않는다.** `Unity` 는 PATH 에 없고(Hub 경로 해석은 `scripts/lib/unity-path.sh` 에 있다), 손으로 조립하면 `-quit` 을 붙이게 되는데 그러면 **테스트가 끝나기 전에 에디터가 내려간다.**
+
+출력은 요약이다 — `통과: 42/42 (1.2s)`, 실패 시 실패 케이스만. 원본 NUnit XML 은 `tests/.results/` 에 남는다.
+
+종료 코드에서 **컴파일 실패(2)와 테스트 실패(1)가 구분된다.** 배치모드 로그만 봐서는 둘이 비슷해 보이므로, 코드로 먼저 확인한다.
+
+커밋 전 체크리스트(`CLAUDE.md` §8) 전체는 `./tests/preflight.sh` 하나로 돈다. 실패하면 커밋하지 말고 실패를 보고한다. → [`tests/README.md`](../../tests/README.md)
 
 ## 7. 금지
 

@@ -127,3 +127,5 @@ __pycache__/
 .claude-bridge/inbox/
 .claude-bridge/outbox/
 .claude-bridge/logs/
+# 테스트 러너 산출물 — NUnit XML·Unity 로그. 재생성되므로 커밋 대상 아님.
+tests/results/

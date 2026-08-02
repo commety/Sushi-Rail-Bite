@@ -158,7 +158,7 @@ namespace Editor.ClaudeBridge.Ops
         public static string CreateVariant(string argsJson)
         {
             var a = JsonUtility.FromJson<PrefabCreateVariantArgs>(argsJson);
-            if (string.IsNullOrEmpty(a.sourcePath))  throw new ArgumentException("sourcePath required");
+            if (string.IsNullOrEmpty(a.sourcePath)) throw new ArgumentException("sourcePath required");
             if (string.IsNullOrEmpty(a.variantPath)) throw new ArgumentException("variantPath required");
 
             var source = AssetDatabase.LoadAssetAtPath<GameObject>(a.sourcePath)

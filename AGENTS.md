@@ -238,14 +238,23 @@ When any of these are needed, Claude presents a change plan and diff, then reque
 
 **All of the following must pass before a commit is made.** If any step fails, do not commit — report the failure instead.
 
-1. **Format/lint**: `dotnet format` (or the project's `.editorconfig`-based formatter) passes
-2. **Type check/compile**: no Unity compile errors (or newly introduced warnings)
-3. **Tests**: the full Unity Test Runner suite passes (EditMode first, plus relevant PlayMode)
-   - CLI example: `Unity -batchmode -runTests -testPlatform EditMode -projectPath . -testResults results.xml -quit`
+**One command runs the whole checklist:**
+
+```bash
+./tests/preflight.sh
+```
+
+It runs every item below, does **not** stop at the first failure, and reports a table. Use `--fast` to skip the two steps that launch Unity.
+
+1. **Format/lint**: `./tests/lint.sh` (`.editorconfig` via `dotnet format`; `--fix` applies)
+2. **Type check/compile**: no Unity compile errors — a compile failure surfaces as exit code **2** from the test runner, distinct from a test failure
+3. **Tests**: the full Unity Test Runner suite passes — `./tests/run-tests.sh` (EditMode; `all` adds PlayMode)
 4. **Asset leak check** (§9)
 5. Confirm new logic has a corresponding test (§5.4)
 
-> Lint/formatting configs and CI pipeline scripts for the feedback loop live in the root-level `tests/` directory (see §10) — distinct from the gameplay unit tests under `Assets/Tests`.
+> **Never invoke `Unity -batchmode -runTests` by hand.** `Unity` is not on `PATH` — the Hub path/version resolution lives in [`scripts/lib/unity-path.sh`](scripts/lib/unity-path.sh). Hand-rolling the command also tends to add `-quit`, which kills the editor *before* tests finish.
+
+> The feedback loop — runner, NUnit summarizer, linter — lives in the root-level [`tests/`](tests/README.md) directory (see §10), distinct from the gameplay unit tests under `Assets/Tests`. **There is no CI pipeline**; this local loop is the only automated signal (revisit at M8).
 
 ---
 
@@ -261,7 +270,9 @@ When any of these are needed, Claude presents a change plan and diff, then reque
 
 ## 10. Directory Structure
 
-Agent-facing material (`docs/`, `.claude/`, `tests/`) lives at the **project root, outside `Assets/`**, with one exception: `Assets/Tests` remains in place because Unity Test Framework requires test assemblies to live under `Assets` (or `Packages/`) to be discovered by the Test Runner. The root-level `tests/` directory is unrelated to gameplay tests — it holds the CI/CD feedback loop: pipeline scripts, linter configs, and other non-Unity tooling.
+Agent-facing material (`docs/`, `.claude/`, `tests/`) lives at the **project root, outside `Assets/`**, with one exception: `Assets/Tests` remains in place because Unity Test Framework requires test assemblies to live under `Assets` (or `Packages/`) to be discovered by the Test Runner. The root-level `tests/` directory is unrelated to gameplay tests — it holds the **feedback loop**: the test runner, the NUnit result summarizer, the linter wrapper, and the pre-commit aggregator. There is deliberately **no CI pipeline** (see [`tests/README.md`](tests/README.md)); this local loop is the only automated signal until M8.
+
+One config cannot live there: **`.editorconfig` must sit at the project root**, because `dotnet format` only looks for it there. `tests/lint.sh` is its entry point.
 
 Agent skills live in **`.claude/skills/`**, not a root-level `skills/`. That path is fixed by Claude Code — it is where the tooling actually discovers them, so it is not a free choice. Everything else the agents read (`INDEX.md`, `knowledge/`, `rules/`, `domain/`, `agents/`) sits alongside them under `.claude/`.
 
@@ -275,7 +286,11 @@ ProjectRoot
 │   ├── domain/                 # This project's design/system knowledge
 │   ├── agents/                 # Sub-agent definitions (researcher / engineer)
 │   └── skills/                 # Agent skills — /task-start, /run, /qa, /debug, ...
-├── tests/                      # CI/CD feedback loop: pipeline scripts, linter configs, non-Unity tooling
+├── tests/                      # Feedback loop (no CI) — see tests/README.md
+│   ├── preflight.sh            #   §8 pre-commit checklist, aggregated
+│   ├── run-tests.sh            #   Unity Test Framework, headless
+│   ├── parse-results.py        #   NUnit3 XML → summary (compile-fail vs test-fail)
+│   └── lint.sh                 #   dotnet format wrapper (rules in root .editorconfig)
 ├── Assets/
 │   ├── Art/
 │   │   ├── Sprites/
@@ -312,6 +327,7 @@ ProjectRoot
 │       ├── EditMode/              # Tests.EditMode.asmdef
 │       └── PlayMode/              # Tests.PlayMode.asmdef
 ├── scripts/                      # Harness scripts — run.sh, bridge-run.sh, worktree setup
+│   └── lib/unity-path.sh         #   Unity binary resolution, shared with tests/run-tests.sh
 ├── Packages/
 ├── ProjectSettings/
 ├── CLAUDE.md

@@ -13,12 +13,12 @@ namespace Editor.ClaudeBridge
     /// </summary>
     public static class CommandIO
     {
-        public const string InboxFolder  = ".claude-bridge/inbox";
+        public const string InboxFolder = ".claude-bridge/inbox";
         public const string OutboxFolder = ".claude-bridge/outbox";
 
         public static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-        public static string InboxPath   => Path.Combine(ProjectRoot, InboxFolder);
-        public static string OutboxPath  => Path.Combine(ProjectRoot, OutboxFolder);
+        public static string InboxPath => Path.Combine(ProjectRoot, InboxFolder);
+        public static string OutboxPath => Path.Combine(ProjectRoot, OutboxFolder);
 
         public static void EnsureFolders()
         {

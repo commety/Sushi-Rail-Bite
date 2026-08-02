@@ -63,39 +63,13 @@ case "$PLATFORM_ARG" in
         exit 2 ;;
 esac
 
-# ── project root sanity ─────────────────────────────────────────────────
-if [ ! -f ProjectSettings/ProjectVersion.txt ]; then
-    echo "ERROR: Run from a Unity project root (ProjectSettings/ProjectVersion.txt missing)." >&2
-    exit 2
-fi
+# ── Unity editor location ───────────────────────────────────────────────
+# 경로 해석은 tests/run-tests.sh 와 공유한다. 복제하면 Unity 버전을 올릴 때
+# 한쪽만 고쳐진다.
+source "$(dirname "${BASH_SOURCE[0]}")/lib/unity-path.sh"
 
-UNITY_VERSION=$(awk '/m_EditorVersion:/ {print $2; exit}' ProjectSettings/ProjectVersion.txt)
 echo "Unity version   : $UNITY_VERSION"
 echo "Build target    : $BUILD_TARGET"
-
-# ── Unity editor location ───────────────────────────────────────────────
-case "$(uname -s)" in
-    Darwin)
-        UNITY_APP="/Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app"
-        UNITY_BIN="$UNITY_APP/Contents/MacOS/Unity"
-        PLAYBACK_ENGINES="$UNITY_APP/Contents/PlaybackEngines" ;;
-    Linux)
-        UNITY_BIN="$HOME/Unity/Hub/Editor/$UNITY_VERSION/Editor/Unity"
-        PLAYBACK_ENGINES="$HOME/Unity/Hub/Editor/$UNITY_VERSION/Editor/Data/PlaybackEngines" ;;
-    *)
-        UNITY_BIN="/c/Program Files/Unity/Hub/Editor/$UNITY_VERSION/Editor/Unity.exe"
-        PLAYBACK_ENGINES="/c/Program Files/Unity/Hub/Editor/$UNITY_VERSION/Editor/Data/PlaybackEngines" ;;
-esac
-
-if [ ! -x "$UNITY_BIN" ]; then
-    cat >&2 <<EOF
-ERROR: Unity Editor not found at:
-  $UNITY_BIN
-
-Install Unity $UNITY_VERSION via Unity Hub, then retry.
-EOF
-    exit 3
-fi
 
 # ── platform module installation check ──────────────────────────────────
 if [ ! -d "$PLAYBACK_ENGINES/$MODULE_DIR" ]; then

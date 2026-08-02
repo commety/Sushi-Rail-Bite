@@ -192,4 +192,4 @@ Claude가 이 순서로 inbox에 드롭하면 됨:
 - `JsonUtility`가 Dictionary/polymorphic 타입을 다루지 못해 op마다 args 구조체가 필요. Newtonsoft.Json으로 이관하면 범용 `Dictionary<string, object>` 가능.
 - 멀티 씬·서브 애셋은 미지원 (필요 시 op 추가).
 - 프리미티브 GameObject 생성(`GameObject.CreatePrimitive`)은 아직 전용 op 없음 — 현재 `Reflection.Invoke` 로 호출 후 수동 부모화. 자주 쓴다면 `Primitive.Create` op 추가 권장.
-- Python MCP 래퍼([`scripts/claude-bridge-mcp/`](../../scripts/claude-bridge-mcp/))는 GUI 모드 전제로 `unity_call` 호출마다 동기 대기. 순수 헤드리스 배치용 워크플로는 `unity_batch_flush()` 로 분리.
+- Python MCP 래퍼([`scripts/claude-bridge-mcp/`](../../../scripts/claude-bridge-mcp/))는 GUI 모드 전제로 `unity_call` 호출마다 동기 대기. 순수 헤드리스 배치용 워크플로는 `unity_batch_flush()` 로 분리.

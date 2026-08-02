@@ -85,14 +85,14 @@ namespace Editor.ClaudeBridge.Ops
 
             Undo.RecordObject(rt, "ClaudeBridge.SetRectTransform");
 
-            if (Has2(a.anchorMin))        rt.anchorMin        = V2(a.anchorMin);
-            if (Has2(a.anchorMax))        rt.anchorMax        = V2(a.anchorMax);
-            if (Has2(a.pivot))            rt.pivot            = V2(a.pivot);
+            if (Has2(a.anchorMin)) rt.anchorMin = V2(a.anchorMin);
+            if (Has2(a.anchorMax)) rt.anchorMax = V2(a.anchorMax);
+            if (Has2(a.pivot)) rt.pivot = V2(a.pivot);
             if (Has2(a.anchoredPosition)) rt.anchoredPosition = V2(a.anchoredPosition);
-            if (Has2(a.sizeDelta))        rt.sizeDelta        = V2(a.sizeDelta);
+            if (Has2(a.sizeDelta)) rt.sizeDelta = V2(a.sizeDelta);
             // offsetMin/Max는 anchor+size를 덮어쓰므로 위 필드 뒤에 적용.
-            if (Has2(a.offsetMin))        rt.offsetMin        = V2(a.offsetMin);
-            if (Has2(a.offsetMax))        rt.offsetMax        = V2(a.offsetMax);
+            if (Has2(a.offsetMin)) rt.offsetMin = V2(a.offsetMin);
+            if (Has2(a.offsetMax)) rt.offsetMax = V2(a.offsetMax);
 
             EditorUtility.SetDirty(rt);
             return JsonUtility.ToJson(new CompSetRectTransformResult { path = GameObjectPath.FullPath(go) });
@@ -124,8 +124,8 @@ namespace Editor.ClaudeBridge.Ops
 
             // 3) "GameObject", "Transform" 같은 짧은 이름 편의 지원 (UnityEngine 네임스페이스 우선)
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            foreach (var candidate in asm.GetTypes())
-                if (candidate.Name == fullName) return candidate;
+                foreach (var candidate in asm.GetTypes())
+                    if (candidate.Name == fullName) return candidate;
 
             return null;
         }
@@ -143,13 +143,13 @@ namespace Editor.ClaudeBridge.Ops
             if (t == null) throw new ArgumentException($"Type not found: {valueTypeName}");
 
             // 원시/enum/string
-            if (t == typeof(string))  return TrimQuotes(valueJson);
-            if (t == typeof(bool))    return bool.Parse(valueJson);
-            if (t == typeof(int))     return int.Parse(valueJson);
-            if (t == typeof(long))    return long.Parse(valueJson);
-            if (t == typeof(float))   return float.Parse(valueJson);
-            if (t == typeof(double))  return double.Parse(valueJson);
-            if (t.IsEnum)             return Enum.Parse(t, TrimQuotes(valueJson), ignoreCase: true);
+            if (t == typeof(string)) return TrimQuotes(valueJson);
+            if (t == typeof(bool)) return bool.Parse(valueJson);
+            if (t == typeof(int)) return int.Parse(valueJson);
+            if (t == typeof(long)) return long.Parse(valueJson);
+            if (t == typeof(float)) return float.Parse(valueJson);
+            if (t == typeof(double)) return double.Parse(valueJson);
+            if (t.IsEnum) return Enum.Parse(t, TrimQuotes(valueJson), ignoreCase: true);
 
             // UnityEngine 값 타입은 JsonUtility가 지원
             if (t == typeof(Vector2) || t == typeof(Vector3) || t == typeof(Vector4) ||
@@ -184,7 +184,7 @@ namespace Editor.ClaudeBridge.Ops
             if (value == null) return "null";
             var t = declaredType ?? value.GetType();
 
-            if (t == typeof(string))  return $"\"{value}\"";
+            if (t == typeof(string)) return $"\"{value}\"";
             if (t == typeof(bool) || t == typeof(int) || t == typeof(long) || t == typeof(float) || t == typeof(double))
                 return value.ToString();
             if (t.IsEnum) return $"\"{value}\"";
