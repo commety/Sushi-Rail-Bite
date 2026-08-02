@@ -108,7 +108,7 @@ namespace Editor.ClaudeBridge.Ops
             GameObject[] roots;
             var stage = PrefabStageUtility.GetCurrentPrefabStage();
             if (stage != null) roots = new[] { stage.prefabContentsRoot };
-            else               roots = SceneManager.GetActiveScene().GetRootGameObjects();
+            else roots = SceneManager.GetActiveScene().GetRootGameObjects();
 
             GameObject current = null;
             foreach (var r in roots)

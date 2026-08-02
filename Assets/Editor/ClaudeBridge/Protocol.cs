@@ -35,24 +35,24 @@ namespace Editor.ClaudeBridge
     // 새 op을 추가할 때는 여기에 args/result를 선언하고 Dispatcher에 핸들러를 등록한다.
 
     // === Scene ===
-    [Serializable] public class SceneNewArgs     { public string path; }            // 예: "Assets/Scenes/Solitaire.unity"
-    [Serializable] public class SceneNewResult   { public string scenePath; }
+    [Serializable] public class SceneNewArgs { public string path; }            // 예: "Assets/Scenes/Solitaire.unity"
+    [Serializable] public class SceneNewResult { public string scenePath; }
 
-    [Serializable] public class SceneOpenArgs    { public string path; }
-    [Serializable] public class SceneOpenResult  { public string scenePath; }
+    [Serializable] public class SceneOpenArgs { public string path; }
+    [Serializable] public class SceneOpenResult { public string scenePath; }
 
-    [Serializable] public class SceneSaveArgs    { public string path; }            // 빈 문자열이면 현재 씬 저장
-    [Serializable] public class SceneSaveResult  { public string scenePath; }
+    [Serializable] public class SceneSaveArgs { public string path; }            // 빈 문자열이면 현재 씬 저장
+    [Serializable] public class SceneSaveResult { public string scenePath; }
 
     // === GameObject ===
-    [Serializable] public class GoCreateArgs     { public string name; public string parentPath; } // parentPath: null/빈=루트
-    [Serializable] public class GoCreateResult   { public string path; public EntityId instanceId; }
+    [Serializable] public class GoCreateArgs { public string name; public string parentPath; } // parentPath: null/빈=루트
+    [Serializable] public class GoCreateResult { public string path; public EntityId instanceId; }
 
-    [Serializable] public class GoFindArgs       { public string path; }
-    [Serializable] public class GoFindResult     { public bool found; public EntityId instanceId; }
+    [Serializable] public class GoFindArgs { public string path; }
+    [Serializable] public class GoFindResult { public bool found; public EntityId instanceId; }
 
-    [Serializable] public class GoDeleteArgs     { public string path; }
-    [Serializable] public class GoDeleteResult   { public bool deleted; }
+    [Serializable] public class GoDeleteArgs { public string path; }
+    [Serializable] public class GoDeleteResult { public bool deleted; }
 
     [Serializable]
     public class GoSetTransformArgs
@@ -65,8 +65,8 @@ namespace Editor.ClaudeBridge
     [Serializable] public class GoSetTransformResult { public string path; }
 
     // === Component ===
-    [Serializable] public class CompAddArgs      { public string path; public string type; } // type: 풀네임 (예: "UnityEngine.UI.Canvas")
-    [Serializable] public class CompAddResult    { public string type; }
+    [Serializable] public class CompAddArgs { public string path; public string type; } // type: 풀네임 (예: "UnityEngine.UI.Canvas")
+    [Serializable] public class CompAddResult { public string type; }
 
     [Serializable] public class CompSetFieldArgs { public string path; public string type; public string field; public string valueJson; public string valueType; }
     [Serializable] public class CompSetFieldResult { public string field; }
@@ -87,40 +87,40 @@ namespace Editor.ClaudeBridge
     [Serializable] public class ReflectionInvokeResult { public string returnJson; public string returnType; }
 
     // === Asset ===
-    [Serializable] public class AssetRefreshArgs   { }
+    [Serializable] public class AssetRefreshArgs { }
     [Serializable] public class AssetRefreshResult { public bool refreshed; }
 
-    [Serializable] public class AssetCreatePrefabArgs   { public string goPath; public string prefabPath; }
+    [Serializable] public class AssetCreatePrefabArgs { public string goPath; public string prefabPath; }
     [Serializable] public class AssetCreatePrefabResult { public string prefabPath; }
 
     // === Prefab (stage-mode + nested instance) ===
-    [Serializable] public class PrefabOpenArgs        { public string path; }
-    [Serializable] public class PrefabOpenResult      { public string rootPath; public EntityId rootInstanceId; public string prefabPath; }
+    [Serializable] public class PrefabOpenArgs { public string path; }
+    [Serializable] public class PrefabOpenResult { public string rootPath; public EntityId rootInstanceId; public string prefabPath; }
 
-    [Serializable] public class PrefabSaveArgs        { }
-    [Serializable] public class PrefabSaveResult      { public string prefabPath; }
+    [Serializable] public class PrefabSaveArgs { }
+    [Serializable] public class PrefabSaveResult { public string prefabPath; }
 
-    [Serializable] public class PrefabCloseArgs       { public bool save; }
-    [Serializable] public class PrefabCloseResult     { public bool closed; public bool saved; }
+    [Serializable] public class PrefabCloseArgs { public bool save; }
+    [Serializable] public class PrefabCloseResult { public bool closed; public bool saved; }
 
-    [Serializable] public class PrefabGetCurrentArgs  { }
+    [Serializable] public class PrefabGetCurrentArgs { }
     [Serializable] public class PrefabGetCurrentResult { public bool isOpen; public string prefabPath; public string rootPath; public EntityId rootInstanceId; }
 
     /// <summary>nested 프리팹: 원본 링크 유지한 채 자식으로 인스턴스화.</summary>
-    [Serializable] public class PrefabInstantiateArgs   { public string prefabPath; public string parentPath; public string name; }
+    [Serializable] public class PrefabInstantiateArgs { public string prefabPath; public string parentPath; public string name; }
     [Serializable] public class PrefabInstantiateResult { public string path; public EntityId instanceId; }
 
-    [Serializable] public class PrefabApplyArgs       { public string path; } // 경로는 prefab instance 루트
-    [Serializable] public class PrefabApplyResult     { public bool applied; }
+    [Serializable] public class PrefabApplyArgs { public string path; } // 경로는 prefab instance 루트
+    [Serializable] public class PrefabApplyResult { public bool applied; }
 
-    [Serializable] public class PrefabUnpackArgs      { public string path; public bool completely; }
-    [Serializable] public class PrefabUnpackResult    { public bool unpacked; }
+    [Serializable] public class PrefabUnpackArgs { public string path; public bool completely; }
+    [Serializable] public class PrefabUnpackResult { public bool unpacked; }
 
     /// <summary>
     /// Variant 프리팹 생성. 소스 프리팹을 상속받는 새 프리팹이 만들어지며
     /// 오버라이드만 변이하고 나머지는 원본 변경 시 자동 반영된다.
     /// </summary>
-    [Serializable] public class PrefabCreateVariantArgs   { public string sourcePath; public string variantPath; }
+    [Serializable] public class PrefabCreateVariantArgs { public string sourcePath; public string variantPath; }
     [Serializable] public class PrefabCreateVariantResult { public string variantPath; }
 
     // === Sprite (SVG → Texture2D → PNG 임포트) ===
@@ -132,13 +132,13 @@ namespace Editor.ClaudeBridge
         public string svgText;          // 인라인 SVG 문자열 (svgPath보다 우선)
         public string svgPath;          // 프로젝트 루트 기준 .svg 경로 (없으면 svgText 사용)
         public string pngPath;          // 출력 PNG 경로. "Assets/..." 아래여야 임포트됨. 필수.
-        public int    width;            // 힌트. 출력은 정방형 POT 로 강제 (NextPowerOfTwo(max(w,h))). 0이면 256.
-        public int    height;           // 힌트. 위와 동일. 0이면 256.
-        public float  pixelsPerUnit;    // Sprite PPU. 0이면 100.
+        public int width;            // 힌트. 출력은 정방형 POT 로 강제 (NextPowerOfTwo(max(w,h))). 0이면 256.
+        public int height;           // 힌트. 위와 동일. 0이면 256.
+        public float pixelsPerUnit;    // Sprite PPU. 0이면 100.
         public string filterMode;       // "Point"|"Bilinear"|"Trilinear". 빈 문자열이면 Bilinear.
         public string compression;      // "None"|"LowQuality"|"NormalQuality"|"HighQuality". 빈 문자열이면 None.
-        public int    antiAliasing;     // MSAA 샘플 (1/2/4/8). 0이면 4.
-        public bool   saveSvgSource;    // true면 PNG 옆에 .svg 원본 동시 저장 (svgText 사용 시).
+        public int antiAliasing;     // MSAA 샘플 (1/2/4/8). 0이면 4.
+        public bool saveSvgSource;    // true면 PNG 옆에 .svg 원본 동시 저장 (svgText 사용 시).
     }
 
     [Serializable]
@@ -146,9 +146,9 @@ namespace Editor.ClaudeBridge
     {
         public string pngPath;
         public string svgPath;          // saveSvgSource=true 이고 svgText를 썼을 때만 채워짐
-        public int    width;
-        public int    height;
-        public float  pixelsPerUnit;
+        public int width;
+        public int height;
+        public float pixelsPerUnit;
     }
 
     // === Component: RectTransform 편의 ===

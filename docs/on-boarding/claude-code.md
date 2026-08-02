@@ -103,18 +103,42 @@ ClaudeBridge (Unity C# Editor)  ← Assets/Editor/ClaudeBridge/
 
 ---
 
-## 6. 테스트
+## 6. 테스트 · 피드백 루프
 
 TDD 가 기본값이고, **EditMode 전량 통과가 커밋 게이트**다 (`CLAUDE.md` §8).
 
+커밋 전 체크리스트 전체:
+
 ```bash
-Unity -batchmode -runTests -testPlatform EditMode -projectPath . -testResults results.xml -quit
+./tests/preflight.sh
+```
+
+테스트만:
+
+```bash
+./tests/run-tests.sh
+```
+
+포맷 위반 자동 수정:
+
+```bash
+./tests/lint.sh --fix
 ```
 
 - **EditMode** (`Assets/Tests/EditMode/`) — 순수 로직. 테스트의 대부분이 여기 있어야 한다
 - **PlayMode** (`Assets/Tests/PlayMode/`) — 씬·코루틴 통합. 느리므로 프레임 정확성이 실제로 필요할 때만
 
 "MonoBehaviour 라서 EditMode 로 못 짜겠다" 면 그건 테스트 문제가 아니라 **로직이 MonoBehaviour 안에 갇혀 있다는 신호**다. 로직을 순수 C# 클래스로 빼는 것이 먼저다.
+
+### 알아둘 것
+
+| 증상 | 원인 |
+|---|---|
+| `exit 4` — 에디터 점유 | 배치모드는 프로젝트 락을 단독으로 잡는다. ClaudeBridge 용 에디터를 닫거나, 에디터 안 Test Runner 창을 쓴다 |
+| `exit 6` — `.sln` 없음 | `.sln`/`.csproj` 는 Unity 생성물이고 `.gitignore` 대상이다. `./scripts/run-editor.sh` 로 에디터를 한 번 열면 생성된다 |
+| `exit 2` — 컴파일 실패 | 테스트가 아예 안 돌았다는 뜻. 테스트 실패(1)와 구분된다 |
+
+**CI 는 없다.** 프로토타이핑 단계라 의도적으로 만들지 않았고, 이 로컬 루프가 유일한 자동 신호다. 자세한 것은 [`tests/README.md`](../../tests/README.md).
 
 ---
 

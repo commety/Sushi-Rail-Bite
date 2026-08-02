@@ -1,0 +1,120 @@
+# .editorconfig — CLAUDE.md §4 코딩 컨벤션의 기계 검증 가능한 부분.
+#
+# 루트에 있어야 하는 이유: dotnet format 이 이 파일을 프로젝트 루트에서만 찾는다.
+# 위치를 tests/ 로 옮길 수 없다. 검사 진입점은 tests/lint.sh.
+#
+# 검사:  ./tests/lint.sh
+# 수정:  ./tests/lint.sh --fix
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,md}]
+indent_size = 2
+
+[*.md]
+# 마크다운은 줄 끝 공백 2개가 줄바꿈이다. 지우면 문서가 깨진다.
+trim_trailing_whitespace = false
+
+[*.{sh,bash}]
+indent_size = 4
+
+[*.py]
+indent_size = 4
+
+# Unity 생성 파일 — 손대지 않는다 (RULE-03)
+[*.{meta,asset,unity,prefab}]
+indent_style = unset
+indent_size = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[*.cs]
+indent_size = 4
+
+# ── using 정렬 (§4.2: System → Unity → 서드파티 → SushiDefense.*) ────────
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:warning
+
+# ── 중괄호·줄바꿈 ────────────────────────────────────────────────────────
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_between_query_expression_clauses = true
+
+# ── 들여쓰기 ─────────────────────────────────────────────────────────────
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+
+# ── 공백 ─────────────────────────────────────────────────────────────────
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+
+# ── this. 접두 금지 (§4.1 의 _camelCase 규칙이 이미 구분해 준다) ─────────
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+
+# ── 가독성 ───────────────────────────────────────────────────────────────
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_predefined_type_for_member_access = true:warning
+# suggestion 인 이유: warning 이면 dotnet format 이 `if (x) return;` 한 줄
+# 관용구를 전부 펼친다. 기존 하네스 코드가 일관되게 쓰는 스타일이라
+# 자동 수정 대상으로 두면 무관한 대규모 diff 가 생긴다.
+csharp_prefer_braces = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+
+# ── 네이밍 (§4.1) ────────────────────────────────────────────────────────
+# 심각도 suggestion: 프로토타이핑 단계에서 네이밍이 커밋 게이트를 막지 않게 한다.
+# 코드가 안정되면 warning 으로 올린다. dotnet format 은 네이밍을 자동 수정하지
+# 못하므로(코드 픽스 없음) warning 으로 올리면 사람이 손으로 고쳐야 한다.
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.camel_case.capitalization  = camel_case
+
+dotnet_naming_style.underscore_camel_case.capitalization  = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+dotnet_naming_style.i_prefixed.capitalization  = pascal_case
+dotnet_naming_style.i_prefixed.required_prefix = I
+
+# private 필드 → _camelCase
+dotnet_naming_symbols.private_fields.applicable_kinds           = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_rule.private_fields_underscore.symbols  = private_fields
+dotnet_naming_rule.private_fields_underscore.style    = underscore_camel_case
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+
+# public 멤버·타입 → PascalCase
+dotnet_naming_symbols.public_members.applicable_kinds = property, method, field, event, class, struct, enum, delegate
+dotnet_naming_symbols.public_members.applicable_accessibilities = public, protected, internal
+dotnet_naming_rule.public_members_pascal.symbols  = public_members
+dotnet_naming_rule.public_members_pascal.style    = pascal_case
+dotnet_naming_rule.public_members_pascal.severity = suggestion
+
+# 인터페이스 → I 접두
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+dotnet_naming_rule.interfaces_i_prefix.symbols  = interfaces
+dotnet_naming_rule.interfaces_i_prefix.style    = i_prefixed
+dotnet_naming_rule.interfaces_i_prefix.severity = suggestion
+
+# 지역 변수·매개변수 → camelCase
+dotnet_naming_symbols.locals_and_params.applicable_kinds = parameter, local
+dotnet_naming_symbols.locals_and_params.applicable_accessibilities = *
+dotnet_naming_rule.locals_camel.symbols  = locals_and_params
+dotnet_naming_rule.locals_camel.style    = camel_case
+dotnet_naming_rule.locals_camel.severity = suggestion

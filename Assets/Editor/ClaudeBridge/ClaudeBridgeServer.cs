@@ -17,10 +17,10 @@ namespace Editor.ClaudeBridge
     public static class ClaudeBridgeServer
     {
         const string PrefKey_AutoStart = "ClaudeBridge.AutoStart";
-        const float  PollInterval = 0.2f;
+        const float PollInterval = 0.2f;
 
         static double _lastPoll;
-        static bool   _running;
+        static bool _running;
 
         public static bool IsRunning => _running;
 

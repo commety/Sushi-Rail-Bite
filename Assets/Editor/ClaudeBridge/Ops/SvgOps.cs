@@ -36,12 +36,12 @@ namespace Editor.ClaudeBridge.Ops
             if (string.IsNullOrEmpty(svgText))
                 throw new ArgumentException("Either svgText or svgPath is required");
 
-            int reqW   = a.width  > 0 ? a.width  : 256;
-            int reqH   = a.height > 0 ? a.height : 256;
+            int reqW = a.width > 0 ? a.width : 256;
+            int reqH = a.height > 0 ? a.height : 256;
             // 정방형 POT 강제 — 호출자가 넘긴 w/h 중 큰 쪽을 다음 2의 거듭제곱으로 스냅. 256/256→256, 320/448→512.
             int outSize = Mathf.NextPowerOfTwo(Math.Max(reqW, reqH));
-            float ppu  = a.pixelsPerUnit > 0 ? a.pixelsPerUnit : 100f;
-            int aa     = a.antiAliasing > 0 ? a.antiAliasing : 4;
+            float ppu = a.pixelsPerUnit > 0 ? a.pixelsPerUnit : 100f;
+            int aa = a.antiAliasing > 0 ? a.antiAliasing : 4;
 
             // 1) Parse
             SVGParser.SceneInfo sceneInfo;
@@ -51,10 +51,10 @@ namespace Editor.ClaudeBridge.Ops
             // 2) Tessellate — 아이콘용 기본 프로파일. 곡선 샘플링을 촘촘히 해 외곽선 부드럽게.
             var tessOpts = new VectorUtils.TessellationOptions
             {
-                StepDistance        = 10.0f,
-                MaxCordDeviation    = 0.5f,
+                StepDistance = 10.0f,
+                MaxCordDeviation = 0.5f,
                 MaxTanAngleDeviation = 0.1f,
-                SamplingStepSize    = 0.01f,
+                SamplingStepSize = 0.01f,
             };
             var geoms = VectorUtils.TessellateScene(sceneInfo.Scene, tessOpts);
 
@@ -89,7 +89,7 @@ namespace Editor.ClaudeBridge.Ops
                 GL.PushMatrix();
                 // 정방형 viewport 를 viewBox 중심에 맞춰 확장 → letterbox. SVG 좌표계는 Y-down 이라
                 // top=center-half, bottom=center+half 로 둬서 위아래 뒤집음 (RT 클리어가 투명이라 패딩은 알파 0).
-                float cx = bounds.xMin + bounds.width  * 0.5f;
+                float cx = bounds.xMin + bounds.width * 0.5f;
                 float cy = bounds.yMin + bounds.height * 0.5f;
                 float half = Mathf.Max(bounds.width, bounds.height) * 0.5f;
                 GL.LoadProjectionMatrix(Matrix4x4.Ortho(
@@ -135,13 +135,13 @@ namespace Editor.ClaudeBridge.Ops
             var importer = AssetImporter.GetAtPath(a.pngPath) as TextureImporter
                 ?? throw new Exception($"TextureImporter not found at {a.pngPath}");
 
-            importer.textureType        = TextureImporterType.Sprite;
-            importer.spriteImportMode   = SpriteImportMode.Single;
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = ppu;
-            importer.filterMode         = ParseFilter(a.filterMode);
+            importer.filterMode = ParseFilter(a.filterMode);
             importer.textureCompression = ParseCompression(a.compression);
             importer.alphaIsTransparency = true;
-            importer.mipmapEnabled      = false;
+            importer.mipmapEnabled = false;
             importer.SaveAndReimport();
 
             if (savedSvgRel != null)
@@ -149,10 +149,10 @@ namespace Editor.ClaudeBridge.Ops
 
             return JsonUtility.ToJson(new SpriteImportSvgResult
             {
-                pngPath       = a.pngPath,
-                svgPath       = savedSvgRel,
-                width         = outSize,
-                height        = outSize,
+                pngPath = a.pngPath,
+                svgPath = savedSvgRel,
+                width = outSize,
+                height = outSize,
                 pixelsPerUnit = ppu,
             });
         }

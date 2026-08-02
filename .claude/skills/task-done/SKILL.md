@@ -41,23 +41,26 @@ description: 작업 완료 후 Lock 해제, 정리, 지식 갱신까지 수행�
 
 **커밋을 만들기 전에 전부 통과해야 한다. 하나라도 실패하면 커밋하지 말고 실패를 보고한다.**
 
-1. **포맷/린트** — `dotnet format` (또는 `.editorconfig` 기반 포매터) 통과
-2. **컴파일** — Unity 컴파일 에러 0, 신규 경고 0
-   ```
-   ./scripts/bridge-run.sh
-   ```
-3. **테스트** — Unity Test Runner 전량 통과 (EditMode 먼저, 관련 PlayMode 추가)
-   ```
-   Unity -batchmode -runTests -testPlatform EditMode -projectPath . -testResults results.xml -quit
-   ```
-4. **에셋 유출 점검** (`CLAUDE.md` §9)
-   ```
-   git status --short
-   git diff --stat
-   ```
-   - `.png` `.psd` `.wav` `.mp3` `.aseprite` 등 **원본 에셋이 의도치 않게 스테이징됐는지** 확인한다.
-   - 원본 에셋 커밋은 "최종/공개용이 맞는지" 사람에게 **반드시 확인받고** 진행한다. 에이전트가 단독 판단하지 않는다.
-5. **신규 로직에 대응 테스트가 있는가** (`CLAUDE.md` §5.4)
+체크리스트 1~4번은 **명령 하나로 돈다.** 하나가 실패해도 멈추지 않고 끝까지 돌아 표로 보고하므로, 고치고 다시 돌렸더니 다음 게 터지는 왕복이 줄어든다.
+
+```bash
+./tests/preflight.sh
+```
+
+| 항목 | preflight 가 하는 것 | 개별 실행 |
+|---|---|---|
+| 1. 포맷/린트 | `.editorconfig` 기준 검사 | `./tests/lint.sh` (`--fix` 로 수정) |
+| 2. 컴파일 | 테스트 실행 중 확인 — **컴파일 실패는 종료 코드 2** 로 테스트 실패(1)와 구분된다 | `./scripts/bridge-run.sh` |
+| 3. 테스트 | EditMode 전량 | `./tests/run-tests.sh` (`all` 이면 PlayMode 포함) |
+| 4. 에셋 유출 (`CLAUDE.md` §9) | 원본 확장자 스테이징 여부 + RULE-03/06 | `git status --short` |
+
+- **`Unity -batchmode -runTests` 를 손으로 조립하지 않는다.** `Unity` 는 PATH 에 없고, 손으로 치면 `-quit` 을 붙이게 되는데 그러면 테스트가 끝나기 전에 에디터가 내려간다.
+- **`exit 4`(에디터 점유)** 가 나오면 ClaudeBridge 용 에디터가 떠 있는 것이다. 배치모드는 프로젝트 락을 단독으로 잡는다.
+- 원본 에셋이 걸리면(`warn`) "최종/공개용이 맞는지" 사람에게 **반드시 확인받고** 진행한다. 에이전트가 단독 판단하지 않는다.
+
+5. **신규 로직에 대응 테스트가 있는가** (`CLAUDE.md` §5.4) — 이건 판단 항목이라 자동화되지 않는다. 직접 확인한다.
+
+> `preflight.sh` 는 **테스트 0개를 통과로 보지 않는다**(종료 코드 3). 스위트가 빈 채 Green 이 나오면 게이트가 조용히 무력화되기 때문이다.
 
 > 커밋 메시지는 Conventional Commits (`feat(customer): add digestion cooldown state`). 머지·푸시·브랜치 삭제·PR 머지는 **사람만** 한다 (`CLAUDE.md` §6·§7) — 에이전트는 명령을 제시하고 멈춘다.
 
