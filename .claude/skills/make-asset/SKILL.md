@@ -26,7 +26,7 @@ description: Unity 어셋(UGUI 프리팹 / 파티클 / 프리미티브 placehold
 | `model` / `mesh` / `placeholder` | 프리미티브 조합 임시 모델 | `Assets/Level/Prefabs/*.prefab` (Cube/Sphere/Cylinder 스케일·부모-자식) |
 | `sprite` / `icon` | **SVG 직접 작성 → PNG 래스터화 → Sprite 임포트**, 또는 사용자 제공 이미지 임포트 | `Assets/Art/Sprites/{Sushi,Customers,UI}/*.png` + `.svg` 원본 보존 + TextureImporter 옵션 |
 
-`spec`은 자유 서술 (예: "초밥 접시 아이콘 64x64", "손님 카드 한 장. 초상화 자리 + 이름 + 타겟팅 대역 표시", "매출 획득 시 튀는 코인 파티클, 1초 지속").
+`spec`은 자유 서술 (예: "초밥 접시 아이콘 64x64", "손님 카드 한 장. 초상화 자리 + 이름 + 타겟팅 가격 표시", "매출 획득 시 튀는 코인 파티클, 1초 지속").
 
 > **워크트리에서 작업 중이면** `Assets/Art/` 는 심링크라 새 파일이 워크트리 git 에 안 잡힌다. 기능 폴더(`Assets/Code/Scripts/Presentation/...`)에 두고 나중에 정리한다 — [`.claude/rules/parallel-work.md`](../../rules/parallel-work.md) §2.
 >

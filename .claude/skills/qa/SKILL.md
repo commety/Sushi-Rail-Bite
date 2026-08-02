@@ -65,8 +65,11 @@ description: 기획·스펙·규칙에 비추어 구현을 평가하는 툴 사�
 | **오브젝트 풀 경유** (§3.4) | `Grep "Instantiate\(\|Destroy\("` — `Runtime`/`Presentation` 어셈블리 대상 | Bridge 로 스테이지 진행 후 인스턴스 수 확인 | 프로덕션 코드 직접 호출 0 (풀 내부 제외) |
 | **어셈블리 의존 방향** | `.asmdef` 의 `references` 파싱 + `Grep "using SushiDefense\."` | — | 역방향 참조 0, 프로덕션→`Tests.*` 참조 0 |
 | **테스트 동반** (§5.4) | 변경된 로직 파일 목록 ↔ `Assets/Tests/EditMode/` 대응 파일 매칭 | Test Runner 실행 | 신규 로직마다 대응 테스트 존재 + 전량 Green |
-| **타겟팅 오용 금지** (§1.1-3a) | `Grep "Targeting"` — 참조가 경합 해소기(`SushiClaimResolver`) 밖에서 **집기 가부 판단**에 쓰이는지 | Bridge 로 타겟팅 대역 밖 초밥 투입 → 포화도 증가 확인 | 집기 경로에 가격 비교 0건 + 런타임에서 실제로 먹음 |
-| **손님이 구경하지 않음** (§1.1-3a) | 집기 조건에 가격 항이 섞였는지 `Read` 로 확인 | Bridge `EnterPlaymode` → 범위 안 초밥이 있는데 `Idle` 로 머무는 손님이 있는지 폴링 | 범위·포화도 여유가 있는 손님이 초밥을 지나보내는 프레임 0 |
+| **타겟팅이 자격 게이트로 오용** (§1.1-3a) | `Grep "Targeting"` — 참조가 **자격 판정 경로**에 있는지. 배정 경로에만 있어야 한다 | Bridge 로 타겟팅에서 먼 초밥만 투입 → 포화도 증가 확인 | 자격 경로에 가격 비교 0건 + 런타임에서 실제로 먹음 |
+| **배정 정렬 키 순서** (§1.1-3a) | 쌍 랭킹이 `거리 → 고가 → 초밥 SeqNo → 손님 SeqNo` 4단인지 `Read` | Bridge 로 동거리 두 초밥(타겟팅±d)을 동시에 넣고 비싼 쪽을 집는지 확인 | 4개 키가 순서대로 적용됨 |
+| **손님이 구경하지 않음** (§1.1-3a) | 자격 조건에 가격 항이 섞였는지 `Read` | Bridge `EnterPlaymode` → 범위 안 초밥이 있는데 `Idle` 로 머무는 손님이 있는지 폴링 | 범위·포화도 여유가 있는 손님이 초밥을 지나보내는 프레임 0 |
+| **탐색이 이벤트 기반** (§1.1-3c) | `Grep "Update\|LateUpdate" -A 20` 에서 전체 초밥 순회가 도는지 | Bridge Profiler 샘플링 (선택) | `Update` 내 손님×초밥 순회 0건 |
+| **배정이 결정적** (§1.1-3b) | `Grep "Random"` — 프로덕션 배정 경로 | Bridge 로 같은 판 상태 2회 배정 → 결과 비교 | 배정 경로 `Random` 0건 + 두 결과 완전 일치 |
 | Zimmerman R1-R21 (범용 품질) | `LSP.documentSymbol` 로 복잡도·중복·사용되지 않는 심볼 식별 | — | 위반 심볼 목록 + 해당 규칙 번호 |
 | 기능 행동 (기획서 조항) | `LSP.findReferences` / `outgoingCalls` 로 조항 구현 지점 확인 | Bridge 로 해당 상태 세팅 → 값 비교 | 조항별 Pass/Fail + 측정값 |
 | 성능 예산 (프레임·할당·WebGL 로드) | `Grep` 으로 hot path 의 `new`/LINQ/`GetComponent` | Bridge `EnterPlaymode` + Reflection 으로 Profiler API 샘플링 (선택) | 할당 바이트·프레임 시간·초기 로드 크기 |
@@ -82,11 +85,12 @@ QA 의 대부분은 정적 평가로 해결된다. 런타임 필요 최소화.
 기획서 조항 하나하나가 **실제로 구현됐는지**를 LSP 로 증명:
 
 ```
-기획서 "한 초밥을 두 명 이상이 집을 수 있으면 타겟팅 우선순위로 승자를 정한다"
-  → LSP.workspaceSymbol "ResolveClaim"     (심볼 발견)
+기획서 "배정은 타겟팅 우선순위 → 초밥 SeqNo → 손님 SeqNo 순이다"
+  → LSP.workspaceSymbol "Resolve"          (심볼 발견)
   → LSP.findReferences                      (모든 호출처)
   → LSP.outgoingCalls 각 지점                (어떤 경로로 우선순위 산정)
-  → Read 해당 라인                           (타겟팅 값이 CustomerData 필드에서 오는지, 동률 tie-break 존재하는지)
+  → Read 해당 라인                           (정렬 키 순서 + 타겟팅이 CustomerData 에서 오는지)
+  → Grep "Random" 로 배정 경로에 난수가 없는지
   → Assets/Tests/EditMode/ 에 대응 테스트가 있는지 확인
 ```
 
@@ -170,20 +174,23 @@ QA 결과는 **기준별 Pass/Fail + 증거 경로** 로 보고한다. 줄글 �
   - [Pass] grep '"autoReferenced": true' 매치 0 건
   - [Pass] EnterPlaymode 2회 재진입: _coinCount 초기값 0 유지
 
-기준 2: 기획 §1.1-3a "손님은 범위 안 초밥을 가격과 무관하게 FIFO 로 집는다"
+기준 2: 기획 §1.1-3a "자격 판정에 가격이 들어가지 않는다"
   - [Pass] 구현: Assets/Code/Scripts/Runtime/Customers/CustomerLogic.cs:47
-          (집기 조건 = 범위 ∧ 포화도 여유 ∧ Idle — 가격 비교 없음)
-  - [Pass] 테스트: Assets/Tests/EditMode/Customers/CustomerLogicTests.cs:22
-          TryTake_SushiInReach_TakesRegardlessOfPrice — Green
-  - [Pass] 런타임: 타겟팅 대역 밖(가격 900) 초밥 투입 후 _saturation 증가 확인
+          (자격 = 범위 ∧ 포화도 여유 ∧ Idle — 가격 비교 없음)
+  - [Pass] 테스트: CanTake_SushiInReachOutsideTargeting_ReturnsTrue — Green
+  - [Pass] 런타임: 타겟팅에서 먼(가격 900) 초밥만 투입해도 _saturation 증가
           (= 구경하지 않고 먹었다)
 
-기준 3: 기획 §1.1-3a "타겟팅은 경합 시 우선순위 산정에만 쓰인다"
-  - [Pass] grep: TargetingMin/Max 참조가 SushiClaimResolver.cs 밖에 0건
-          (= 집기 게이트로 오용되지 않음)
-  - [Pass] 테스트: ResolveClaim_TwoCustomersInRange_HigherTargetingPriorityWins — Green
+기준 3: 기획 §1.1-3a "배정은 우선순위 → 초밥 SeqNo → 손님 SeqNo"
+  - [Pass] 구현: SushiClaimResolver.cs:63 (쌍 랭킹 그리디)
+  - [Pass] 테스트: Resolve_EqualPriority_TakesLowerSushiSequence — Green
+  - [Pass] 테스트: Resolve_EqualPrioritySameSushi_LowerCustomerSequenceWins — Green
 
-기준 4: CLAUDE.md §3.1 밸런스 하드코딩 금지
+기준 4: 기획 §1.1-3b "배정에 난수를 쓰지 않는다"
+  - [Pass] grep: 배정 경로에 Random 0건, Targeting 참조가 자격 경로에 0건
+  - [Pass] 테스트: Resolve_SameBoardTwice_ProducesIdenticalResult — Green
+
+기준 5: CLAUDE.md §3.1 밸런스 하드코딩 금지
   - [Fail] Assets/Code/Scripts/Runtime/Customers/CustomerLogic.cs:61
           디폴트 소화 시간 3f 가 코드 상수로 박혀 있음
   - 제안 수정: CustomerData.DigestSeconds 필드로 이동
