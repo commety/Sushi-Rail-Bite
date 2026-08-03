@@ -45,6 +45,23 @@ M0 원문은 `SushiPool` 을 `Runtime` 에 둔다. 그런데 실제 인스턴스
 
 `Assets/Level/Scenes/SampleScene.unity` 가 이미 `EditorBuildSettings.asset` 에 등록돼 있다 (확인함). M0 의 빌드 관문은 **새 씬을 만들지 않고 이 씬을 그대로 쓴다.** RULE-06 회피이자, 필요 없는 씬을 늘리지 않기 위함.
 
+### D6. 빌드 프로파일의 `SENTIS_ANALYTICS_ENABLED` churn 은 건드리지 않는다
+
+`Assets/Settings/Build Profiles/Web - Desktop - Development.asset` 의 WebGL `scriptingDefineSymbols` 에서 `SENTIS_ANALYTICS_ENABLED` 가 **에디터를 열 때마다 붙었다 떨어졌다 한다.** 커밋 이력이 그대로 보여준다:
+
+```
+af5027c  WebGL: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
+b16fed1  WebGL: APP_UI_EDITOR_ONLY
+102911f  WebGL: APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
+3b1c404  WebGL: APP_UI_EDITOR_ONLY
+```
+
+출처는 `Packages/manifest.json` 의 **`com.unity.ai.inference`**(구 Sentis)다. 이 게임은 쓰지 않는다. 빌드 프로파일이 들고 있는 건 Unity 가 재생성하는 **캐시된 심볼 목록**이라 사람이 정한 설정이 아니다.
+
+- **되돌리지 않는다.** 되돌려도 다음 에디터 실행에서 다시 뒤집혀 커밋이 하나 더 는다
+- **기능 커밋에 섞지 않는다.** 뜨면 `build(profile):` 단독 커밋으로 분리한다
+- 근본 해결은 `com.unity.ai.inference` 제거지만 **패키지 변경은 `CLAUDE.md` §7 사람 승인 사항**이다. 에이전트가 하지 않는다
+
 ---
 
 ## 터치 영역

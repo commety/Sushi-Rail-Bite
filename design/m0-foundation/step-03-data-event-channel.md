@@ -99,7 +99,8 @@ SushiEatenEventChannelTests
 
 - [ ] `grep -rn "class SushiEatenEventChannelSO" Assets/Code/Scripts/Runtime.Data/` → 1건
 - [ ] `grep -rn "SushiItem\|CustomerRuntimeState" Assets/Code/Scripts/Runtime.Data/` → **0건** (D2 위반 없음)
-- [ ] `grep -rE '\[InitializeOnLoad\]' Assets/ --include="*.cs"` → 0건 (RULE-01)
+- [ ] `grep -rE '\[InitializeOnLoad\]' Assets/Code/Scripts/ --include="*.cs"` → 0건 (RULE-01)
+      > `Assets/` 전체로 잡으면 안 된다. `Assets/Editor/ParallelAgentSetup.cs` · `Assets/Editor/ClaudeBridge/ClaudeBridgeServer.cs` 에 **기존** 하네스용 `[InitializeOnLoad]` 2건이 있고, 이건 정상이다. RULE-01 이 막는 것은 **신규 추가**다.
 - [ ] `./tests/run-tests.sh` — 위 테스트 전량 Green
 - [ ] `./tests/lint.sh` 통과
 
