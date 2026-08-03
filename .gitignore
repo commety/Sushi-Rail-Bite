@@ -109,6 +109,10 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
+# WebGL 빌드 중 Burst 가 프로젝트 루트에 흘리는 중간 산출물 (lib_burst_generated.*).
+# 빌드마다 재생성되고, 실제 플레이어는 ../builds/ 로 나간다.
+/Data/
+
 # PlayMode 테스트가 돌 때마다 Unity 가 다시 쓰는 로컬 설정.
 # 공유할 프로젝트 설정이 아니라 에디터가 마지막 씬 템플릿 상태를 기억하는 파일이라,
 # 커밋하면 테스트를 돌린 사람마다 diff 가 생긴다. RULE-06 상 에이전트가 만질 수도 없다.
