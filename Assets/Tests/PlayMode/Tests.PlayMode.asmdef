@@ -1,0 +1,15 @@
+{
+  "name": "Tests.PlayMode",
+  "rootNamespace": "SushiDefense.Tests.PlayMode",
+  "references": [
+    "Runtime",
+    "Runtime.Data",
+    "Presentation",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "precompiledReferences": ["nunit.framework.dll"],
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "overrideReferences": true,
+  "autoReferenced": false
+}
