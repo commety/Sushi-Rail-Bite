@@ -106,7 +106,8 @@ SushiPoolTests
 ### 완료 판정
 
 - [ ] `grep -rn "class SushiPool" Assets/Code/Scripts/Runtime/Belt/` → 1건
-- [ ] `grep -rn "Instantiate\|Destroy\|MonoBehaviour" Assets/Code/Scripts/Runtime/Belt/SushiPool.cs Assets/Code/Scripts/Runtime/Belt/ISushiInstanceFactory.cs` → **0건**
+- [ ] `grep -rn "Instantiate\|Destroy\|MonoBehaviour" Assets/Code/Scripts/Runtime/Belt/SushiPool.cs Assets/Code/Scripts/Runtime/Belt/ISushiInstanceFactory.cs | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **0건**
+      > 주석 제외 필터의 근거는 [README D7](README.md). 이 두 파일의 `///` 주석은 "생성은 팩토리에 위임한다 — 여기서 `Instantiate` 를 부르지 않는다" 를 설명하게 되어 있어 필터 없이는 반드시 걸린다.
 - [ ] `./tests/run-tests.sh` — 위 테스트 전량 Green
 - [ ] `./tests/lint.sh` 통과
 

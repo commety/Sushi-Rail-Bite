@@ -139,8 +139,9 @@ StageConfigTests
 
 - [ ] `grep -rn "class SushiData\|class CustomerData\|class StageConfig" Assets/Code/Scripts/Runtime.Data/` → 3건
 - [ ] `grep -rn "public .* Price\|public .* TargetingPrice" Assets/Code/Scripts/Runtime.Data/` 로 프로퍼티 노출 확인
-- [ ] `grep -rn "public [A-Za-z<>]* [A-Za-z]*;" Assets/Code/Scripts/Runtime.Data/` → **public 필드 0건**
-- [ ] `grep -rniE "MaxEatable|PriceLimit|EatablePrice" Assets/Code/Scripts/` → 0건
+- [ ] `grep -rn "public [A-Za-z<>]* [A-Za-z]*;" Assets/Code/Scripts/Runtime.Data/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **public 필드 0건**
+- [ ] `grep -rniE "MaxEatable|PriceLimit|EatablePrice" Assets/Code/Scripts/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → 0건
+      > 주석 제외 필터의 근거는 [README D7](README.md). `///` 문서 주석이 "이렇게 짓지 마라"며 금지 이름을 그대로 적기 때문에, 필터가 없으면 규칙을 지킨 코드가 검사에 걸린다.
 - [ ] `./tests/run-tests.sh` — 위 테스트 전량 Green
 - [ ] `./tests/lint.sh` 통과
 

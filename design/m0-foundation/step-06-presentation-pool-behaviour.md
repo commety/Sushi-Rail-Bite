@@ -96,8 +96,9 @@ SushiPoolBehaviourTests
 
 ### 완료 판정
 
-- [ ] `grep -rn "Instantiate\|Destroy(" Assets/Code/Scripts/ --include="*.cs"` → **`SushiPoolBehaviour.cs` 외 0건**
-- [ ] `grep -rn "FindObjectOfType\|GameObject.Find" Assets/Code/Scripts/` → 0건
+- [ ] `grep -rn "Instantiate\|Destroy(" Assets/Code/Scripts/ --include="*.cs" | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **`SushiPoolBehaviour.cs` 외 0건**
+- [ ] `grep -rn "FindObjectOfType\|GameObject.Find" Assets/Code/Scripts/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → 0건
+      > 주석 제외 필터의 근거는 [README D7](README.md).
 - [ ] `./tests/run-tests.sh all` — EditMode + PlayMode 전량 Green
 - [ ] `./tests/lint.sh` 통과
 - [ ] `git status --short Assets/Level/` → 변경 없음

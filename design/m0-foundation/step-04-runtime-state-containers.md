@@ -143,9 +143,12 @@ SO 는 `ScriptableObject.CreateInstance<T>()` 로 만든다.
 ### 완료 판정
 
 - [ ] `grep -rn "class SushiItem\|class CustomerRuntimeState\|class SequenceNumberIssuer" Assets/Code/Scripts/Runtime/` → 3건
-- [ ] `grep -rn "MonoBehaviour" Assets/Code/Scripts/Runtime/` → **0건**
-- [ ] `grep -rn "Random" Assets/Code/Scripts/Runtime/` → **0건**
-- [ ] `grep -rn "static" Assets/Code/Scripts/Runtime/SequenceNumberIssuer.cs` → 0건
+아래 세 검사에는 **주석 제외 필터**를 붙인다 ([README D7](README.md)). 이 단계의 `///` 주석은 "`MonoBehaviour` 밖에 둔다", "난수(`Random`)를 쓰지 않는다", "`static` 카운터를 쓰지 않는다" 처럼 **금지 심볼 이름을 그대로 적게 되어 있어**, 필터가 없으면 규칙을 지킨 코드가 전부 걸린다.
+
+- [ ] `grep -rn "MonoBehaviour" Assets/Code/Scripts/Runtime/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **0건**
+- [ ] `grep -rn "Random" Assets/Code/Scripts/Runtime/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **0건**
+- [ ] `grep -n "static" Assets/Code/Scripts/Runtime/SequenceNumberIssuer.cs | grep -vE '^[0-9]+:[[:space:]]*(///|//|\*)'` → 0건
+      > 단일 파일 검사라 출력이 `줄번호:내용` 이다 — 경로 부분이 없으므로 필터 모양이 다르다.
 - [ ] `./tests/run-tests.sh` — 위 테스트 전량 Green
 - [ ] `./tests/lint.sh` 통과
 

@@ -98,8 +98,10 @@ SushiEatenEventChannelTests
 ### 완료 판정
 
 - [ ] `grep -rn "class SushiEatenEventChannelSO" Assets/Code/Scripts/Runtime.Data/` → 1건
-- [ ] `grep -rn "SushiItem\|CustomerRuntimeState" Assets/Code/Scripts/Runtime.Data/` → **0건** (D2 위반 없음)
-- [ ] `grep -rE '\[InitializeOnLoad\]' Assets/Code/Scripts/ --include="*.cs"` → 0건 (RULE-01)
+- [ ] `grep -rn "SushiItem\|CustomerRuntimeState" Assets/Code/Scripts/Runtime.Data/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → **0건** (D2 위반 없음)
+      > 주석 제외 필터의 근거는 [README D7](README.md). 이 검사는 실제로 `///` 주석 3건을 오탐한 전력이 있다.
+- [ ] 위 검사는 교차 확인한다 — `Runtime.Data` 의 `using` 에 `SushiDefense.Belt`·`SushiDefense.Customers` 가 없고, `Runtime.Data.asmdef` 의 `"references"` 가 `[]` 인지 본다. 컴파일러가 보는 것은 이쪽이다
+- [ ] `grep -rE '\[InitializeOnLoad\]' Assets/Code/Scripts/ --include="*.cs" | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` → 0건 (RULE-01)
       > `Assets/` 전체로 잡으면 안 된다. `Assets/Editor/ParallelAgentSetup.cs` · `Assets/Editor/ClaudeBridge/ClaudeBridgeServer.cs` 에 **기존** 하네스용 `[InitializeOnLoad]` 2건이 있고, 이건 정상이다. RULE-01 이 막는 것은 **신규 추가**다.
 - [ ] `./tests/run-tests.sh` — 위 테스트 전량 Green
 - [ ] `./tests/lint.sh` 통과
