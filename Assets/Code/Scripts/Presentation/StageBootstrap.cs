@@ -1,6 +1,7 @@
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
 using UnityEngine;
 
 namespace SushiDefense
@@ -37,6 +38,9 @@ namespace SushiDefense
         /// <summary>이 스테이지의 배치 서비스.</summary>
         public CustomerPlacementService Placement { get; private set; }
 
+        /// <summary>이 스테이지의 영입 재화. 스테이지마다 초기 예산으로 새로 열린다.</summary>
+        public RecruitWallet Wallet { get; private set; }
+
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
                                SushiBeltView beltView, Transform beltStart, Transform beltEnd,
@@ -65,8 +69,9 @@ namespace SushiDefense
             Belt = new SushiBelt(_stageConfig, new SequenceNumberIssuer(),
                                  new SushiPool<SushiItem>(new SushiItemFactory()));
             Coordinator = new ClaimCoordinator(Belt, _stageConfig);
+            Wallet = new RecruitWallet(_stageConfig.InitialRecruitBudget);
             Placement = new CustomerPlacementService(Coordinator, _stageConfig,
-                                                     new SequenceNumberIssuer());
+                                                     new SequenceNumberIssuer(), Wallet);
 
             _beltView.Initialize(_viewPool, _stageConfig, _beltStart, _beltEnd);
             _beltView.Bind(Belt);
@@ -148,6 +153,7 @@ namespace SushiDefense
             Coordinator = null;
             Belt = null;
             Placement = null;
+            Wallet = null;
         }
     }
 }

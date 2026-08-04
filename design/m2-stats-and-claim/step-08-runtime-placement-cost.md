@@ -49,14 +49,17 @@ public bool Remove(int slotIndex);
 
 **`CanPlace(int slotIndex)` 시그니처는 사라진다.** 비용을 보려면 어떤 손님인지 알아야 하기 때문이다.
 
-호출부는 확인해 둔 대로 **테스트 5곳뿐**이다. `CustomerPlacementController`(Presentation)는 `TryPlace` · `Remove` 만 부르므로 **시그니처가 바뀌어도 영향받지 않는다** — 이 단계는 `Presentation` 을 건드리지 않는다.
+`CustomerPlacementController` 는 `TryPlace` · `Remove` 만 부르므로 `CanPlace` 변경에 영향받지 않는다. 다만 **생성자에 지갑이 하나 늘기 때문에 `StageBootstrap` 은 반드시 바뀐다** — 이 작업서 초판이 `CanPlace` 만 grep 하고 생성자 호출부를 놓쳐 "`Presentation` 변경 0줄" 이라고 잘못 적었다.
 
-| 파일 | 줄 |
+| 파일 | 무엇 |
 |---|---|
-| `Assets/Code/Scripts/Runtime/Customers/CustomerPlacementService.cs` | 56 (`Place`), 76 (`TryPlace`) — 내부 호출 |
-| `Assets/Tests/EditMode/Customers/CustomerPlacementServiceTests.cs` | 60, 68, 78, 87 |
-| `Assets/Tests/PlayMode/Stage01SceneTests.cs` | 78 |
-| `Assets/Tests/PlayMode/StageIntegrationTests.cs` | 120 |
+| `Runtime/Customers/CustomerPlacementService.cs` | `CanPlace` 내부 호출 2곳 |
+| `Presentation/StageBootstrap.cs` | **생성자에 지갑 주입** — `new RecruitWallet(config.InitialRecruitBudget)` |
+| `Tests/EditMode/Customers/CustomerPlacementServiceTests.cs` | `CanPlace` 4곳 + 생성자 |
+| `Tests/PlayMode/Customers/CustomerPlacementControllerTests.cs` | 생성자 |
+| `Tests/PlayMode/Stage01SceneTests.cs` · `StageIntegrationTests.cs` | `CanPlace` 각 1곳 |
+
+`StageBootstrap` 의 지갑은 step-09 에서 조율자와 공유하도록 옮긴다. 여기서는 배치 서비스만 쓴다.
 
 ### 선행 산출물 의존성
 
@@ -82,7 +85,7 @@ public bool Remove(int slotIndex);
 - [ ] `grep -n "RecruitCost" Assets/Code/Scripts/Runtime/Customers/CustomerPlacementService.cs` — 비용을 읽는다
 - [ ] `grep -n "TrySpend" Assets/Code/Scripts/Runtime/Customers/CustomerPlacementService.cs` — **`Place` 안에서 1회만** 호출된다
 - [ ] `grep -rn "CanPlace(" Assets/Code/Scripts/ Assets/Tests/ | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)'` — 위 표의 8개 호출부가 전부 새 시그니처다 (인자 2개)
-- [ ] `git diff --stat Assets/Code/Scripts/Presentation/` — **변경 0줄**
+- [ ] `git diff --stat Assets/Code/Scripts/Presentation/` — **`StageBootstrap.cs` 만** (지갑 주입)
 - [ ] EditMode 전량 Green — `./tests/run-tests.sh`
 - [ ] PlayMode Green — `./tests/run-tests.sh all` (`CustomerPlacementControllerTests` 가 호출부 변경의 영향을 받는다)
 - [ ] `./tests/preflight.sh` 전 항목 PASS
@@ -116,5 +119,5 @@ feat(customer): gate placement on recruit cost and wallet balance
 
 - `RecruitWallet` 을 수정하지 않는다. 지갑이 부족해 보이면 멈추고 step-07 로 보고한다
 - `ClaimCoordinator` 를 건드리지 않는다. 지갑 주입 배선은 step-09 다
-- **`Presentation` 을 수정하지 않는다.** 컨트롤러는 `TryPlace`/`Remove` 만 부르므로 깨지지 않는다. 깨진다면 시그니처를 잘못 바꾼 것이다. UI 표시는 step-10 이다
+- `Presentation` 은 **`StageBootstrap` 의 지갑 주입만** 고친다. `CustomerPlacementController` 가 깨진다면 시그니처를 잘못 바꾼 것이다. UI 표시는 step-10 이다
 - 환불·부분 환불을 만들지 않는다

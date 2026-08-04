@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
 
 namespace SushiDefense.Customers
 {
@@ -9,8 +10,11 @@ namespace SushiDefense.Customers
     /// EditMode 로 검증된다 (<c>CLAUDE.md</c> §3.2).
     ///
     /// <para>
-    /// <b>M1 의 배치는 무료다.</b> <c>CustomerData.RecruitCost</c> 와 영입 재화는 읽지 않는다 —
-    /// 경제는 M2 다. 여기서 보는 제한은 자리 점유와 <c>StageConfig.MaxPlacedCustomers</c> 뿐이다.
+    /// 배치 조건은 셋이다 — <b>자리가 비어 있다 ∧ 배치 한도 미만 ∧ 잔액 ≥ 영입 비용</b>.
+    /// </para>
+    /// <para>
+    /// <b>스테이지 진행 중에도 배치할 수 있다</b> (M1 Q4 확정). 배치 즉시 조율자에 등록되어
+    /// 다음 배정부터 참여한다.
     /// </para>
     /// </summary>
     public sealed class CustomerPlacementService
@@ -18,6 +22,7 @@ namespace SushiDefense.Customers
         private readonly ClaimCoordinator _coordinator;
         private readonly StageConfig _config;
         private readonly SequenceNumberIssuer _customerSequenceNumbers;
+        private readonly RecruitWallet _wallet;
         private readonly Dictionary<int, CustomerLogic> _bySlot = new();
 
         /// <summary>지금 배치돼 있는 손님 수.</summary>
@@ -27,18 +32,30 @@ namespace SushiDefense.Customers
         public int MaxPlacedCustomers => _config.MaxPlacedCustomers;
 
         public CustomerPlacementService(ClaimCoordinator coordinator, StageConfig config,
-                                        SequenceNumberIssuer customerSequenceNumbers)
+                                        SequenceNumberIssuer customerSequenceNumbers,
+                                        RecruitWallet wallet)
         {
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _config = config != null ? config : throw new ArgumentNullException(nameof(config));
             _customerSequenceNumbers = customerSequenceNumbers
                                        ?? throw new ArgumentNullException(nameof(customerSequenceNumbers));
+            _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         }
 
-        /// <summary>이 자리에 놓을 수 있는가. 점유 여부와 배치 한도만 본다.</summary>
-        public bool CanPlace(int slotIndex)
+        /// <summary>
+        /// 이 손님을 이 자리에 놓을 수 있는가 — 점유 · 배치 한도 · 잔액.
+        ///
+        /// <para>
+        /// <b>잔액을 읽기만 한다.</b> 여기서 차감하면 <see cref="TryPlace"/> 가 검사와 확정에서
+        /// 두 번 차감한다.
+        /// </para>
+        /// </summary>
+        public bool CanPlace(CustomerData data, int slotIndex)
         {
-            return !_bySlot.ContainsKey(slotIndex) && PlacedCount < MaxPlacedCustomers;
+            return data != null
+                   && !_bySlot.ContainsKey(slotIndex)
+                   && PlacedCount < MaxPlacedCustomers
+                   && _wallet.CanAfford(data.RecruitCost);
         }
 
         /// <summary>
@@ -53,10 +70,20 @@ namespace SushiDefense.Customers
                 throw new ArgumentNullException(nameof(data));
             }
 
-            if (!CanPlace(slotIndex))
+            if (!CanPlace(data, slotIndex))
             {
                 throw new InvalidOperationException(
-                    $"자리 {slotIndex} 에 배치할 수 없습니다 (점유 중이거나 배치 한도 {MaxPlacedCustomers} 초과).");
+                    $"자리 {slotIndex} 에 배치할 수 없습니다 " +
+                    $"(점유 중이거나, 배치 한도 {MaxPlacedCustomers} 초과이거나, " +
+                    $"영입 비용 {data.RecruitCost} 에 잔액 {_wallet.Balance} 가 모자랍니다).");
+            }
+
+            // 차감이 번호 발급보다 먼저다. 번호를 먼저 발급하면 실패한 배치가
+            // 순차번호를 태워 이후 배정 결과가 달라진다 — 결정성이 흔들린다.
+            if (!_wallet.TrySpend(data.RecruitCost))
+            {
+                throw new InvalidOperationException(
+                    $"영입 비용 {data.RecruitCost} 을 지불하지 못했습니다 (잔액 {_wallet.Balance}).");
             }
 
             var state = new CustomerRuntimeState(data, _customerSequenceNumbers.Next());
@@ -73,10 +100,17 @@ namespace SushiDefense.Customers
         /// </summary>
         public CustomerLogic TryPlace(CustomerData data, int slotIndex, float slotBeltPosition)
         {
-            return CanPlace(slotIndex) ? Place(data, slotIndex, slotBeltPosition) : null;
+            return CanPlace(data, slotIndex) ? Place(data, slotIndex, slotBeltPosition) : null;
         }
 
-        /// <summary>배치를 취소한다. 자리를 비우고 조율자에서 뺀다.</summary>
+        /// <summary>
+        /// 배치를 취소한다. 자리를 비우고 조율자에서 뺀다.
+        ///
+        /// <para>
+        /// <b>영입 비용은 환불하지 않는다.</b> 환불하면 배치·해제를 반복해 재화를 되찾는
+        /// 경로가 생기고, 배치 비용이 제한으로서 의미를 잃는다.
+        /// </para>
+        /// </summary>
         public bool Remove(int slotIndex)
         {
             if (!_bySlot.TryGetValue(slotIndex, out var customer))

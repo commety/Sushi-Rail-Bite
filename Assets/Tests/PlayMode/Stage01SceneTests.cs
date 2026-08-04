@@ -75,7 +75,7 @@ namespace SushiDefense.Tests.PlayMode
             var claimed = 0;
             _stage.Coordinator.SushiClaimed += (_, _) => claimed++;
 
-            Assert.IsTrue(_stage.Placement.CanPlace(0), "첫 자리에 배치할 수 있어야 한다");
+            Assert.IsTrue(_stage.Placement.CanPlace(DefaultCustomer(), 0), "첫 자리에 배치할 수 있어야 한다");
             var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
             _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
 

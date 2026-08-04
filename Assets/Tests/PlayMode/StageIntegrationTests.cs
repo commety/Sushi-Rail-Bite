@@ -117,7 +117,7 @@ namespace SushiDefense.Tests.PlayMode
         public IEnumerator Play_CustomerPlacedOnSlot_ClaimsSushiInReach()
         {
             var claims = RecordClaims();
-            Assert.IsTrue(_bootstrap.Placement.CanPlace(_slot.SlotIndex));
+            Assert.IsTrue(_bootstrap.Placement.CanPlace(_customerData, _slot.SlotIndex));
 
             _bootstrap.Placement.Place(_customerData, _slot.SlotIndex, _slot.BeltPosition);
             yield return WaitSeconds(3f);

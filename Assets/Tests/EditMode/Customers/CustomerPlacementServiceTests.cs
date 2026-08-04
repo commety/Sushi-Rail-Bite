@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
 using SushiDefense.Tests.EditMode.Data;
 using UnityEngine;
 
@@ -15,6 +16,9 @@ namespace SushiDefense.Tests.EditMode.Customers
         private const float Length = 100f;
         private const float Reach = 12f;
 
+        /// <summary>비용 검사가 끼어들지 않을 만큼 넉넉한 예산. 배치 규칙만 보는 테스트용.</summary>
+        private const int AmpleBudget = 100000;
+
         /// <summary>스폰 지점(0)이 이미 집기 범위 안인 자리.</summary>
         private const float NearTable = 2f;
 
@@ -24,6 +28,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         private CustomerData _customerData;
         private SushiBelt _belt;
         private ClaimCoordinator _coordinator;
+        private RecruitWallet _wallet;
         private CustomerPlacementService _service;
         private List<int> _claimedByCustomer;
 
@@ -57,7 +62,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void CanPlace_EmptySlot_ReturnsTrue()
         {
-            Assert.IsTrue(_service.CanPlace(0));
+            Assert.IsTrue(_service.CanPlace(_customerData, 0));
         }
 
         [Test]
@@ -65,7 +70,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         {
             _service.Place(_customerData, 0, NearTable);
 
-            Assert.IsFalse(_service.CanPlace(0));
+            Assert.IsFalse(_service.CanPlace(_customerData, 0));
         }
 
         [Test]
@@ -75,7 +80,7 @@ namespace SushiDefense.Tests.EditMode.Customers
             _service.Place(_customerData, 0, NearTable);
             _service.Place(_customerData, 1, NearTable);
 
-            Assert.IsFalse(_service.CanPlace(2));
+            Assert.IsFalse(_service.CanPlace(_customerData, 2));
         }
 
         [Test]
@@ -84,7 +89,7 @@ namespace SushiDefense.Tests.EditMode.Customers
             _service.Place(_customerData, 0, NearTable);
             _service.Remove(0);
 
-            Assert.IsTrue(_service.CanPlace(0));
+            Assert.IsTrue(_service.CanPlace(_customerData, 0));
         }
 
         // ── 배치 확정 ───────────────────────────────────────────
@@ -186,16 +191,99 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.AreEqual(veteran.State.SequenceNumber, _claimedByCustomer[0]);
         }
 
-        // ── M1 범위: 영입 비용을 보지 않는다 ────────────────────
+        // ── 영입 비용 · 잔액 ────────────────────────────────────
 
         [Test]
-        public void Place_HugeRecruitCost_StillPlaces()
+        public void Place_SufficientCurrency_DeductsRecruitCost()
         {
-            // M1 의 배치는 무료다. 비용이 생기는 것은 M2 이며, 이 테스트가 그때
-            // "비용을 조용히 무시하는" 구현을 잡아 준다.
-            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 99999);
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 100);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 30);
+
+            _service.Place(_customerData, 0, NearTable);
+
+            Assert.AreEqual(70, _wallet.Balance);
+        }
+
+        [Test]
+        public void Place_InsufficientCurrency_Rejected()
+        {
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 10);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 50);
+
+            Assert.IsFalse(_service.CanPlace(_customerData, 0));
+            Assert.Throws<System.InvalidOperationException>(
+                () => _service.Place(_customerData, 0, NearTable));
+        }
+
+        [Test]
+        public void TryPlace_InsufficientCurrency_ReturnsNullAndKeepsBalance()
+        {
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 10);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 50);
+
+            Assert.IsNull(_service.TryPlace(_customerData, 0, NearTable));
+            Assert.AreEqual(10, _wallet.Balance);
+            Assert.AreEqual(0, _service.PlacedCount);
+        }
+
+        [Test]
+        public void TryPlace_InsufficientCurrency_DoesNotConsumeSequenceNumber()
+        {
+            // 순서 계약 — 잔액 차감이 번호 발급보다 먼저다. 번호를 먼저 발급하면
+            // 실패한 배치가 순차번호를 태워 이후 배정 결과가 달라진다.
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 50);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 999);
+            _service.TryPlace(_customerData, 0, NearTable);
+
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 0);
+            var placed = _service.Place(_customerData, 1, NearTable);
+
+            Assert.AreEqual(0, placed.State.SequenceNumber, "실패한 배치가 번호를 태우면 안 된다");
+        }
+
+        [Test]
+        public void Place_ExactBalance_Succeeds()
+        {
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 50);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 50);
 
             Assert.IsNotNull(_service.Place(_customerData, 0, NearTable));
+            Assert.AreEqual(0, _wallet.Balance);
+        }
+
+        [Test]
+        public void Place_ZeroCost_SucceedsWithEmptyWallet()
+        {
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 0);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 0);
+
+            Assert.IsNotNull(_service.Place(_customerData, 0, NearTable));
+        }
+
+        [Test]
+        public void CanPlace_InsufficientCurrency_DoesNotDeduct()
+        {
+            // 검사에 부수효과가 없다. 있으면 TryPlace 가 두 번 차감한다.
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 40);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 30);
+
+            _service.CanPlace(_customerData, 0);
+            _service.CanPlace(_customerData, 0);
+
+            Assert.AreEqual(40, _wallet.Balance);
+        }
+
+        [Test]
+        public void Remove_PlacedCustomer_DoesNotRefund()
+        {
+            // 환불하지 않는다. 배치·해제를 반복해 재화를 되찾는 경로를 만들지 않는다.
+            Rebuild(maxPlacedCustomers: 4, initialBudget: 100);
+            SerializedFieldSetter.SetInt(_customerData, "_recruitCost", 30);
+            _service.Place(_customerData, 0, NearTable);
+
+            _service.Remove(0);
+
+            Assert.AreEqual(70, _wallet.Balance);
         }
 
         // ── 배치 취소 ───────────────────────────────────────────
@@ -229,7 +317,7 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.IsNull(_service.OccupantOf(0));
         }
 
-        private void Rebuild(int maxPlacedCustomers)
+        private void Rebuild(int maxPlacedCustomers, int initialBudget = AmpleBudget)
         {
             _coordinator?.Dispose();
             if (_config != null)
@@ -249,7 +337,9 @@ namespace SushiDefense.Tests.EditMode.Customers
             _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
             _coordinator = new ClaimCoordinator(_belt, _config);
-            _service = new CustomerPlacementService(_coordinator, _config, new SequenceNumberIssuer());
+            _wallet = new RecruitWallet(initialBudget);
+            _service = new CustomerPlacementService(_coordinator, _config,
+                                                    new SequenceNumberIssuer(), _wallet);
 
             _claimedByCustomer = new List<int>();
             _coordinator.SushiClaimed += (customer, _) =>
