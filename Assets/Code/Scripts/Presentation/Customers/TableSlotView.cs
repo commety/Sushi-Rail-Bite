@@ -43,6 +43,18 @@ namespace SushiDefense.Customers
             transform.localPosition = definition.Position;
         }
 
+        private void Awake()
+        {
+            // 씬을 스크립트로 조립할 때 오브젝트 참조를 일일이 물리지 않아도 되게,
+            // 비어 있으면 자기 자식에서 찾는다. 씬 전역 탐색이 아니다.
+            if (_seatVisual == null)
+            {
+                _seatVisual = GetComponentInChildren<CustomerView>(true);
+            }
+
+            Vacate();
+        }
+
         /// <summary>인스펙터 없이 자리 시각 표현을 물린다. 테스트·부트스트랩용이다.</summary>
         public void Initialize(int slotIndex, float beltPosition, CustomerView seatVisual)
         {

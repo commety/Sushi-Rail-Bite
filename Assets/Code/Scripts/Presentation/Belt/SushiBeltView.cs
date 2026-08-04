@@ -65,6 +65,13 @@ namespace SushiDefense.Belt
 
             foreach (var view in _views.Values)
             {
+                // 씬이 내려갈 때는 파괴 순서를 고를 수 없다. 풀이나 뷰가 먼저 사라진
+                // 상태에서 반납을 시도하면 MissingReferenceException 이 난다.
+                if (view == null || _viewPool == null)
+                {
+                    continue;
+                }
+
                 view.Release();
                 _viewPool.Return(view.gameObject);
             }
