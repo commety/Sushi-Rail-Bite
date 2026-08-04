@@ -1,0 +1,63 @@
+using SushiDefense.Data;
+using UnityEngine;
+
+namespace SushiDefense.Customers
+{
+    /// <summary>
+    /// 배치 입력만 처리하는 껍데기.
+    ///
+    /// <para>
+    /// <b>규칙이 하나도 없다.</b> "놓을 수 있나" 는 <see cref="CustomerPlacementService"/> 가
+    /// 답하고, 이 클래스는 그 답을 화면에 반영만 한다. 규칙을 여기 복제하면 두 판정이
+    /// 어긋날 수 있고 EditMode 로 검증할 수도 없다 (<c>CLAUDE.md</c> §3.2).
+    /// </para>
+    /// </summary>
+    public sealed class CustomerPlacementController : MonoBehaviour
+    {
+        [SerializeField] private TableSlotView[] _slots;
+        [SerializeField] private CustomerData _pendingCustomer;
+
+        private CustomerPlacementService _service;
+
+        /// <summary>씬 진입점이 배치 서비스를 물려 준다.</summary>
+        public void Bind(CustomerPlacementService service)
+        {
+            _service = service;
+        }
+
+        /// <summary>인스펙터 없이 자리 목록을 물린다. 테스트·부트스트랩용이다.</summary>
+        public void Initialize(TableSlotView[] slots, CustomerData pendingCustomer)
+        {
+            _slots = slots;
+            _pendingCustomer = pendingCustomer;
+        }
+
+        /// <summary>
+        /// 이 자리에 배치를 시도한다. 클릭·터치 핸들러가 부른다.
+        /// 놓을 수 없으면 서비스가 <c>null</c> 을 돌려주고, 여기서는 아무 일도 하지 않는다.
+        /// </summary>
+        public bool TryPlaceAt(TableSlotView slot)
+        {
+            var placed = _service.TryPlace(_pendingCustomer, slot.SlotIndex, slot.BeltPosition);
+            if (placed == null)
+            {
+                return false;
+            }
+
+            slot.Occupy(placed);
+            return true;
+        }
+
+        /// <summary>이 자리의 손님을 물린다. 배치 취소 조작이 부른다.</summary>
+        public bool RemoveAt(TableSlotView slot)
+        {
+            if (!_service.Remove(slot.SlotIndex))
+            {
+                return false;
+            }
+
+            slot.Vacate();
+            return true;
+        }
+    }
+}
