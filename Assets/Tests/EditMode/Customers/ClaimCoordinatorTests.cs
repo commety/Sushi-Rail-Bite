@@ -371,7 +371,7 @@ namespace SushiDefense.Tests.EditMode.Customers
                 .WithSpawnInterval(Interval)
                 .WithBeltLength(Length)
                 .WithRecognitionLatch(latchSeconds)
-                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables), 1)
+                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables))
                 .Build();
 
             _belt = new SushiBelt(_config, new SequenceNumberIssuer(),

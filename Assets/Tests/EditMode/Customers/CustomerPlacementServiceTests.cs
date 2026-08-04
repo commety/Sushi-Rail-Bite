@@ -243,7 +243,7 @@ namespace SushiDefense.Tests.EditMode.Customers
                 .WithBeltLength(Length)
                 .WithRecognitionLatch(0f)
                 .WithMaxPlacedCustomers(maxPlacedCustomers)
-                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables), 1)
+                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables))
                 .Build();
 
             _belt = new SushiBelt(_config, new SequenceNumberIssuer(),

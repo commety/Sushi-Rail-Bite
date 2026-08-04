@@ -38,10 +38,9 @@ namespace SushiDefense.Tests.EditMode.Belt
         }
 
         [Test]
-        public void IsEmpty_OnlyZeroWeightEntries_ReturnsTrue()
+        public void IsEmpty_OnlyEntriesWithoutSushi_ReturnsTrue()
         {
-            var sushi = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((sushi, 0)));
+            var sequence = new SpawnSequence(BuildTable(null, null));
 
             Assert.IsTrue(sequence.IsEmpty);
         }
@@ -50,23 +49,11 @@ namespace SushiDefense.Tests.EditMode.Belt
         public void Next_SingleEntry_AlwaysReturnsThatSushi()
         {
             var sushi = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((sushi, 1)));
+            var sequence = new SpawnSequence(BuildTable(sushi));
 
             Assert.AreSame(sushi, sequence.Next());
             Assert.AreSame(sushi, sequence.Next());
             Assert.AreSame(sushi, sequence.Next());
-        }
-
-        [Test]
-        public void Next_WeightedEntries_RepeatsByWeight()
-        {
-            var common = NewSushi();
-            var rare = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((common, 2), (rare, 1)));
-
-            Assert.AreSame(common, sequence.Next());
-            Assert.AreSame(common, sequence.Next());
-            Assert.AreSame(rare, sequence.Next());
         }
 
         [Test]
@@ -74,7 +61,7 @@ namespace SushiDefense.Tests.EditMode.Belt
         {
             var first = NewSushi();
             var second = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((first, 1), (second, 1)));
+            var sequence = new SpawnSequence(BuildTable(first, second));
 
             sequence.Next();
             sequence.Next();
@@ -88,7 +75,7 @@ namespace SushiDefense.Tests.EditMode.Belt
             // 결정성 회귀 방지 — 스폰에 난수가 들어오면 이 테스트가 먼저 깨진다 (작업서 D4).
             var first = NewSushi();
             var second = NewSushi();
-            var table = BuildTable((first, 2), (second, 1));
+            var table = BuildTable(first, second);
 
             var left = new SpawnSequence(table);
             var right = new SpawnSequence(table);
@@ -104,7 +91,7 @@ namespace SushiDefense.Tests.EditMode.Belt
         {
             var first = NewSushi();
             var second = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((first, 1), (second, 1)));
+            var sequence = new SpawnSequence(BuildTable(first, second));
             sequence.Next();
 
             sequence.Reset();
@@ -116,19 +103,19 @@ namespace SushiDefense.Tests.EditMode.Belt
         public void Next_EntryWithoutSushi_IsSkipped()
         {
             var sushi = NewSushi();
-            var sequence = new SpawnSequence(BuildTable((null, 3), (sushi, 1)));
+            var sequence = new SpawnSequence(BuildTable(null, sushi));
 
             Assert.AreSame(sushi, sequence.Next());
         }
 
         private SushiData NewSushi() => StageConfigBuilder.CreateSushi(_disposables);
 
-        private IReadOnlyList<SushiSpawnEntry> BuildTable(params (SushiData sushi, int weight)[] entries)
+        private IReadOnlyList<SushiSpawnEntry> BuildTable(params SushiData[] deck)
         {
             var builder = new StageConfigBuilder();
-            foreach (var (sushi, weight) in entries)
+            foreach (var sushi in deck)
             {
-                builder.WithSpawnEntry(sushi, weight);
+                builder.WithSpawnEntry(sushi);
             }
 
             _config = builder.Build();

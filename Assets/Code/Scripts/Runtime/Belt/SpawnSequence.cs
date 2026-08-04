@@ -21,7 +21,13 @@ namespace SushiDefense.Belt
         public bool IsEmpty => _order.Count == 0;
 
         /// <summary>
-        /// 가중치만큼 반복 배치한 순서를 만든다. 가중치 0 이나 초밥이 비어 있는 항목은 빠진다.
+        /// 덱 순서를 그대로 배출 순서로 삼는다. 초밥이 비어 있는 항목은 빠진다.
+        ///
+        /// <para>
+        /// <b>임시 구현이다.</b> 가격에서 유도한 share 로 배출 빈도를 정하는 credit 누적 방식이
+        /// 본래 설계이며 step-03 에서 들어온다. 여기서는 가중치 필드가 사라진 자리를 메우기
+        /// 위해 항목당 1회 균등 배출만 한다 (작업서 step-01).
+        /// </para>
         /// </summary>
         public SpawnSequence(IReadOnlyList<SushiSpawnEntry> entries)
         {
@@ -30,8 +36,8 @@ namespace SushiDefense.Belt
                 return;
             }
 
-            // 순서를 미리 펼쳐 둔다. Next() 가 매번 가중치를 다시 계산하면
-            // 스폰 경로에 연산이 쌓이고, 펼친 목록은 생성자에서 한 번만 잡힌다.
+            // 순서를 미리 펼쳐 둔다. Next() 안에서 목록을 다시 만들면 스폰 경로에
+            // 할당이 쌓인다 — 배포 타깃이 WebGL 이라 그대로 히칭이 된다.
             for (var i = 0; i < entries.Count; i++)
             {
                 var entry = entries[i];
@@ -40,10 +46,7 @@ namespace SushiDefense.Belt
                     continue;
                 }
 
-                for (var repeat = 0; repeat < entry.Weight; repeat++)
-                {
-                    _order.Add(entry.Sushi);
-                }
+                _order.Add(entry.Sushi);
             }
         }
 

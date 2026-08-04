@@ -32,7 +32,6 @@ namespace SushiDefense.Tests.PlayMode
             table.InsertArrayElementAtIndex(0);
             var entry = table.GetArrayElementAtIndex(0);
             entry.FindPropertyRelative("_sushi").objectReferenceValue = spawnSushi;
-            entry.FindPropertyRelative("_weight").intValue = 1;
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
 #endif

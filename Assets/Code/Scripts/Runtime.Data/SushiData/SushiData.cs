@@ -9,9 +9,21 @@ namespace SushiDefense.Data
     [CreateAssetMenu(menuName = "SushiRailBite/Sushi Data", fileName = "SushiData")]
     public sealed class SushiData : ScriptableObject
     {
+        /// <summary>
+        /// 가격의 구조적 하한. 밸런스 값이 아니라 "이 아래는 초밥이 아니다"는 불변조건이라
+        /// 코드에 둔다 — 가격은 엔 단위이고 100 미만은 오류다.
+        ///
+        /// <para>
+        /// 이 하한이 영입 재화 계산을 떠받친다. 재화는 <c>가격 / 10</c> 을 <b>정수 나눗셈</b>으로
+        /// 누적하는데(M2 확정), 가격이 100 이상이면 초밥 1개당 최소 10 이 들어오므로 잔여분을
+        /// 이월하는 장치 없이도 재화가 조용히 0 에 머무는 상황이 생기지 않는다.
+        /// </para>
+        /// </summary>
+        private const int MinimumPrice = 100;
+
         [SerializeField] private string _id;
         [SerializeField] private string _displayName;
-        [SerializeField, Min(0)] private int _price;
+        [SerializeField, Min(MinimumPrice)] private int _price = MinimumPrice;
         [SerializeField, Min(0)] private int _saturationAmount;
         [SerializeField] private SushiTrait _trait = SushiTrait.None;
         [SerializeField] private Sprite _icon;
@@ -25,6 +37,8 @@ namespace SushiDefense.Data
         /// <summary>
         /// 가격. 매출 기여량이자 배정 우선순위의 거리 기준이다 — 손님의
         /// <see cref="CustomerData.TargetingPrice"/> 와의 거리로 순위가 정해진다 (<c>CLAUDE.md</c> §1.1-3a).
+        /// 스폰 빈도도 여기서 나온다 (<see cref="StageConfig.SparsityExponent"/>).
+        /// <b>하한은 100 이다</b> — 엔 단위이며 그 아래는 오류로 본다.
         /// </summary>
         public int Price => _price;
 
@@ -38,12 +52,12 @@ namespace SushiDefense.Data
         public Sprite Icon => _icon;
 
         /// <summary>
-        /// 음수 방어. <c>[Min]</c> 은 인스펙터 입력만 막고 직렬화된 이상값·코드 대입은 통과시키므로
+        /// 이상값 방어. <c>[Min]</c> 은 인스펙터 입력만 막고 직렬화된 이상값·코드 대입은 통과시키므로
         /// 여기서 한 번 더 조인다.
         /// </summary>
         internal void OnValidate()
         {
-            _price = Mathf.Max(0, _price);
+            _price = Mathf.Max(MinimumPrice, _price);
             _saturationAmount = Mathf.Max(0, _saturationAmount);
         }
     }
