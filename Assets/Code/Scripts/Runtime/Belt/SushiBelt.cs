@@ -43,7 +43,7 @@ namespace SushiDefense.Belt
             _config = config != null ? config : throw new ArgumentNullException(nameof(config));
             _sequenceNumbers = sequenceNumbers ?? throw new ArgumentNullException(nameof(sequenceNumbers));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
-            _spawnSequence = new SpawnSequence(config.SpawnTable);
+            _spawnSequence = new SpawnSequence(config.SpawnTable, config.SparsityExponent);
         }
 
         /// <summary>
