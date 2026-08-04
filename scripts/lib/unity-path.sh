@@ -29,7 +29,8 @@ case "$(uname -s)" in
     Darwin)
         UNITY_APP="/Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app"
         UNITY_BIN="$UNITY_APP/Contents/MacOS/Unity"
-        PLAYBACK_ENGINES="$UNITY_APP/Contents/PlaybackEngines" ;;
+        # Unity 6 은 PlaybackEngines 를 .app 번들 밖, 에디터 루트에 둔다.
+        PLAYBACK_ENGINES="/Applications/Unity/Hub/Editor/$UNITY_VERSION/PlaybackEngines" ;;
     Linux)
         UNITY_BIN="$HOME/Unity/Hub/Editor/$UNITY_VERSION/Editor/Unity"
         PLAYBACK_ENGINES="$HOME/Unity/Hub/Editor/$UNITY_VERSION/Editor/Data/PlaybackEngines" ;;

@@ -1,0 +1,6 @@
+{
+  "name": "Presentation",
+  "rootNamespace": "SushiDefense",
+  "references": ["Runtime", "Runtime.Data"],
+  "autoReferenced": false
+}

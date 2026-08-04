@@ -21,13 +21,17 @@
 
 ## 완료 판정
 
-- [ ] 6개 어셈블리가 생성되고 의존 방향이 단방향이다
-- [ ] `Runtime.Data` 에 SO 3종 스키마가 있고, 각각 데이터 검증 EditMode 테스트가 붙어 있다
-- [ ] `SushiPool` 이 있고 재사용을 검증하는 PlayMode 테스트가 통과한다
-- [ ] 이벤트 채널 SO 1종이 있고 발행→구독이 EditMode 로 검증된다
-- [ ] `Unity -batchmode -runTests -testPlatform EditMode` 전량 Green
-- [ ] **`/run webgl` 로 빈 씬 빌드가 성공한다** (M0 의 핵심 관문)
-- [ ] `./scripts/bridge-run.sh` 로 컴파일 에러 0
+- [x] 6개 어셈블리가 생성되고 의존 방향이 단방향이다
+- [x] `Runtime.Data` 에 SO 3종 스키마가 있고, 각각 데이터 검증 EditMode 테스트가 붙어 있다
+- [x] `SushiPool` 이 있고 재사용을 검증하는 PlayMode 테스트가 통과한다
+- [x] 이벤트 채널 SO 1종이 있고 발행→구독이 EditMode 로 검증된다
+- [x] `Unity -batchmode -runTests -testPlatform EditMode` 전량 Green — EditMode 54/54, PlayMode 7/7
+- [x] **`/run webgl` 로 빈 씬 빌드가 성공한다** (M0 의 핵심 관문) — 42MB, 로그 error 0
+- [x] `./scripts/bridge-run.sh` 로 컴파일 에러 0
+
+> 작업서는 [`design/m0-foundation/`](../../design/m0-foundation/README.md). 실행 중 내린 판단(D1~D7)은 그 README 에 남아 있다.
+>
+> **관문이 실제로 잡아낸 것**: WebGL 빌드가 M0 코드 때문이 아니라 [`scripts/lib/unity-path.sh`](../../scripts/lib/unity-path.sh) 의 `PlaybackEngines` 경로 때문에 막혔다. Unity 6 이 macOS 에서 이 폴더를 `.app` 번들 밖으로 옮겼는데 스크립트가 구버전 레이아웃을 보고 있었다. 로직을 한참 쌓은 뒤에 만났다면 원인 후보가 훨씬 많았을 지점이다.
 
 ---
 
