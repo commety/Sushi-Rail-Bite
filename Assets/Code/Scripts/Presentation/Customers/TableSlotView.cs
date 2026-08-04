@@ -12,6 +12,17 @@ namespace SushiDefense.Customers
         [SerializeField] private int _slotIndex;
         [SerializeField] private float _beltPosition;
 
+        /// <summary>
+        /// 이 자리에 미리 놓아 둔 손님 시각 표현. 비어 있을 때는 꺼져 있다.
+        ///
+        /// <para>
+        /// 배치할 때마다 <c>Instantiate</c> 하지 않는 이유: 프로덕션에서 오브젝트를 새로 만드는
+        /// 지점은 <c>SushiPoolBehaviour</c> 하나로 유지한다 (<c>CLAUDE.md</c> §3.4).
+        /// 자리 수는 스테이지마다 고정이라 미리 놓아 두는 편이 단순하다.
+        /// </para>
+        /// </summary>
+        [SerializeField] private CustomerView _seatVisual;
+
         /// <summary>스테이지 안에서 이 자리를 가리키는 번호.</summary>
         public int SlotIndex => _slotIndex;
 
@@ -32,16 +43,41 @@ namespace SushiDefense.Customers
             transform.localPosition = definition.Position;
         }
 
-        /// <summary>손님을 앉힌다.</summary>
-        public void Occupy(CustomerView customer)
+        /// <summary>인스펙터 없이 자리 시각 표현을 물린다. 테스트·부트스트랩용이다.</summary>
+        public void Initialize(int slotIndex, float beltPosition, CustomerView seatVisual)
         {
-            Occupant = customer;
+            _slotIndex = slotIndex;
+            _beltPosition = beltPosition;
+            _seatVisual = seatVisual;
+            Vacate();
+        }
+
+        /// <summary>손님을 앉힌다. 자리에 딸린 시각 표현을 켜고 로직을 물린다.</summary>
+        public void Occupy(CustomerLogic logic)
+        {
+            Occupant = _seatVisual;
+
+            if (_seatVisual == null)
+            {
+                return;
+            }
+
+            _seatVisual.Bind(logic);
+            _seatVisual.gameObject.SetActive(true);
         }
 
         /// <summary>자리를 비운다.</summary>
         public void Vacate()
         {
             Occupant = null;
+
+            if (_seatVisual == null)
+            {
+                return;
+            }
+
+            _seatVisual.Bind(null);
+            _seatVisual.gameObject.SetActive(false);
         }
     }
 }
