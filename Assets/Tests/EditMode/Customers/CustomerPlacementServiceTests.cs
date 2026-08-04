@@ -336,8 +336,8 @@ namespace SushiDefense.Tests.EditMode.Customers
 
             _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
-            _coordinator = new ClaimCoordinator(_belt, _config);
             _wallet = new RecruitWallet(initialBudget);
+            _coordinator = new ClaimCoordinator(_belt, _config, new RevenueLedger(), _wallet);
             _service = new CustomerPlacementService(_coordinator, _config,
                                                     new SequenceNumberIssuer(), _wallet);
 

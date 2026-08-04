@@ -41,6 +41,9 @@ namespace SushiDefense
         /// <summary>이 스테이지의 영입 재화. 스테이지마다 초기 예산으로 새로 열린다.</summary>
         public RecruitWallet Wallet { get; private set; }
 
+        /// <summary>이 스테이지의 매출. 스테이지마다 0 에서 시작한다.</summary>
+        public RevenueLedger Revenue { get; private set; }
+
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
                                SushiBeltView beltView, Transform beltStart, Transform beltEnd,
@@ -68,8 +71,9 @@ namespace SushiDefense
 
             Belt = new SushiBelt(_stageConfig, new SequenceNumberIssuer(),
                                  new SushiPool<SushiItem>(new SushiItemFactory()));
-            Coordinator = new ClaimCoordinator(Belt, _stageConfig);
+            Revenue = new RevenueLedger();
             Wallet = new RecruitWallet(_stageConfig.InitialRecruitBudget);
+            Coordinator = new ClaimCoordinator(Belt, _stageConfig, Revenue, Wallet);
             Placement = new CustomerPlacementService(Coordinator, _stageConfig,
                                                      new SequenceNumberIssuer(), Wallet);
 
@@ -154,6 +158,7 @@ namespace SushiDefense
             Belt = null;
             Placement = null;
             Wallet = null;
+            Revenue = null;
         }
     }
 }

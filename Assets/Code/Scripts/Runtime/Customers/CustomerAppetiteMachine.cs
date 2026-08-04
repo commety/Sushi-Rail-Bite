@@ -64,6 +64,29 @@ namespace SushiDefense.Customers
         }
 
         /// <summary>
+        /// 먹기를 중단하고 <see cref="CustomerState.Idle"/> 로 되돌린다.
+        /// <b>포화도는 오르지 않고 <see cref="EatingFinished"/> 도 발행되지 않는다</b> —
+        /// 소비가 일어나지 않았기 때문이다.
+        ///
+        /// <para>
+        /// 먹던 초밥이 사라졌을 때 쓴다. 끝점에 닿아 벨트에서 반납되는 경우가 그렇다.
+        /// 이 경로가 없으면 손님이 영영 <c>Eating</c> 에 갇혀 다시는 배정을 못 받는다.
+        /// </para>
+        /// </summary>
+        public bool AbortEating()
+        {
+            if (State.State != CustomerState.Eating)
+            {
+                return false;
+            }
+
+            _pendingSaturation = 0;
+            State.RemainingEatSeconds = 0f;
+            State.State = CustomerState.Idle;
+            return true;
+        }
+
+        /// <summary>
         /// 시간을 흘린다. 한 틱에 전이는 최대 하나다 — 먹기 완료와 소화 완료가 같은 틱에
         /// 겹치지 않아서 상태 변화를 쫓기 쉽다.
         /// </summary>
