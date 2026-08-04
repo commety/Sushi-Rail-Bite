@@ -1,0 +1,111 @@
+using NUnit.Framework;
+using SushiDefense.Belt;
+using SushiDefense.Customers;
+using SushiDefense.Data;
+using SushiDefense.Tests.EditMode.Data;
+using UnityEngine;
+
+namespace SushiDefense.Tests.EditMode.Customers
+{
+    public sealed class ClaimPairComparerTests
+    {
+        private CustomerData _customerData;
+        private ClaimPairComparer _comparer;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _customerData = ScriptableObject.CreateInstance<CustomerData>();
+            SerializedFieldSetter.SetFloat(_customerData, "_reach", 10f);
+            _comparer = new ClaimPairComparer();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Object.DestroyImmediate(_customerData);
+        }
+
+        [Test]
+        public void Compare_LowerSushiSequence_ComesFirst()
+        {
+            var customer = NewCustomer(0);
+            var earlier = NewPair(customer, sushiSequence: 0);
+            var later = NewPair(customer, sushiSequence: 1);
+
+            Assert.Less(_comparer.Compare(earlier, later), 0);
+            Assert.Greater(_comparer.Compare(later, earlier), 0);
+        }
+
+        [Test]
+        public void Compare_SameSushi_LowerCustomerSequenceComesFirst()
+        {
+            var sushi = new SushiItem(null, 0);
+            var first = new ClaimCandidatePair(NewCustomer(0), sushi);
+            var second = new ClaimCandidatePair(NewCustomer(1), sushi);
+
+            Assert.Less(_comparer.Compare(first, second), 0);
+            Assert.Greater(_comparer.Compare(second, first), 0);
+        }
+
+        [Test]
+        public void Compare_SushiKeyOutranksCustomerKey()
+        {
+            // TD 로 보면 적(초밥)이 최선, 타워(손님)가 차선이다 (sushi-claim-flow §2).
+            // 손님 순차번호가 한참 뒤여도 초밥이 앞서면 이긴다.
+            var lateCustomerEarlySushi = new ClaimCandidatePair(NewCustomer(99), new SushiItem(null, 0));
+            var earlyCustomerLateSushi = new ClaimCandidatePair(NewCustomer(0), new SushiItem(null, 1));
+
+            Assert.Less(_comparer.Compare(lateCustomerEarlySushi, earlyCustomerLateSushi), 0);
+        }
+
+        [Test]
+        public void Compare_SamePair_ReturnsZero()
+        {
+            var pair = NewPair(NewCustomer(0), sushiSequence: 0);
+
+            Assert.AreEqual(0, _comparer.Compare(pair, pair));
+        }
+
+        [Test]
+        public void Compare_DifferentPairs_NeverReturnsZero()
+        {
+            // 완전순서 — 순차번호가 유일하므로 서로 다른 쌍은 항상 순서가 갈린다.
+            // 0 이 나오면 승자가 정렬 구현에 좌우되어 결정성이 깨진다.
+            var customers = new[] { NewCustomer(0), NewCustomer(1) };
+            var sushi = new[] { new SushiItem(null, 0), new SushiItem(null, 1) };
+
+            foreach (var leftCustomer in customers)
+            {
+                foreach (var leftSushi in sushi)
+                {
+                    foreach (var rightCustomer in customers)
+                    {
+                        foreach (var rightSushi in sushi)
+                        {
+                            if (leftCustomer == rightCustomer && leftSushi == rightSushi)
+                            {
+                                continue;
+                            }
+
+                            var left = new ClaimCandidatePair(leftCustomer, leftSushi);
+                            var right = new ClaimCandidatePair(rightCustomer, rightSushi);
+
+                            Assert.AreNotEqual(0, _comparer.Compare(left, right));
+                        }
+                    }
+                }
+            }
+        }
+
+        private CustomerLogic NewCustomer(int sequenceNumber)
+        {
+            return new CustomerLogic(new CustomerRuntimeState(_customerData, sequenceNumber), 0f);
+        }
+
+        private static ClaimCandidatePair NewPair(CustomerLogic customer, int sushiSequence)
+        {
+            return new ClaimCandidatePair(customer, new SushiItem(null, sushiSequence));
+        }
+    }
+}
