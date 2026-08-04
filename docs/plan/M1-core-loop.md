@@ -16,14 +16,20 @@
 
 ## 완료 판정
 
-- [ ] 씬을 재생하면 초밥이 벨트 시작점에서 나와 라인을 따라 이동한다
-- [ ] 초밥이 라인 끝에 도달하면 **풀로 반납**된다 (`Destroy` 호출 0)
-- [ ] 손님을 `TableSlot` 에 배치할 수 있다
-- [ ] 손님이 **자기 집기 범위에 들어온 초밥을 집는다**
-- [ ] 범위 안에 초밥이 여러 개면 **순차번호가 낮은 것부터** 집는다 *(M1 에는 가격이 없어 우선순위가 없다. 배정 규칙은 M2 에서 확장)*
-- [ ] 범위 안에 초밥이 있는데 집지 않고 지나보내는 프레임이 **0** 이다
-- [ ] **탐색이 이벤트 기반이다** — `Update` 안에서 손님×초밥 전수 순회가 돌지 않는다
-- [ ] EditMode 전량 Green + `/run webgl` 빌드 성공 유지
+- [x] 씬을 재생하면 초밥이 벨트 시작점에서 나와 라인을 따라 이동한다 — `Stage01SceneTests`
+- [x] 초밥이 라인 끝에 도달하면 **풀로 반납**된다 (`Destroy` 호출 0) — 프로덕션의 `Destroy` 는 `SushiPoolBehaviour` 한 곳뿐
+- [x] 손님을 `TableSlot` 에 배치할 수 있다 — **진행 중 배치도 가능** (Q4)
+- [x] 손님이 **자기 집기 범위에 들어온 초밥을 집는다**
+- [x] 범위 안에 초밥이 여러 개면 **순차번호가 낮은 것부터** 집는다
+- [x] 범위 안에 초밥이 있는데 집지 않고 지나보내는 프레임이 **0** 이다 — EditMode·PlayMode 양쪽에 짝으로
+- [x] **탐색이 이벤트 기반이다** — 진입 시각을 스폰·배치 때 한 번 계산해 예약하고, 틱마다 기한이 된 것만 꺼낸다
+- [x] EditMode 전량 Green + `/run webgl` 빌드 성공 유지 — EditMode 181 / PlayMode 37
+
+> 작업서는 [`design/m1-core-loop/`](../../design/m1-core-loop/README.md). 실행 중 내린 판단(D1~D6)은 그 README 에 있다.
+>
+> **검증 씬**: [`Assets/Level/Scenes/Stage01.unity`](../../Assets/Level/Scenes/Stage01.unity). Build Settings 에는 **등록하지 않았다** — `ProjectSettings` 수정이라 사람 승인 사항이다 (RULE-06). 등록 없이도 에디터에서 열어 재생할 수 있고, PlayMode 테스트는 경로로 연다.
+>
+> **밸런스 값은 아직 사람이 정하지 않았다.** `Assets/Level/Balance/*.Placeholder.asset` 3종은 씬이 돌아가는 것을 보기 위한 임시값이다 (§7 — 확인 필요).
 
 ---
 
