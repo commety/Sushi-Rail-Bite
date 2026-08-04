@@ -98,5 +98,16 @@ namespace SushiDefense.Tests.EditMode.Data
             disposables.Add(sushi);
             return sushi;
         }
+
+        /// <summary>
+        /// 가격을 지정해 초밥 데이터를 만든다. 등장 비율·배정 우선순위가 전부 가격에서
+        /// 나오므로, 그 계산을 검증하는 테스트는 가격이 서로 다른 초밥을 필요로 한다.
+        /// </summary>
+        public static SushiData CreateSushi(List<Object> disposables, int price)
+        {
+            var sushi = CreateSushi(disposables);
+            SerializedFieldSetter.SetInt(sushi, "_price", price);
+            return sushi;
+        }
     }
 }
