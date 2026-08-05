@@ -66,18 +66,45 @@ else
     record "배정 난수 금지" "SKIP" "Runtime 어셈블리 아직 없음"
 fi
 
-# ── 5. 타겟팅 자격 오용 (CLAUDE.md §1.1-3a) ─────────────────────────────
-# 타겟팅은 배정에만 쓰인다. bool 을 반환하는 자격 판정 경로에 나타나면 기획 위반.
+# ── 5. 대역 산술 격리 (CLAUDE.md §1.1-3a) ──────────────────────────────
+# 타겟팅 대역은 배정·타이밍에만 쓰인다. 정규식으로 "게이트 패턴"을 잡는 방식은
+# 오탐(ClaimDeadline 은 정당하게 대역을 보고 false 를 돌려준다)과 미탐(새 금지형
+# `if (BandDistance(...) > 0) return false;`)이 둘 다 난다.
+#
+# 대신 **허용 목록**으로 본다 — 대역 산술이 정해진 세 파일 밖에 등장하면 FAIL.
+# 근거: .claude/domain/sushi-claim-flow.md §7 "가격을 읽는 곳은 다섯뿐이다"
 if [ -d "Assets/Code/Scripts/Runtime" ]; then
-    TARGETING_GATE=$(grep -rnE 'Targeting.*(>|<|>=|<=).*(threshold|Threshold)|Abs\(.*Targeting.*\)\s*(>|>=)' \
-        Assets/Code/Scripts/Runtime 2>/dev/null || true)
-    if [ -n "$TARGETING_GATE" ]; then
-        record "타겟팅 자격 오용" "FAIL" "게이트 의심 패턴 발견"
+    BAND_HITS=$(grep -rnE 'BandDistance|BandWidth|TargetingMin|TargetingMax' \
+        Assets/Code/Scripts/Runtime 2>/dev/null \
+        | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)' \
+        | grep -vE '/(TargetingPriority|ClaimPairComparer|ClaimDeadline)\.cs:' || true)
+    if [ -n "$BAND_HITS" ]; then
+        record "대역 산술 격리" "FAIL" "허용 목록 밖 $(echo "$BAND_HITS" | wc -l | tr -d ' ')건"
+        echo "$BAND_HITS" | head -5 >&2
     else
-        record "타겟팅 자격 오용" "PASS" "의심 패턴 없음"
+        record "대역 산술 격리" "PASS" "허용 목록 3파일 밖 0건"
     fi
 else
-    record "타겟팅 자격 오용" "SKIP" "Runtime 어셈블리 아직 없음"
+    record "대역 산술 격리" "SKIP" "Runtime 어셈블리 아직 없음"
+fi
+
+# ── 5b. 자격 경로 청정 (CLAUDE.md §1.1-3a) ─────────────────────────────
+# 자격 판정과 식욕 상태 머신은 가격 타입을 아예 참조하지 않는다. 이 둘에
+# Price/Targeting 이 등장하면 자격에 가격이 샌 것이다.
+ELIGIBILITY_FILES="Assets/Code/Scripts/Runtime/Customers/CustomerLogic.cs \
+Assets/Code/Scripts/Runtime/Customers/CustomerAppetiteMachine.cs"
+if [ -f "Assets/Code/Scripts/Runtime/Customers/CustomerLogic.cs" ]; then
+    # shellcheck disable=SC2086
+    ELIGIBILITY_HITS=$(grep -nE 'Price|Targeting|Band' $ELIGIBILITY_FILES 2>/dev/null \
+        | grep -vE ':[0-9]+:[[:space:]]*(///|//|\*)' || true)
+    if [ -n "$ELIGIBILITY_HITS" ]; then
+        record "자격 경로 청정" "FAIL" "자격 경로에 가격이 샜다"
+        echo "$ELIGIBILITY_HITS" | head -5 >&2
+    else
+        record "자격 경로 청정" "PASS" "CustomerLogic·AppetiteMachine 에 0건"
+    fi
+else
+    record "자격 경로 청정" "SKIP" "자격 판정 파일 아직 없음"
 fi
 
 # ── 6. 포맷/린트 (§8-1) ─────────────────────────────────────────────────

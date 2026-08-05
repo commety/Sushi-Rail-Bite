@@ -56,7 +56,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Resolve_OneCustomerManySushi_TakesNearestToTargeting()
         {
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var far = Recognize(customer, NewSushi(0, price: 800));
             var near = Recognize(customer, NewSushi(9, price: 210));
 
@@ -71,7 +71,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         public void Resolve_EqualDistance_TakesHigherPrice()
         {
             // 타겟팅 200 → 190 과 210 은 동거리. 비싼 쪽을 집는다.
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var cheap = Recognize(customer, NewSushi(0, price: 190));
             var expensive = Recognize(customer, NewSushi(9, price: 210));
 
@@ -99,7 +99,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         {
             // 타겟팅에서 아무리 멀어도 더 맞는 대안이 없으면 먹는다.
             // 손님이 눈앞의 초밥을 두고 구경하는 것은 버그다 (CLAUDE.md §1.1-3a).
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var farAway = Recognize(customer, NewSushi(0, price: 5000));
 
             Resolve();
@@ -113,8 +113,8 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Resolve_ManyCustomersOneSushi_NearestTargetingWins()
         {
-            var offTarget = AddCustomer(0, targetingPrice: 900);
-            var onTarget = AddCustomer(1, targetingPrice: 200);
+            var offTarget = AddCustomer(0, targetingPoint: 900);
+            var onTarget = AddCustomer(1, targetingPoint: 200);
             var sushi = NewSushi(0, price: 200);
             Recognize(offTarget, sushi);
             Recognize(onTarget, sushi);
@@ -123,6 +123,40 @@ namespace SushiDefense.Tests.EditMode.Customers
 
             Assert.AreEqual(1, _results.Count);
             Assert.AreSame(onTarget, _results[0].Customer, "손님 SeqNo 가 뒤여도 타겟팅이 위다");
+        }
+
+        [Test]
+        public void Resolve_TwoInBandSushi_TakesHigherPrice()
+        {
+            // 대역 안은 거리가 전부 0 이라 키 2(고가 우선)가 정한다. 여기가 깨지면
+            // 대역 안에서 FIFO 로 되돌아간 것이다 — 이 마일스톤이 없애려는 버그다.
+            var customer = AddBandCustomer(0, 100, 300);
+            var cheap = Recognize(customer, NewSushi(0, price: 110));
+            var expensive = Recognize(customer, NewSushi(9, price: 290));
+
+            Resolve();
+
+            Assert.AreSame(expensive, _results[0].Sushi, "초밥 SeqNo 가 뒤여도 비싼 쪽이다");
+            Assert.AreEqual(SushiState.OnBelt, cheap.State);
+        }
+
+        [Test]
+        public void Resolve_NarrowBandPlacedLater_StillWins()
+        {
+            // 전문가가 범용가를 이긴다 (정렬 키 4). 배치 순서를 **반대로** 준 것이 핵심이다 —
+            // 좁은 대역 손님을 먼저 앉히면 키 5 만으로도 통과해 아무것도 증명하지 못한다.
+            //
+            // 이 규칙이 없으면 소식좌가 자기 전문 분야를 먼저 앉은 범용 손님에게 빼앗긴다.
+            var generalist = AddBandCustomer(0, 100, 300);
+            var specialist = AddBandCustomer(1, 190, 210);
+            var sushi = NewSushi(0, price: 200);
+            Recognize(generalist, sushi);
+            Recognize(specialist, sushi);
+
+            Resolve();
+
+            Assert.AreEqual(1, _results.Count);
+            Assert.AreSame(specialist, _results[0].Customer, "대역 폭이 배치 순서를 이긴다");
         }
 
         [Test]
@@ -149,8 +183,8 @@ namespace SushiDefense.Tests.EditMode.Customers
             //   (luxuryLover, cheapSushi) → (cheapLover, luxurySushi)
             // 로 둘 다 반대 것을 집는다. 이 엇갈림이 없으면 잘못된 정렬로도
             // 우연히 정답이 나와 테스트가 아무것도 잡지 못한다.
-            var luxuryLover = AddCustomer(0, targetingPrice: 800);
-            var cheapLover = AddCustomer(1, targetingPrice: 120);
+            var luxuryLover = AddCustomer(0, targetingPoint: 800);
+            var cheapLover = AddCustomer(1, targetingPoint: 120);
             var cheapSushi = NewSushi(0, price: 120);
             var luxurySushi = NewSushi(1, price: 800);
 
@@ -300,10 +334,11 @@ namespace SushiDefense.Tests.EditMode.Customers
             _customers.Clear();
             _candidates.Clear();
 
-            // 타겟팅·가격을 서로 다르게 둬 네 키가 모두 관여하게 만든다.
-            var first = AddCustomer(0, targetingPrice: 150);
-            var second = AddCustomer(1, targetingPrice: 300);
-            var third = AddCustomer(2, targetingPrice: 150);
+            // 대역 위치·폭·가격을 서로 다르게 둬 **다섯 키가 모두** 관여하게 만든다.
+            // first 와 third 는 같은 대역이지만 폭이 달라 키 4에서 갈린다.
+            var first = AddBandCustomer(0, 120, 180);
+            var second = AddBandCustomer(1, 290, 310);
+            var third = AddBandCustomer(2, 140, 160);
             var sushiA = NewSushi(7, price: 300);
             var sushiB = NewSushi(3, price: 150);
 
@@ -338,12 +373,19 @@ namespace SushiDefense.Tests.EditMode.Customers
 
         private void Resolve() => _resolver.Resolve(_customers, _candidates, _results);
 
-        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPrice = NeutralPrice)
+        /// <summary>
+        /// 대역 폭 0 인 손님. 폭이 관여하지 않아야 하는 테스트가 쓴다 — 모든 손님의 폭이
+        /// 같으면 키 4가 동률이 되어 그 아래 키(손님 SeqNo)가 드러난다.
+        /// </summary>
+        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPoint = NeutralPrice) =>
+            AddBandCustomer(sequenceNumber, targetingPoint, targetingPoint);
+
+        private CustomerLogic AddBandCustomer(int sequenceNumber, int targetingMin, int targetingMax)
         {
             var data = ScriptableObject.CreateInstance<CustomerData>();
             _disposables.Add(data);
             SerializedFieldSetter.SetFloat(data, "_reach", 100f);
-            SerializedFieldSetter.SetInt(data, "_targetingPrice", targetingPrice);
+            SerializedFieldSetter.SetTargetingBand(data, targetingMin, targetingMax);
             SerializedFieldSetter.SetInt(data, "_maxSaturation", 5);
 
             var customer = new CustomerLogic(new CustomerRuntimeState(data, sequenceNumber), 0f);

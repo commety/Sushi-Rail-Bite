@@ -85,6 +85,88 @@ namespace SushiDefense.Tests.PlayMode
             Assert.IsNotEmpty(_stage.Hud.RevenueText);
             Assert.IsNotEmpty(_stage.Hud.WalletText);
             Assert.IsNotEmpty(_stage.Hud.PlacementText);
+            Assert.IsNotEmpty(_stage.Hud.WaitingText, "대기 인원 표시가 없다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_CustomersHaveMeaningfulBands()
+        {
+            // 대역이 0~0 이면 모든 초밥이 대역 밖 + 폭 0(최강 전문가)이라 배정이 뒤집힌다.
+            // 스키마를 바꾸면 Unity 가 옛 필드를 조용히 버리고 새 필드를 0 으로 채우므로,
+            // 밸런스 값을 채우는 것을 잊으면 아무 에러 없이 그 상태로 굴러간다.
+            yield return null;
+
+            var kinds = new[] { "Customer.Standard", "Customer.SmallEater" };
+            var widths = new System.Collections.Generic.List<int>();
+
+            foreach (var kind in kinds)
+            {
+                var data = LoadCustomer(kind);
+                Assert.IsNotNull(data, $"{kind} 애셋이 없다");
+                Assert.GreaterOrEqual(data.TargetingMax, 100,
+                                      $"{kind} 의 대역 상한이 가격 하한(100) 아래다 — 값이 비었다");
+                Assert.LessOrEqual(data.TargetingMin, data.TargetingMax, $"{kind} 의 대역이 뒤집혔다");
+                widths.Add(data.TargetingMax - data.TargetingMin);
+            }
+
+            // 폭이 같으면 정렬 키 4가 동률이 되어 손님 유형이 경합에서 구분되지 않는다.
+            // 그러면 배치 순서가 승자를 정하는, M2.5 가 없애려던 그림으로 되돌아간다.
+            Assert.AreNotEqual(widths[0], widths[1],
+                               "기본과 소식의 대역 폭이 같다 — 전문가 우선(키 4)이 작동하지 않는다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_SpecialistBandIsNarrowerThanGeneralist()
+        {
+            // 소식은 좁은 고가대 전문가여야 한다. 상한을 덱 최고가보다 한참 위로 잡으면
+            // 아무 일도 하지 않는 구간이 폭만 부풀려, 키 4에서 범용가에게 진다.
+            yield return null;
+
+            var generalist = LoadCustomer("Customer.Standard");
+            var specialist = LoadCustomer("Customer.SmallEater");
+
+            Assert.Less(specialist.TargetingMax - specialist.TargetingMin,
+                        generalist.TargetingMax - generalist.TargetingMin,
+                        "소식의 대역이 기본보다 넓다 — 겹치는 가격을 기본에게 빼앗긴다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_ReachStaysInsideBelt()
+        {
+            // M2.5 가 만든 새 실패 모드를 막는 구성 제약이다.
+            //
+            // 유예가 도입되면서 손님은 대역 밖 초밥을 '범위를 벗어나기 직전' 까지 기다린다.
+            // 그런데 자리의 집기 범위가 벨트 끝을 넘어가면 그 시각이 영영 오지 않는다 —
+            // 초밥이 범위를 벗어나기 전에 끝점에서 사라지기 때문이다. 그 손님은 굶는다.
+            //
+            // 즉시 확정이던 M2 까지는 발생할 수 없던 조건이라 지금 잠근다.
+            yield return null;
+
+            var slots = Object.FindObjectsByType<SushiDefense.Customers.TableSlotView>(
+                FindObjectsSortMode.None);
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            var reach = DefaultCustomer().Reach;
+            foreach (var slot in slots)
+            {
+                Assert.Less(slot.BeltPosition + reach, _stage.StageConfig.BeltLength,
+                            $"자리 {slot.SlotIndex} 의 집기 범위가 벨트 끝을 넘는다 — "
+                            + "기다리는 손님이 초밥을 잃는다");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_OccupiedSeatShowsBand()
+        {
+            // 대역이 화면에 보이는지 — 이 마일스톤의 목적이 가독성이므로 선택이 아니다.
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+            slot.Occupy(logic, _stage.Coordinator);
+
+            yield return null;
+
+            Assert.IsNotNull(slot.Occupant, "자리에 손님 시각 표현이 없다 — 씬 조립을 확인하라");
+            Assert.IsNotEmpty(slot.Occupant.BandText, "손님 옆에 대역이 표시되지 않는다");
         }
 
         [UnityTest]
@@ -128,11 +210,18 @@ namespace SushiDefense.Tests.PlayMode
             Assert.Greater(claimed, 0, "배치된 손님이 범위 안 초밥을 집는다");
         }
 
-        private static SushiDefense.Data.CustomerData DefaultCustomer()
+        private static SushiDefense.Data.CustomerData DefaultCustomer() => LoadCustomer("Customer.Standard");
+
+        /// <summary>
+        /// 밸런스 애셋을 이름으로 연다. 순수 로직 테스트에서는 금지된 방식이지만
+        /// (<c>.claude/rules/tests.md</c> §4), 여기서는 <b>애셋 자체가 검증 대상</b>이다 —
+        /// 코드로 만든 SO 로는 "값을 채우는 것을 잊었다" 를 잡을 수 없다.
+        /// </summary>
+        private static SushiDefense.Data.CustomerData LoadCustomer(string assetName)
         {
 #if UNITY_EDITOR
             return UnityEditor.AssetDatabase.LoadAssetAtPath<SushiDefense.Data.CustomerData>(
-                "Assets/Level/Balance/Customer.Standard.asset");
+                $"Assets/Level/Balance/{assetName}.asset");
 #else
             return null;
 #endif

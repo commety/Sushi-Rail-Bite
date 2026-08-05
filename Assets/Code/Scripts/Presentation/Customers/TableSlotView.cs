@@ -64,8 +64,12 @@ namespace SushiDefense.Customers
             Vacate();
         }
 
-        /// <summary>손님을 앉힌다. 자리에 딸린 시각 표현을 켜고 로직을 물린다.</summary>
-        public void Occupy(CustomerLogic logic)
+        /// <summary>
+        /// 손님을 앉힌다. 자리에 딸린 시각 표현을 켜고 로직을 물린다.
+        /// <paramref name="coordinator"/> 는 뷰가 "기다리는 중" 을 물어볼 곳이며,
+        /// 자리 자체는 그 값을 쓰지 않고 넘기기만 한다.
+        /// </summary>
+        public void Occupy(CustomerLogic logic, ClaimCoordinator coordinator)
         {
             Occupant = _seatVisual;
 
@@ -74,7 +78,7 @@ namespace SushiDefense.Customers
                 return;
             }
 
-            _seatVisual.Bind(logic);
+            _seatVisual.Bind(logic, coordinator);
             _seatVisual.gameObject.SetActive(true);
         }
 
@@ -88,7 +92,7 @@ namespace SushiDefense.Customers
                 return;
             }
 
-            _seatVisual.Bind(null);
+            _seatVisual.Bind(null, null);
             _seatVisual.gameObject.SetActive(false);
         }
     }

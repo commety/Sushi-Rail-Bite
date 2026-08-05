@@ -17,7 +17,8 @@ MonoBehaviour:
   _description: 적게 먹지만 비싼 초밥을 노린다.
   _kind: 1
   _reach: 3
-  _targetingPrice: 300
+  _targetingMin: 250
+  _targetingMax: 320
   _eatSeconds: 2
   _maxSaturation: 3
   _digestSeconds: 3.5

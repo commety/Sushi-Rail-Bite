@@ -17,7 +17,8 @@ MonoBehaviour:
   _description: 무난하게 먹는 기본 손님.
   _kind: 0
   _reach: 3
-  _targetingPrice: 120
+  _targetingMin: 100
+  _targetingMax: 300
   _eatSeconds: 1.5
   _maxSaturation: 5
   _digestSeconds: 3

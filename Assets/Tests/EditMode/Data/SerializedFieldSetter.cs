@@ -29,6 +29,19 @@ namespace SushiDefense.Tests.EditMode.Data
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        /// <summary>
+        /// <c>CustomerData</c> 의 타겟팅 대역을 한 번에 밀어 넣는다.
+        ///
+        /// 두 필드가 항상 짝으로 움직이는데다, M2.5 에서 <c>_targetingPrice</c> 를 대역으로
+        /// 쪼갤 때 <b>문자열 필드명이 네 개 테스트 파일에 흩어져 있어</b> 컴파일러가 아무것도
+        /// 잡아 주지 못했다. 이름이 또 바뀔 때 고칠 곳을 한 군데로 모아 둔다.
+        /// </summary>
+        public static void SetTargetingBand(UnityEngine.Object customerData, int min, int max)
+        {
+            SetInt(customerData, "_targetingMin", min);
+            SetInt(customerData, "_targetingMax", max);
+        }
+
         private static SerializedProperty AssertFound(this SerializedProperty property, string fieldName)
         {
             Assert.IsNotNull(property, $"직렬화 필드 '{fieldName}' 를 찾지 못했습니다 — 필드명이 바뀌었는지 확인하세요.");

@@ -51,7 +51,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
             _controller.Initialize(new[] { _slot }, _customerData);
-            _controller.Bind(_service);
+            _controller.Bind(_service, _coordinator);
         }
 
         [TearDown]

@@ -61,7 +61,7 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 ### [../CLAUDE.md](../CLAUDE.md) — 세션 시작 시 자동 로드됨
 게임 컨셉·코어 루프, 용어 사전(Ubiquitous Language), 아키텍처 원칙(SO 데이터 주도·얇은 MonoBehaviour·이벤트 채널·오브젝트 풀·상태 머신·MVP), 어셈블리 분리, 코딩 컨벤션, TDD 전략, Git Flow 3-way handshake, 인간 판단 영역, 커밋 전 체크리스트, 에셋 보호, 디렉터리 구조.
 `AGENTS.md` 는 같은 내용의 미러다.
-- **keywords:** Sushi, SushiData, SushiItem, Customer, CustomerData, Targeting, TargetingPrice, TargetingPriority, 단일 값, 거리, Claim, SushiClaimResolver, FIFO, FCFS, 경합, tie-break, TableSlot, SushiBelt, SushiDeck, CustomerDeck, StageConfig, StageController, RunState, SushiPool, ISushiConsumer, IScorable, EventChannelSO, SushiDefense, Runtime, Runtime.Data, Presentation, Tests.EditMode, Tests.PlayMode, assembly, asmdef, autoReferenced, namespace, TDD, Unity Test Framework, EditMode, PlayMode, Git Flow, 3-way handshake, feature branch, no-ff, Conventional Commits, 커밋 전 체크리스트, 에셋 유출, Git LFS, WebGL, URP, Unity 6.5
+- **keywords:** Sushi, SushiData, SushiItem, Customer, CustomerData, Targeting, TargetingMin, TargetingMax, TargetingPriority, 대역, band, 마감시한, ClaimDeadline, 거리, Claim, SushiClaimResolver, FIFO, FCFS, 경합, tie-break, TableSlot, SushiBelt, SushiDeck, CustomerDeck, StageConfig, StageController, RunState, SushiPool, ISushiConsumer, IScorable, EventChannelSO, SushiDefense, Runtime, Runtime.Data, Presentation, Tests.EditMode, Tests.PlayMode, assembly, asmdef, autoReferenced, namespace, TDD, Unity Test Framework, EditMode, PlayMode, Git Flow, 3-way handshake, feature branch, no-ff, Conventional Commits, 커밋 전 체크리스트, 에셋 유출, Git LFS, WebGL, URP, Unity 6.5
 - **when to read:** **항상** (자동 주입)
 
 ### [../README.md](../README.md) — 기획 톤·차별점의 1차 출처
@@ -75,8 +75,8 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **when to read:** 해당 시스템/기획의 내부 동작·연관 관계 파악이 필요할 때
 
 #### [domain/sushi-claim-flow.md](domain/sushi-claim-flow.md)
-자격 판정과 **쌍(pair) 기반 그리디 배정**(`−|가격−타겟팅|` → 고가 → 초밥 SeqNo → 손님 SeqNo), 인식 래치, 이벤트 기반 탐색. **`CLAUDE.md` §1.1-3a·3b·3c 의 구현 지침.**
-- **keywords:** 집기, claim, 자격, 배정, eligibility, assignment, FIFO, FCFS, 타겟팅, Targeting, TargetingPriority, 우선순위, 순차번호, SequenceNumber, SeqNo, tie-break, 동률, 결정적, deterministic, 난수 금지, SushiClaimResolver, CustomerLogic, 래치, latch, 인식, 이벤트 기반, event-driven, OnTriggerEnter2D, 구간 계산, 스캔, 폴링, 구경, reach, 범위
+자격 / 배정 / **타이밍** 3갈래. 쌍 기반 그리디 배정(대역 밖 거리 → 고가 → 초밥 SeqNo → **대역 폭** → 손님 SeqNo), **마감시한**(대역 안이면 즉시, 아니면 이탈 직전), 이탈 기준 래치, 이벤트 기반 탐색. **`CLAUDE.md` §1.1-3a·3b·3c 의 구현 지침.**
+- **keywords:** 집기, claim, 자격, 배정, 타이밍, eligibility, assignment, timing, FIFO, FCFS, 타겟팅, Targeting, 대역, band, BandDistance, BandWidth, 대역 폭, 마감시한, deadline, ClaimDeadline, ClaimTiming, 유예, 대기, waiting, 굶음, 우선순위, 순차번호, SequenceNumber, SeqNo, tie-break, 동률, 결정적, deterministic, 난수 금지, SushiClaimResolver, ClaimPairComparer, CustomerLogic, 래치, latch, 이탈 시각, 인식, 이벤트 기반, event-driven, OnTriggerEnter2D, 구간 계산, 스캔, 폴링, 구경, reach, 범위
 - **when to read:** 손님·벨트·집기·배정 관련 코드를 만지기 직전 (**필수**), "손님이 안 집는다" 증상, 타겟팅·순차번호 관련 판단
 
 #### [domain/data-model.md](domain/data-model.md)

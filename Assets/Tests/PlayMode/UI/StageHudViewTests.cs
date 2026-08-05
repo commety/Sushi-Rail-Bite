@@ -37,6 +37,10 @@ namespace SushiDefense.Tests.PlayMode.UI
             _customerData = ScriptableObject.CreateInstance<CustomerData>();
             _assets.Add(_customerData);
 
+            // 범위가 0 이면 초밥이 영영 인식되지 않아 대기 판정이 나오지 않는다.
+            // 대역은 기본 0~0 이라 덱 초밥(가격 하한 100)이 전부 대역 밖이다.
+            SetReach(_customerData, 50f);
+
             _config = StageConfigTestFactory.Create(beltSpeed: 10f, spawnInterval: 1f,
                                                     beltLength: 50f, spawnSushi: NewSushi());
             _assets.Add(_config);
@@ -55,7 +59,7 @@ namespace SushiDefense.Tests.PlayMode.UI
             _revenueLabel = NewObject("RevenueLabel").AddComponent<TextMesh>();
             _hud = NewObject("Hud").AddComponent<StageHudView>();
             SetLabel(_hud, "_revenueLabel", _revenueLabel);
-            _hud.Bind(_revenue, _wallet, _placement, _config);
+            _hud.Bind(_revenue, _wallet, _placement, _config, _coordinator);
         }
 
         [TearDown]
@@ -85,6 +89,19 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.AreEqual("매출 0/1000", _hud.RevenueText);
             Assert.AreEqual($"영입 재화 {InitialBudget}", _hud.WalletText);
             Assert.AreEqual($"손님 0/{MaxPlaced}", _hud.PlacementText);
+            Assert.AreEqual("대기 0", _hud.WaitingText);
+        }
+
+        [Test]
+        public void WaitingCustomer_UpdatesWaitingTextOnNextFrame()
+        {
+            // 손님 대역이 0~0 이라 덱 초밥이 전부 대역 밖이다 → 조율자가 대기로 판정한다.
+            _placement.Place(_customerData, 0, 5f);
+            _coordinator.Tick(1f);
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("대기 1", _hud.WaitingText);
         }
 
         [Test]
@@ -149,6 +166,15 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             Assert.AreEqual(before, hud.RevenueText,
                             "파괴된 뷰가 아직 원장을 구독하고 있다 — OnDestroy 에서 끊어야 한다");
+        }
+
+        private static void SetReach(CustomerData data, float reach)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(data);
+            serialized.FindProperty("_reach").floatValue = reach;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
         }
 
         private static void SetLabel(StageHudView hud, string fieldName, TextMesh label)

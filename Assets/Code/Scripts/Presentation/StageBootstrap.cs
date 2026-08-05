@@ -89,11 +89,11 @@ namespace SushiDefense
             _beltView.Bind(Belt);
 
             _placementController.Initialize(_slots, _defaultCustomer);
-            _placementController.Bind(Placement);
+            _placementController.Bind(Placement, Coordinator);
 
             if (_hud != null)
             {
-                _hud.Bind(Revenue, Wallet, Placement, _stageConfig);
+                _hud.Bind(Revenue, Wallet, Placement, _stageConfig, Coordinator);
             }
         }
 

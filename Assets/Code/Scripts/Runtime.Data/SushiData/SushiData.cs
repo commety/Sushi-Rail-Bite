@@ -35,8 +35,9 @@ namespace SushiDefense.Data
         public string DisplayName => _displayName;
 
         /// <summary>
-        /// 가격. 매출 기여량이자 배정 우선순위의 거리 기준이다 — 손님의
-        /// <see cref="CustomerData.TargetingPrice"/> 와의 거리로 순위가 정해진다 (<c>CLAUDE.md</c> §1.1-3a).
+        /// 가격. 매출 기여량이자 배정 우선순위의 거리 기준이다 — 손님의 선호 대역
+        /// (<see cref="CustomerData.TargetingMin"/>~<see cref="CustomerData.TargetingMax"/>)
+        /// 에서 얼마나 벗어났는지로 순위가 정해진다 (<c>CLAUDE.md</c> §1.1-3a).
         /// 스폰 빈도도 여기서 나온다 (<see cref="StageConfig.SparsityExponent"/>).
         /// <b>하한은 100 이다</b> — 엔 단위이며 그 아래는 오류로 본다.
         /// </summary>
