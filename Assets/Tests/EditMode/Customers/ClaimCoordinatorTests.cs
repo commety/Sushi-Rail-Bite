@@ -67,6 +67,11 @@ namespace SushiDefense.Tests.EditMode.Customers
             SerializedFieldSetter.SetFloat(_customerData, "_reach", Reach);
             SerializedFieldSetter.SetInt(_customerData, "_maxSaturation", 5);
 
+            // 덱 가격(200)을 품는 대역. 이 파일의 테스트 대부분은 **배정**을 보는 것이라
+            // 즉시 확정이 전제다. 대역 밖으로 두면 모든 배정이 이탈 직전까지 밀려
+            // 무엇이 깨졌는지 구분되지 않는다 — 마감시한은 아래 전용 절에서 본다.
+            SerializedFieldSetter.SetTargetingBand(_customerData, 100, 300);
+
             _customerSequence = new SequenceNumberIssuer();
             Rebuild(latchSeconds: 0f);
         }
@@ -126,6 +131,103 @@ namespace SushiDefense.Tests.EditMode.Customers
 
             Assert.AreEqual(1, _claims.Count, "한 번에 하나만 집는다");
             Assert.AreEqual(2, _coordinator.CandidatesOf(customer).Count, "둘 다 인식은 됐다");
+        }
+
+        // ── 마감시한 (M2.5) ─────────────────────────────────────
+
+        [Test]
+        public void Tick_InBandSushiRecognized_ClaimsImmediately()
+        {
+            // 대역 안이면 이탈까지 한참 남았어도 기다리지 않는다.
+            _customerSequence.Reset();
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+
+            Assert.AreEqual(1, _claims.Count);
+        }
+
+        [Test]
+        public void Tick_OnlyOutOfBandSushi_DefersUntilExit()
+        {
+            // 덱은 200 뿐인데 손님 대역은 400~500 이다. 즉시 확정이 남아 있으면
+            // 첫 틱에 집어 버린다.
+            SetTargetingBand(400, 500);
+            _customerSequence.Reset();
+            var customer = Place(NearTable);
+
+            _coordinator.Tick(Interval);
+
+            Assert.IsEmpty(_claims, "대역 밖이면 이탈 직전까지 기다린다");
+            Assert.IsTrue(_coordinator.IsWaiting(customer));
+        }
+
+        [Test]
+        public void Tick_OnlyOutOfBandSushiInReach_TakesItBeforeExit()
+        {
+            // ★ 이 마일스톤의 불변식 — **모든 손님은 유한 시간 안에 반드시 집는다.**
+            //
+            // 손님 1명 · 대역 밖 초밥으로만 짠다. 경합이 끼면 못 집은 이유가 대기인지
+            // 남이 가져가서인지 구분되지 않는다.
+            //
+            // 대역이 자격 게이트로 굳는 사고를 이 테스트 하나가 막는다.
+            SetTargetingBand(400, 500);
+            _customerSequence.Reset();
+            Place(NearTable);
+
+            for (var i = 0; i < 40; i++)
+            {
+                _coordinator.Tick(0.1f);
+            }
+
+            Assert.IsNotEmpty(_claims, "대역 밖뿐이어도 결국 집는다");
+        }
+
+        [Test]
+        public void Tick_ShortLatchAndOutOfBand_ClaimsBeforeExpiry()
+        {
+            // 마감시한(now ≥ 이탈)이 만료(now > 이탈 + 래치)보다 **구조적으로** 먼저 온다.
+            // 래치를 짧게 줘도 대기하던 손님이 초밥을 잃지 않는다는 것이 D4 의 결론이고,
+            // 이 마일스톤의 불변식이 밸런스 값과 무관해지는 근거다.
+            Rebuild(latchSeconds: 0.5f);
+            SetTargetingBand(400, 500);
+            _customerSequence.Reset();
+            Place(NearTable);
+
+            for (var i = 0; i < 40; i++)
+            {
+                _coordinator.Tick(0.1f);
+            }
+
+            Assert.IsNotEmpty(_claims, "래치가 짧아도 마감시한이 먼저 와서 집는다");
+        }
+
+        [Test]
+        public void Tick_EatingCustomer_IsNotWaiting()
+        {
+            // 먹는 중은 대기가 아니다. 둘을 구분하지 않으면 화면에서 모든 손님이
+            // 계속 "기다리는 중" 으로 보인다.
+            SetEatSeconds(5f);
+            _customerSequence.Reset();
+            var customer = Place(NearTable);
+
+            _coordinator.Tick(Interval);
+
+            Assert.IsFalse(_coordinator.IsWaiting(customer));
+        }
+
+        [Test]
+        public void IsWaiting_RemovedCustomer_ReturnsFalse()
+        {
+            SetTargetingBand(400, 500);
+            _customerSequence.Reset();
+            var customer = Place(NearTable);
+            _coordinator.Tick(Interval);
+            Assert.IsTrue(_coordinator.IsWaiting(customer), "전제: 기다리는 중이다");
+
+            _coordinator.RemoveCustomer(customer);
+
+            Assert.IsFalse(_coordinator.IsWaiting(customer), "배치 취소된 손님이 남아 있다");
         }
 
         // ── 래치는 이탈 기준이다 (M2.5 D4) ──────────────────────
@@ -619,6 +721,9 @@ namespace SushiDefense.Tests.EditMode.Customers
             _coordinator.SushiClaimed += (customer, sushi) => _claims.Add(new Claim(customer, sushi));
             _coordinator.SushiEaten += (customer, sushi) => _eaten.Add(new Claim(customer, sushi));
         }
+
+        private void SetTargetingBand(int min, int max) =>
+            SerializedFieldSetter.SetTargetingBand(_customerData, min, max);
 
         private void SetEatSeconds(float seconds) =>
             SerializedFieldSetter.SetFloat(_customerData, "_eatSeconds", seconds);

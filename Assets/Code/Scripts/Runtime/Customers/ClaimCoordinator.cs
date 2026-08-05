@@ -80,6 +80,7 @@ namespace SushiDefense.Customers
         private readonly RevenueLedger _revenue;
         private readonly RecruitWallet _wallet;
         private readonly SushiClaimResolver _resolver = new();
+        private readonly ClaimDeadline _deadline = new(new ClaimPairComparer());
 
         private readonly List<CustomerLogic> _customers = new();
         private readonly Dictionary<CustomerLogic, CandidateSet> _candidates = new();
@@ -87,6 +88,12 @@ namespace SushiDefense.Customers
         private readonly Dictionary<CustomerLogic, Appetite> _appetites = new();
         private readonly List<PendingEntry> _pending = new();
         private readonly List<ClaimCandidatePair> _claims = new();
+
+        /// <summary>이번 틱에 확정 대상인 손님. 필드로 잡아 틱마다 재사용한다.</summary>
+        private readonly List<CustomerLogic> _due = new();
+
+        /// <summary>더 좋은 후보를 기다리는 중인 손님. 뷰 표시용이다.</summary>
+        private readonly Dictionary<CustomerLogic, bool> _waiting = new();
 
         /// <summary>이번 틱에 먹기를 마친 손님. 필드로 잡아 틱마다 재사용한다.</summary>
         private readonly List<CustomerLogic> _finishedEating = new();
@@ -149,6 +156,21 @@ namespace SushiDefense.Customers
         }
 
         /// <summary>
+        /// 지금 더 좋은 후보를 기다리는 중인가. 화면 표시·진단용이다.
+        ///
+        /// <para>
+        /// <b>상태 머신에 넣지 않은 이유</b>: <c>CustomerState</c> 에 <c>Waiting</c> 을
+        /// 추가하면 <c>CanAcceptSushi</c> 가 <c>State == Idle</c> 을 보므로 대기 중인 손님이
+        /// 자격을 잃는다 — 대기가 곧 굶기가 된다. 대기는 손님의 상태가 아니라 조율자가
+        /// 이번 틱에 내린 판정이라, 판정한 쪽에 물어본다 (작업서 D5).
+        /// </para>
+        /// </summary>
+        public bool IsWaiting(CustomerLogic customer)
+        {
+            return customer != null && _waiting.TryGetValue(customer, out var waiting) && waiting;
+        }
+
+        /// <summary>
         /// 손님을 배치한다. <b>스테이지 진행 중에도 부를 수 있다</b> — 배치 즉시 벨트 위
         /// 초밥에 대한 진입 예약이 잡히고, 다음 배정부터 참여한다.
         /// </summary>
@@ -167,6 +189,7 @@ namespace SushiDefense.Customers
             _customers.Add(customer);
             _candidates[customer] = new CandidateSet(_config.RecognitionLatchSeconds);
             _wasEligible[customer] = customer.CanAcceptSushi;
+            _waiting[customer] = false;
 
             var machine = new CustomerAppetiteMachine(customer.State);
             Action handler = () => _finishedEating.Add(customer);
@@ -208,6 +231,7 @@ namespace SushiDefense.Customers
             set.Clear();
             _candidates.Remove(customer);
             _wasEligible.Remove(customer);
+            _waiting.Remove(customer);
             _customers.Remove(customer);
             _finishedEating.Remove(customer);
             PurgePendingFor(customer);
@@ -342,9 +366,32 @@ namespace SushiDefense.Customers
             }
         }
 
+        /// <summary>
+        /// 마감시한 필터 → 배정. <b>필터가 리졸버 밖에 있다</b> — 랭킹과 타이밍은 다른
+        /// 관심사라, 리졸버에는 "지금 확정할 손님" 만 넘긴다 (작업서 D3).
+        ///
+        /// <para>
+        /// 기다리는 동안 다른 손님이 그 초밥을 가져갈 수 있다. <b>의도된 비용이다</b> —
+        /// 대기에 아무 위험이 없으면 대역이 좁은 손님이 일방적으로 유리해진다.
+        /// </para>
+        /// </summary>
         private void ResolveClaims()
         {
-            _resolver.Resolve(_customers, _candidates, _claims);
+            _due.Clear();
+
+            for (var i = 0; i < _customers.Count; i++)
+            {
+                var customer = _customers[i];
+                var timing = _deadline.Evaluate(customer, _candidates[customer], _elapsedSeconds);
+
+                _waiting[customer] = timing == ClaimTiming.Waiting;
+                if (timing == ClaimTiming.Due)
+                {
+                    _due.Add(customer);
+                }
+            }
+
+            _resolver.Resolve(_due, _candidates, _claims);
 
             for (var i = 0; i < _claims.Count; i++)
             {

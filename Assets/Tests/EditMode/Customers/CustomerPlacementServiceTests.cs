@@ -39,6 +39,11 @@ namespace SushiDefense.Tests.EditMode.Customers
             SerializedFieldSetter.SetFloat(_customerData, "_reach", Reach);
             SerializedFieldSetter.SetInt(_customerData, "_maxSaturation", 5);
 
+            // 덱 가격(SushiData 기본값 = 하한 100)을 품는 대역. 이 파일은 **배치**를
+            // 검증하므로 즉시 확정이 전제다. 대역 밖으로 두면 배정이 이탈 직전까지
+            // 밀려, 배치가 실패한 건지 아직 기다리는 건지 구분되지 않는다.
+            SerializedFieldSetter.SetTargetingBand(_customerData, 100, 300);
+
             Rebuild(maxPlacedCustomers: 4);
         }
 
