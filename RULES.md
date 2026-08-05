@@ -43,9 +43,17 @@ grep -r  '"autoReferenced": true' Assets/
 심링크하면 워크트리 git 이 새 파일을 못 본다. 대신 씬 편집은 한 번에 한 워크트리만 한다
 (`.claude/rules/parallel-work.md` §2·§3).
 
+**빌드는 이 폴더를 자동으로 더럽힌다.** Unity 가 `-buildTarget` 전환 중에 셰이더 스트리핑
+상태를 URP 애셋에 되쓰기 때문이다. `scripts/run.sh` 가 빌드 후(실패해도) 원복하고,
+`tests/preflight.sh` 검사 3 이 커밋 직전에 다시 확인한다 — 구현은
+`scripts/lib/shared-assets.sh`. **사람이 의도한 렌더 설정 변경은 에디터에서 하고 직접 커밋한다.**
+
 위반 여부 확인:
 ```
-# 워크트리에서 심링크 폴더 내 새 파일 확인
+# 심링크 폴더 9곳 전체 (preflight 검사 3 과 같은 경로)
+source scripts/lib/shared-assets.sh && shared_assets_status
+
+# 또는 직접
 git status --short Assets/Art/ Assets/Audio/ Assets/Settings/ Assets/Plugins/ Assets/Resources/
 
 # 목록 자체가 스크립트와 어긋나지 않는지 대조

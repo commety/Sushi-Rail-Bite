@@ -45,12 +45,18 @@ else
     record ".meta 편집 (RULE-03)" "PASS" "-"
 fi
 
-# ── 3. ProjectSettings 수정 (RULE-06 · §7) ──────────────────────────────
-PS_CHANGED=$(git status --porcelain ProjectSettings/ Packages/ 2>/dev/null || true)
-if [ -n "$PS_CHANGED" ]; then
-    record "ProjectSettings/Packages (§7)" "WARN" "사람 승인 필요한 변경 있음"
+# ── 3. 공유 폴더 수정 (RULE-02 · RULE-06 · §7) ──────────────────────────
+# ProjectSettings/ · Packages/ 만 보던 검사를 **RULE-02 심링크 폴더 전체**로 넓혔다.
+# Assets/Settings/ 가 빠져 있어 WebGL 빌드가 되쓴 URP 애셋이 그대로 커밋에 섞인
+# 적이 있다 (M2). 목록은 ensure-worktree-setup.sh 에서 읽으므로 복제되지 않는다.
+source "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib/shared-assets.sh"
+SHARED_CHANGED=$(shared_assets_status 2>/dev/null || true)
+if [ -n "$SHARED_CHANGED" ]; then
+    record "공유 폴더 (RULE-02·§7)" "WARN" \
+        "$(echo "$SHARED_CHANGED" | wc -l | tr -d ' ')건 — 사람 승인 필요"
+    echo "$SHARED_CHANGED" | sed 's/^/    /' >&2
 else
-    record "ProjectSettings/Packages (§7)" "PASS" "-"
+    record "공유 폴더 (RULE-02·§7)" "PASS" "심링크 폴더 9곳 변경 없음"
 fi
 
 # ── 4. 배정 경로 난수 (rules/tests.md §5) ───────────────────────────────

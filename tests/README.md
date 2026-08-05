@@ -38,6 +38,7 @@
 | `lint.sh` | `.editorconfig` 기준 포맷 검사 (`dotnet format` 래퍼) |
 | `../.editorconfig` | 포맷·네이밍 규칙. **루트 고정** — `dotnet format` 이 루트에서만 찾는다 |
 | `../scripts/lib/unity-path.sh` | Unity 실행 파일 경로 해석. `run.sh` 와 공유 |
+| `../scripts/lib/shared-assets.sh` | RULE-02 공유 폴더 오염 감지·원복. `run.sh` 와 공유 |
 
 `results/` 는 실행 산출물(NUnit XML·Unity 로그)이며 `.gitignore` 대상이다. **점으로 시작하는 이름을 쓰지 않는다** — Unity 가 `-testResults`/`-logFile` 경로에서 숨김 디렉토리를 거부한다(`.results is not a valid directory name`).
 
@@ -84,4 +85,25 @@
 | **잠근다** | 집기 배정(`SushiClaimResolver`) — 스펙 확정, 난수 없음, 순수 C#. 회귀 방어선을 촘촘히 |
 | **연다** | 밸런스 수치·UI·스테이지 플로우 — 계속 바뀐다. 두껍게 깔면 부채 |
 
-`preflight.sh` 의 **배정 난수 금지**·**타겟팅 자격 오용** 검사가 그 "잠그는" 쪽이다. 둘 다 이 프로젝트에서 반복적으로 잘못 구현되는 지점이라(`CLAUDE.md` §1.1-3a) 정적 검사로 고정해 뒀다. `Assets/Code/Scripts/Runtime/` 이 생기면 자동으로 활성화된다.
+`preflight.sh` 의 **배정 난수 금지**·**대역 산술 격리**·**자격 경로 청정** 검사가 그 "잠그는" 쪽이다. 셋 다 이 프로젝트에서 반복적으로 잘못 구현되는 지점이라(`CLAUDE.md` §1.1-3a) 정적 검사로 고정해 뒀다. `Assets/Code/Scripts/Runtime/` 이 생기면 자동으로 활성화된다.
+
+**가드를 넣었으면 죽지 않았는지 확인한다.** 통과만 보고 넘어가면 패턴이 어긋나 아무것도 안 잡는 검사가 조용히 남는다. 위반을 임시로 주입해 FAIL 하는 것을 본 뒤 되돌린다.
+
+## 빌드는 공유 애셋을 더럽힌다 — 하네스가 원복한다
+
+`./scripts/run.sh` 가 `-buildTarget` 으로 플랫폼을 전환하면, Unity 는 셰이더 스트리핑 상태(`m_Prefilter*`)와 플랫폼 배칭 설정을 **URP 애셋에 되쓴다.** Unity 의 정상 동작이라 막을 수 없다.
+
+문제는 그 파일들이 RULE-02 심링크 폴더(`Assets/Settings/`)에 있다는 것이다. 워크트리에서는 그 워크트리의 git 이 변경을 보지 못하고 **메인 프로젝트**가 더러워지며, 메인에서 작업할 때는 빌드 부산물이 그대로 커밋에 섞인다 — M2 에서 실제로 한 번 섞여 들어가 amend 했다.
+
+두 겹으로 막는다:
+
+| | 무엇 |
+|---|---|
+| `run.sh` 의 `EXIT` 트랩 | 빌드가 끝나면(**실패해도**) `shared_assets_restore` 로 되돌리고 무엇을 되돌렸는지 출력 |
+| `preflight.sh` 검사 3 | 심링크 폴더 **9곳 전체**를 커밋 직전에 다시 확인 |
+
+검사 3 은 원래 `ProjectSettings/`·`Packages/` 만 봤다. `Assets/Settings/` 가 빠져 있어 이 오염을 **구조적으로 못 잡았다.** 보호 목록은 [`../scripts/ensure-worktree-setup.sh`](../scripts/ensure-worktree-setup.sh) 에서 직접 읽는다 — RULE-02 가 "세 곳이 어긋나면 오탐·미탐을 낸다" 고 못박은 지점이라 복제하지 않는다.
+
+> **원복은 추적 중인 파일의 미스테이지 변경만 건드린다.** 빌드가 만드는 것이 정확히 그것이고, 스테이지된 변경까지 지우면 사람이 의도한 작업이 날아간다.
+>
+> `run-tests.sh`·`bridge-run.sh` 에는 트랩을 걸지 않았다. 둘은 `-buildTarget` 을 넘기지 않아 플랫폼 전환이 없고, 실제로 오염을 낸 적이 없다. 필요해지면 같은 라이브러리를 source 하면 된다.
