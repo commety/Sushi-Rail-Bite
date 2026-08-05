@@ -60,10 +60,9 @@ namespace SushiDefense.Customers
 
         private static int DistanceOf(ClaimCandidatePair pair)
         {
-            // step-01 임시 배선 — 대역 하한만 넘겨 옛 단일 값 동작을 유지한다.
-            // 대역 거리(BandDistance)로의 교체는 step-02·03 이다.
-            return TargetingPriority.Distance(pair.Sushi.Data.Price,
-                                              pair.Customer.State.Data.TargetingMin);
+            var data = pair.Customer.State.Data;
+            return TargetingPriority.BandDistance(pair.Sushi.Data.Price,
+                                                  data.TargetingMin, data.TargetingMax);
         }
     }
 }
