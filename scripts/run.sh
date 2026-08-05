@@ -68,6 +68,15 @@ esac
 # 한쪽만 고쳐진다.
 source "$(dirname "${BASH_SOURCE[0]}")/lib/unity-path.sh"
 
+# ── 공유 애셋 보호 (RULE-02) ────────────────────────────────────────────
+# Unity 는 `-buildTarget` 전환·빌드 중에 셰이더 스트리핑 상태를 URP 애셋에
+# 되쓴다. 막을 수 없으므로 끝난 뒤 되돌린다.
+#
+# EXIT 트랩인 이유: 빌드가 **실패해도** 오염은 이미 일어나 있다. 성공 경로에만
+# 두면 실패한 빌드가 더러운 워킹트리를 남기고, 그게 다음 커밋에 섞인다.
+source "$(dirname "${BASH_SOURCE[0]}")/lib/shared-assets.sh"
+trap 'shared_assets_restore' EXIT
+
 echo "Unity version   : $UNITY_VERSION"
 echo "Build target    : $BUILD_TARGET"
 
