@@ -128,6 +128,53 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.AreEqual(2, _coordinator.CandidatesOf(customer).Count, "둘 다 인식은 됐다");
         }
 
+        // ── 래치는 이탈 기준이다 (M2.5 D4) ──────────────────────
+
+        [Test]
+        public void Tick_LatchShorterThanReachTraversal_KeepsCandidateUntilExit()
+        {
+            // stage01 과 같은 관계 — 범위 통과(2×12/10 = 2.4초)가 래치(0.5초)보다 길다.
+            //
+            // 이미 배정된 초밥을 후보로 들고 있는 손님을 만든다. 그 초밥은 Claimed 라
+            // 가져갈 수 없어 후보로 남고, 손님은 Idle 이라 자격 정리에도 걸리지 않는다 —
+            // 래치 만료를 관측할 수 있는 유일한 구도다.
+            Rebuild(latchSeconds: 0.5f);
+            SetEatSeconds(5f);
+            _customerSequence.Reset();
+            Place(NearTable);
+            var waiting = Place(NearTable);
+
+            _coordinator.Tick(Interval);
+            Assert.AreEqual(1, _coordinator.CandidatesOf(waiting).Count, "전제: 후보를 들고 있다");
+
+            _coordinator.Tick(0.8f);
+
+            Assert.AreEqual(1, _coordinator.CandidatesOf(waiting).Count,
+                            "인식 0.8초 뒤 — 래치(0.5)는 넘었지만 아직 범위 안이다");
+        }
+
+        [Test]
+        public void Tick_PastExitPlusLatch_ExpiresCandidate()
+        {
+            // 반대편 — 래치가 죽은 코드가 되지 않았음을 확인한다.
+            Rebuild(latchSeconds: 0.5f);
+            SetEatSeconds(9f);
+            _customerSequence.Reset();
+            Place(NearTable);
+            var waiting = Place(NearTable);
+
+            _coordinator.Tick(Interval);
+            _coordinator.Tick(3f);
+
+            // 개수로 세지 않는다 — 3초를 흘리는 동안 새 초밥이 계속 스폰돼 후보가 다시
+            // 찬다. 처음 그 초밥(순차번호 0)이 빠졌는지를 본다.
+            foreach (var candidate in _coordinator.CandidatesOf(waiting))
+            {
+                Assert.AreNotEqual(0, candidate.SequenceNumber,
+                                   "이탈(≤2.4) + 래치(0.5) 를 지난 후보가 남아 있다");
+            }
+        }
+
         // ── 배정 ────────────────────────────────────────────────
 
         [Test]
@@ -310,23 +357,30 @@ namespace SushiDefense.Tests.EditMode.Customers
         }
 
         [Test]
-        public void Tick_LatchExpiredBeforeResolve_NotClaimed()
+        public void Tick_StillInReachAfterLatch_StillClaimed()
         {
-            // 만료가 배정보다 뒤에 오면 상한이 무의미해진다 (계약 3 → 5).
+            // **M1 에서 뒤집힌 테스트다.** 원래 이름은 Tick_LatchExpiredBeforeResolve_NotClaimed
+            // 이었고, 인식 0.5초 뒤 후보에서 빠지므로 순차번호 1은 영영 배정되지 않는다고
+            // 단언했다. M2.5 의 D4 가 그 전제를 없앤다 — 래치는 이제 이탈 기준이라, 범위
+            // 안(통과 2.4초)에 있는 초밥은 래치 0.5초를 넘겨도 후보로 남는다.
+            //
+            // 옛 동작이 곧 "눈앞의 초밥을 두고 구경하는 손님" 이었다. 그건 밸런스가 아니라
+            // 플레이 경험 버그로 취급된다 (CLAUDE.md §1.1-3a).
             Rebuild(latchSeconds: 0.5f);
             Place(NearTable);
 
-            // 두 개가 인식되고 하나만 배정된다. 남은 하나(순차번호 1)가 만료 대상이다.
             _coordinator.Tick(Interval * 2f);
-            Assert.AreEqual(1, _claims.Count);
+            Assert.AreEqual(1, _claims.Count, "전제: 둘이 인식되고 하나만 배정된다");
 
-            // 래치(0.5초)보다 길게 흘린다.
             _coordinator.Tick(Interval);
 
+            var claimedSecond = false;
             foreach (var claim in _claims)
             {
-                Assert.AreNotEqual(1, claim.SushiSequence, "만료된 후보가 배정됐다");
+                claimedSecond |= claim.SushiSequence == 1;
             }
+
+            Assert.IsTrue(claimedSecond, "범위 안에 남아 있는 초밥은 래치를 넘겨도 집는다");
         }
 
         // ── 자격 ────────────────────────────────────────────────

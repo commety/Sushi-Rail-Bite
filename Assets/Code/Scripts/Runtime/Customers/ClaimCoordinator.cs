@@ -34,11 +34,20 @@ namespace SushiDefense.Customers
             public SushiItem Sushi { get; }
             public float DueSeconds { get; }
 
-            public PendingEntry(CustomerLogic customer, SushiItem sushi, float dueSeconds)
+            /// <summary>
+            /// 이 초밥이 손님 범위를 벗어나는 절대 시각. <c>ReachWindow</c> 가 진입과 함께
+            /// 이미 풀어 놓은 값이라 여기서 들고만 있으면 된다 — 나중에 다시 계산하면
+            /// 그 사이 벨트가 흐른 만큼 답이 달라진다.
+            /// </summary>
+            public float ExitAtSeconds { get; }
+
+            public PendingEntry(CustomerLogic customer, SushiItem sushi,
+                                float dueSeconds, float exitAtSeconds)
             {
                 Customer = customer;
                 Sushi = sushi;
                 DueSeconds = dueSeconds;
+                ExitAtSeconds = exitAtSeconds;
             }
         }
 
@@ -297,7 +306,7 @@ namespace SushiDefense.Customers
 
                 if (_candidates.TryGetValue(entry.Customer, out var set))
                 {
-                    set.Recognize(entry.Sushi, _elapsedSeconds);
+                    set.Recognize(entry.Sushi, entry.ExitAtSeconds);
                 }
             }
         }
@@ -306,7 +315,7 @@ namespace SushiDefense.Customers
         {
             for (var i = 0; i < _customers.Count; i++)
             {
-                _candidates[_customers[i]].ExpireOlderThan(_elapsedSeconds);
+                _candidates[_customers[i]].ExpirePastLatch(_elapsedSeconds);
             }
         }
 
@@ -428,7 +437,9 @@ namespace SushiDefense.Customers
                 return;
             }
 
-            _pending.Add(new PendingEntry(customer, sushi, _elapsedSeconds + window.EnterSeconds));
+            _pending.Add(new PendingEntry(customer, sushi,
+                                          _elapsedSeconds + window.EnterSeconds,
+                                          _elapsedSeconds + window.ExitSeconds));
         }
 
         private void PurgePendingFor(CustomerLogic customer)
