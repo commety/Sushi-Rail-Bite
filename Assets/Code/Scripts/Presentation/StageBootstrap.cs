@@ -2,6 +2,7 @@ using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Scoring;
+using SushiDefense.UI;
 using UnityEngine;
 
 namespace SushiDefense
@@ -28,6 +29,13 @@ namespace SushiDefense
         [SerializeField] private CustomerPlacementController _placementController;
         [SerializeField] private TableSlotView[] _slots;
         [SerializeField] private CustomerData _defaultCustomer;
+        [SerializeField] private StageHudView _hud;
+
+        /// <summary>이 스테이지의 정의. 진단·테스트용으로 읽기만 노출한다.</summary>
+        public StageConfig StageConfig => _stageConfig;
+
+        /// <summary>이 스테이지의 진행 표시. 씬에 없으면 <c>null</c> 이다.</summary>
+        public StageHudView Hud => _hud;
 
         /// <summary>이 스테이지의 벨트. 진단·테스트용으로 노출한다.</summary>
         public SushiBelt Belt { get; private set; }
@@ -82,6 +90,11 @@ namespace SushiDefense
 
             _placementController.Initialize(_slots, _defaultCustomer);
             _placementController.Bind(Placement);
+
+            if (_hud != null)
+            {
+                _hud.Bind(Revenue, Wallet, Placement, _stageConfig);
+            }
         }
 
         /// <summary>
@@ -103,6 +116,11 @@ namespace SushiDefense
             if (_beltView == null)
             {
                 _beltView = GetComponentInChildren<SushiBeltView>(true);
+            }
+
+            if (_hud == null)
+            {
+                _hud = GetComponentInChildren<StageHudView>(true);
             }
 
             if (_placementController == null)
@@ -153,6 +171,11 @@ namespace SushiDefense
         private void Teardown()
         {
             _beltView?.Unbind();
+            if (_hud != null)
+            {
+                _hud.Unbind();
+            }
+
             Coordinator?.Dispose();
             Coordinator = null;
             Belt = null;

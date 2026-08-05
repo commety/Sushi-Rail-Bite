@@ -38,5 +38,15 @@ namespace SushiDefense.Tests.PlayMode
 
             return config;
         }
+
+        /// <summary>직렬화된 정수 필드에 값을 밀어 넣는다. 프로덕션에 세터를 열지 않기 위해서다.</summary>
+        public static void SetInt(StageConfig config, string fieldName, int value)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(config);
+            serialized.FindProperty(fieldName).intValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+        }
     }
 }
