@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
 using SushiDefense.Tests.EditMode.Data;
 using UnityEngine;
 
@@ -25,6 +26,14 @@ namespace SushiDefense.Tests.EditMode.Customers
         /// <summary>스폰 지점이 범위 밖인 자리. 초밥이 흘러와야 인식된다.</summary>
         private const float FarTable = 60f;
 
+        /// <summary>먹는 시간이 관측 가능해야 하는 테스트용. 기본 하네스는 0 이다.</summary>
+        private const float EatSeconds = 2f;
+
+        private const float DigestSeconds = 3f;
+
+        /// <summary>덱에 든 초밥의 가격. 매출·재화 기대값을 여기서 끌어온다.</summary>
+        private const int SushiPrice = 200;
+
         private readonly List<Object> _disposables = new();
 
         private StageConfig _config;
@@ -32,7 +41,10 @@ namespace SushiDefense.Tests.EditMode.Customers
         private SushiBelt _belt;
         private ClaimCoordinator _coordinator;
         private SequenceNumberIssuer _customerSequence;
+        private RevenueLedger _revenue;
+        private RecruitWallet _wallet;
         private List<Claim> _claims;
+        private List<Claim> _eaten;
 
         private readonly struct Claim
         {
@@ -112,8 +124,8 @@ namespace SushiDefense.Tests.EditMode.Customers
 
             _coordinator.Tick(Interval * 2f);
 
-            Assert.AreEqual(1, _claims.Count);
-            Assert.AreEqual(1, _coordinator.CandidatesOf(customer).Count);
+            Assert.AreEqual(1, _claims.Count, "한 번에 하나만 집는다");
+            Assert.AreEqual(2, _coordinator.CandidatesOf(customer).Count, "둘 다 인식은 됐다");
         }
 
         // ── 배정 ────────────────────────────────────────────────
@@ -140,36 +152,141 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.AreEqual(0, _claims[0].CustomerSequence);
         }
 
-        [Test]
-        public void Tick_SushiClaimed_RemovedFromBelt()
-        {
-            Place(NearTable);
-
-            _coordinator.Tick(Interval);
-
-            Assert.IsEmpty(_belt.ActiveSushi);
-        }
+        // ── 먹는 시간 (M2 에서 M1 계약이 바뀐 지점) ──────────────
 
         [Test]
-        public void Tick_SushiClaimed_ForgottenByClaimer()
+        public void Tick_ClaimAssigned_SushiStaysOnBeltWhileEating()
         {
+            // M1 은 배정이 곧 소비였다. M2 는 그 사이에 먹는 시간이 있고,
+            // 그동안 초밥은 Claimed 상태로 벨트에 남는다.
+            SetEatSeconds(EatSeconds);
             var customer = Place(NearTable);
 
             _coordinator.Tick(Interval);
 
-            Assert.IsEmpty(_coordinator.CandidatesOf(customer));
+            Assert.AreEqual(CustomerState.Eating, customer.State.State);
+            Assert.AreEqual(1, _belt.ActiveSushi.Count);
+            Assert.AreEqual(SushiState.Claimed, _belt.ActiveSushi[0].State);
+            Assert.IsEmpty(_eaten, "아직 먹는 중이다");
         }
 
         [Test]
-        public void Tick_SushiClaimedByOne_ForgottenByOthers()
+        public void Tick_EatSecondsElapsed_SushiRemovedFromBelt()
         {
-            var first = Place(NearTable);
-            var second = Place(NearTable);
+            SetEatSeconds(EatSeconds);
+            Place(NearTable);
+            _coordinator.Tick(Interval);
+            var claimedSequence = _claims[0].SushiSequence;
+
+            _coordinator.Tick(EatSeconds);
+
+            Assert.IsNotEmpty(_eaten);
+            Assert.AreEqual(claimedSequence, _eaten[0].SushiSequence);
+            foreach (var onBelt in _belt.ActiveSushi)
+            {
+                Assert.AreNotEqual(claimedSequence, onBelt.SequenceNumber, "먹은 초밥은 내려간다");
+            }
+        }
+
+        [Test]
+        public void Tick_EatingCustomer_NotAssignedAnotherSushi()
+        {
+            // 한 번에 하나 (착수 시 확정). 먹는 동안에는 자격이 없다.
+            SetEatSeconds(EatSeconds);
+            Place(NearTable);
+            _coordinator.Tick(Interval);
 
             _coordinator.Tick(Interval);
 
-            Assert.IsEmpty(_coordinator.CandidatesOf(first));
-            Assert.IsEmpty(_coordinator.CandidatesOf(second));
+            Assert.AreEqual(1, _claims.Count);
+        }
+
+        [Test]
+        public void Tick_SushiEaten_ForgottenByClaimer()
+        {
+            var customer = Place(NearTable);
+            _coordinator.Tick(Interval);
+
+            _coordinator.Tick(Interval);
+
+            foreach (var candidate in _coordinator.CandidatesOf(customer))
+            {
+                Assert.AreNotEqual(_eaten[0].SushiSequence, candidate.SequenceNumber);
+            }
+        }
+
+        [Test]
+        public void Tick_SushiClaimedByOne_NotClaimableByOthers()
+        {
+            // 먹는 동안 초밥이 벨트에 남지만 Claimed 라 두 번째 손님이 가져갈 수 없다.
+            SetEatSeconds(EatSeconds);
+            Place(NearTable);
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+
+            Assert.AreEqual(1, _claims.Count, "같은 초밥을 둘이 나눠 갖지 않는다");
+        }
+
+        [Test]
+        public void Tick_ClaimedSushiReachesBeltEnd_IsLostNotEaten()
+        {
+            // 먹다 만 초밥이 끝점을 지나면 놓친다 — 의도된 동작이다.
+            // 손님은 Eating 에 갇히지 않고 Idle 로 돌아와야 한다.
+            SetEatSeconds(EatSeconds * 100f);
+            Place(Length - 5f);
+
+            for (var i = 0; i < 40; i++)
+            {
+                _coordinator.Tick(0.5f);
+            }
+
+            Assert.IsEmpty(_eaten, "먹는 시간이 끝나기 전에 끝점을 지났다");
+            Assert.AreEqual(0, _revenue.Total, "놓친 초밥은 매출이 아니다");
+
+            // 두 번 이상 집었다는 것이 곧 Eating 에서 풀려났다는 증거다.
+            // 갇혀 있었다면 첫 배정 이후로 영영 한 건에 머문다.
+            Assert.Greater(_claims.Count, 1,
+                           "먹던 초밥이 사라졌으면 다시 집을 수 있어야 한다");
+        }
+
+        // ── 경제 반영 ───────────────────────────────────────────
+
+        [Test]
+        public void Tick_SushiEaten_AddsPriceToRevenue()
+        {
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+            _coordinator.Tick(Interval);
+
+            Assert.IsNotEmpty(_eaten);
+            Assert.AreEqual(SushiPrice, _revenue.Total);
+        }
+
+        [Test]
+        public void Tick_SushiEaten_AccruesRecruitCurrency()
+        {
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+            _coordinator.Tick(Interval);
+
+            Assert.AreEqual(SushiPrice / 10, _wallet.Balance);
+        }
+
+        [Test]
+        public void Tick_SushiClaimedNotYetEaten_RevenueUnchanged()
+        {
+            // 매출은 배정이 아니라 소비에 붙는다.
+            SetEatSeconds(EatSeconds);
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+
+            Assert.IsNotEmpty(_claims);
+            Assert.AreEqual(0, _revenue.Total);
+            Assert.AreEqual(0, _wallet.Balance);
         }
 
         // ── 틱 순서 계약 ────────────────────────────────────────
@@ -217,8 +334,11 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Tick_CustomerLosesEligibility_CandidatesCleared()
         {
+            // 포화도로 자격을 없앤다. 상태 필드를 직접 건드리지 않는 이유는 이제
+            // 상태가 식욕 머신의 소유이기 때문이다 — 밖에서 쓰면 머신의 타이머와
+            // 어긋난 상태가 만들어져 테스트가 실제 동작을 검증하지 않게 된다.
             var customer = Place(NearTable);
-            customer.State.State = CustomerState.Eating;
+            customer.State.CurrentSaturation = _customerData.MaxSaturation;
 
             _coordinator.Tick(Interval * 2f);
 
@@ -241,14 +361,74 @@ namespace SushiDefense.Tests.EditMode.Customers
         public void Tick_CustomerRegainsEligibility_ClaimsAgain()
         {
             var customer = Place(NearTable);
-            customer.State.State = CustomerState.Digesting;
+            customer.State.CurrentSaturation = _customerData.MaxSaturation;
             _coordinator.Tick(Interval);
             Assert.IsEmpty(_claims, "자격이 없는 동안에는 집지 않는다");
 
-            customer.State.State = CustomerState.Idle;
+            customer.State.CurrentSaturation = 0;
             _coordinator.Tick(Interval);
 
             Assert.IsNotEmpty(_claims, "자격을 되찾으면 이미 벨트에 있는 초밥도 다시 본다");
+        }
+
+        [Test]
+        public void Tick_DigestionCompletes_ResumesClaimingSameTick()
+        {
+            // 틱 순서 계약 — 식욕 진행(2)이 자격 정리(5)·배정(6)보다 앞이라
+            // 소화가 끝난 그 틱에 바로 다시 집는다. 뒤에 두면 한 틱씩 굶는다.
+            Rebuild(latchSeconds: 0f, saturationPerSushi: 1);
+            SetSaturationBudget(1);
+            SetDigestSeconds(DigestSeconds);
+            Place(NearTable);
+
+            _coordinator.Tick(Interval);
+            _coordinator.Tick(Interval);
+            Assert.AreEqual(1, _claims.Count, "포화되어 소화 중이다");
+
+            _coordinator.Tick(DigestSeconds);
+
+            Assert.AreEqual(2, _claims.Count, "소화가 끝난 틱에 바로 다시 집는다");
+        }
+
+        [Test]
+        public void Tick_EatingFinishesThisTick_ClaimsAgainSameTick()
+        {
+            // 같은 계약의 다른 면 — 먹기를 마친 손님이 같은 틱에 새 배정을 받는다.
+            Place(NearTable);
+            _coordinator.Tick(Interval);
+            Assert.AreEqual(1, _claims.Count);
+
+            _coordinator.Tick(Interval);
+
+            Assert.AreEqual(2, _claims.Count, "먹기 완료와 새 배정이 같은 틱에 일어난다");
+        }
+
+        // ── 수명 ────────────────────────────────────────────────
+
+        [Test]
+        public void Dispose_AfterPlacements_StopsReactingToBelt()
+        {
+            Place(NearTable);
+            _coordinator.Dispose();
+            var claimsBefore = _claims.Count;
+
+            _belt.Tick(Interval);
+
+            Assert.AreEqual(claimsBefore, _claims.Count);
+        }
+
+        [Test]
+        public void RemoveCustomer_WhileEating_ReleasesSushiWithoutRevenue()
+        {
+            SetEatSeconds(EatSeconds);
+            var customer = Place(NearTable);
+            _coordinator.Tick(Interval);
+            Assert.IsNotNull(_coordinator.EatingOf(customer));
+
+            _coordinator.RemoveCustomer(customer);
+
+            Assert.IsEmpty(_belt.ActiveSushi, "먹다 만 초밥이 벨트에 남아 자리를 차지하면 안 된다");
+            Assert.AreEqual(0, _revenue.Total, "소비가 끝나지 않았으므로 매출이 아니다");
         }
 
         // ── 진행 중 배치 (Q4) ───────────────────────────────────
@@ -358,7 +538,7 @@ namespace SushiDefense.Tests.EditMode.Customers
 
         // ── 헬퍼 ────────────────────────────────────────────────
 
-        private void Rebuild(float latchSeconds)
+        private void Rebuild(float latchSeconds, int saturationPerSushi = 0)
         {
             _coordinator?.Dispose();
             if (_config != null)
@@ -371,16 +551,30 @@ namespace SushiDefense.Tests.EditMode.Customers
                 .WithSpawnInterval(Interval)
                 .WithBeltLength(Length)
                 .WithRecognitionLatch(latchSeconds)
-                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables), 1)
+                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables, SushiPrice, saturationPerSushi))
                 .Build();
 
             _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
-            _coordinator = new ClaimCoordinator(_belt, _config);
+            _revenue = new RevenueLedger();
+            _wallet = new RecruitWallet(0);
+            _coordinator = new ClaimCoordinator(_belt, _config, _revenue, _wallet);
 
             _claims = new List<Claim>();
+            _eaten = new List<Claim>();
             _coordinator.SushiClaimed += (customer, sushi) => _claims.Add(new Claim(customer, sushi));
+            _coordinator.SushiEaten += (customer, sushi) => _eaten.Add(new Claim(customer, sushi));
         }
+
+        private void SetEatSeconds(float seconds) =>
+            SerializedFieldSetter.SetFloat(_customerData, "_eatSeconds", seconds);
+
+        private void SetDigestSeconds(float seconds) =>
+            SerializedFieldSetter.SetFloat(_customerData, "_digestSeconds", seconds);
+
+        /// <summary>이만큼 먹으면 포화된다. 소화 전이를 관측할 때 쓴다.</summary>
+        private void SetSaturationBudget(int maxSaturation) =>
+            SerializedFieldSetter.SetInt(_customerData, "_maxSaturation", maxSaturation);
 
         private CustomerLogic Place(float beltPosition)
         {

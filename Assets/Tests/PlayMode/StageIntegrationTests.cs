@@ -117,7 +117,7 @@ namespace SushiDefense.Tests.PlayMode
         public IEnumerator Play_CustomerPlacedOnSlot_ClaimsSushiInReach()
         {
             var claims = RecordClaims();
-            Assert.IsTrue(_bootstrap.Placement.CanPlace(_slot.SlotIndex));
+            Assert.IsTrue(_bootstrap.Placement.CanPlace(_customerData, _slot.SlotIndex));
 
             _bootstrap.Placement.Place(_customerData, _slot.SlotIndex, _slot.BeltPosition);
             yield return WaitSeconds(3f);
@@ -177,6 +177,51 @@ namespace SushiDefense.Tests.PlayMode
                                        $"{frame} 프레임에서 집을 수 있는 초밥을 그냥 두었다");
                 }
             }
+        }
+
+        [UnityTest]
+        public IEnumerator Play_SushiEaten_AccumulatesRevenueAndCurrency()
+        {
+            _bootstrap.Placement.Place(_customerData, _slot.SlotIndex, _slot.BeltPosition);
+
+            yield return WaitSeconds(4f);
+
+            Assert.Greater(_bootstrap.Revenue.Total, 0, "먹은 초밥이 매출로 쌓인다");
+            Assert.AreEqual(_bootstrap.Revenue.Total / 10, _bootstrap.Wallet.Balance,
+                            "영입 재화는 매출의 1/10 이다 (초기 예산 0)");
+        }
+
+        // ── 스테이지 리셋 (착수 시 확정 — 이월 없음) ────────────
+
+        [Test]
+        public void Build_CalledTwice_ResetsRevenueAndWallet()
+        {
+            _bootstrap.Revenue.Add(5000);
+
+            _bootstrap.Build();
+
+            Assert.AreEqual(0, _bootstrap.Revenue.Total);
+            Assert.AreEqual(_config.InitialRecruitBudget, _bootstrap.Wallet.Balance);
+        }
+
+        [UnityTest]
+        public IEnumerator Build_CalledTwice_ResetsSequenceNumbers()
+        {
+            // 순차번호는 스테이지마다 0 부터다 (착수 시 확정). 이어지면 스테이지 2·3 의
+            // 배정 결과를 재현하는 데 앞 스테이지 이력이 필요해진다.
+            yield return WaitSeconds(Interval * 4f);
+            Assert.Greater(_bootstrap.Belt.ActiveSushi[0].SequenceNumber, -1);
+
+            _bootstrap.Build();
+            yield return WaitSeconds(Interval * 1.5f);
+
+            Assert.AreEqual(0, _bootstrap.Belt.ActiveSushi[0].SequenceNumber,
+                            "새 스테이지의 첫 초밥은 0 번이다");
+
+            var customer = _bootstrap.Placement.Place(_customerData, _slot.SlotIndex,
+                                                      _slot.BeltPosition);
+            Assert.AreEqual(0, customer.State.SequenceNumber,
+                            "새 스테이지의 첫 손님도 0 번이다");
         }
 
         [UnityTest]

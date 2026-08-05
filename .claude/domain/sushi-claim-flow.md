@@ -159,29 +159,74 @@
 
 ## 7. 알려진 제약 / 미결
 
-아래는 **실제 작업 시 에이전트가 사람에게 질문해서 정한다.** 지금 정하지 않는다.
-
-- 순차번호 범위 — 스테이지마다 리셋 / 런 전체 연속 (플랜 Q8, M2 에서 답한다)
+**미결이 남아 있지 않다.** M2 에서 마지막 하나가 닫혔다.
 
 결정된 것:
+
+- **순차번호 범위 = 스테이지마다 리셋** (M2). `StageBootstrap.Build()` 가 호출마다 발급기를
+  새로 만든다. 스테이지 2·3 의 배정 결과를 되짚는 데 앞 스테이지 이력이 필요 없다
 
 - **인식 래치 상한 = 시간 상한** (M1). `StageConfig.RecognitionLatchSeconds`, 0 이면 상한 없음 → §3
 - **한 손님은 한 번에 하나만 집는다** (M1). `SushiClaimResolver` 가 배정당 손님 하나를 한 번만 확정한다
 - **계산 예산 200ms 내외까지 UX 허용** (사용자 판단). 이보다 커지면 재검토
 - **재배치는 MVP 범위 밖.** 순차번호 재발급 문제를 지금 다루지 않는다
 
-### M1 이 실제로 만든 것
+### 어느 타입이 무엇을 맡나
 
 문서의 규칙이 어느 타입에 들어갔는지 — 다음 사람이 코드를 찾을 때 쓴다.
 
-| 규칙 | 타입 (`Assets/Code/Scripts/Runtime/`) |
+| 규칙 | 타입 (`Assets/Code/Scripts/Runtime/`) | 언제 |
+|---|---|---|
+| 자격 판정 (§1) | `Customers/CustomerLogic` — **가격 타입을 참조하지 않는다** | M1 |
+| 진입 시각 계산 (§4) | `Customers/ReachWindow` | M1 |
+| 인식 래치·만료 (§3) | `Customers/CandidateSet` | M1 |
+| 쌍 랭킹·그리디 배정 (§2) | `Customers/SushiClaimResolver` | M1 |
+| **정렬 키 4단** (§2) | `Customers/ClaimPairComparer` — 기획의 네 키가 사는 **유일한** 파일 | M2 |
+| **타겟팅 거리** `\|가격−타겟팅\|` | `Customers/TargetingPriority` | M2 |
+| **먹는 시간·포화·소화 전이** | `Customers/CustomerAppetiteMachine` — **초밥을 받지 않는다** | M2 |
+| 재배정 트리거 묶음 (§4) | `Customers/ClaimCoordinator` | M1·M2 |
+| **매출 · 영입 재화** | `Scoring/RevenueLedger` · `Scoring/RecruitWallet` | M2 |
+| **배치 제한·영입 비용** | `Customers/CustomerPlacementService` | M1·M2 |
+
+### 가격을 읽는 곳은 넷뿐이다
+
+자격 판정에 가격이 새는 것이 이 시스템의 최대 위험이라, 가격을 읽는 지점을 셀 수 있게
+유지한다. `CustomerLogic.cs` 와 `CustomerAppetiteMachine.cs` 에 `Price`·`Targeting` 이
+등장하면 규칙 위반이다.
+
+| 파일 | 무엇을 위해 |
 |---|---|
-| 자격 판정 (§1) | `Customers/CustomerLogic` — **가격 타입을 참조하지 않는다** |
-| 진입 시각 계산 (§4) | `Customers/ReachWindow` |
-| 인식 래치·만료 (§3) | `Customers/CandidateSet` |
-| 쌍 랭킹·그리디 배정 (§2) | `Customers/SushiClaimResolver` + `Customers/ClaimPairComparer` |
-| 재배정 트리거 묶음 (§4) | `Customers/ClaimCoordinator` |
-| 배정 순서 키 | `ClaimPairComparer` — **M2 가 타겟팅 키를 넣을 유일한 파일** |
+| `Belt/SpawnShareTable` | 등장 빈도 `(덱 내 최저가/가격)^α` |
+| `Customers/TargetingPriority` | 배정 거리 계산 |
+| `Customers/ClaimPairComparer` | 위 거리와 가격을 정렬 키로 (계산식은 갖지 않는다) |
+| `Customers/ClaimCoordinator` | 소비 시점에 매출·재화로 넘김 |
+
+### 소비 시점 — M2 에서 바뀐 것
+
+M1 은 **배정 확정이 곧 소비**였다. M2 는 그 사이에 먹는 시간이 있다.
+
+```
+배정 확정 → Eating 진입. 초밥은 Claimed 로 벨트에 남는다
+   ↓ eatSeconds 경과
+소비 확정 → 포화도 · 매출 · 재화 · 벨트 제거
+```
+
+**먹다 만 초밥이 끝점을 지나면 놓친다.** 의도된 동작이다 — 손님은 `AbortEating` 으로
+`Idle` 에 돌아오고 매출은 붙지 않는다.
+
+### 틱 순서가 계약이다
+
+`ClaimCoordinator.Tick` 의 6단계 순서는 바꾸면 안 된다.
+
+```
+1) 벨트   2) 식욕 진행 + 소비 확정   3) 진입 인식
+4) 래치 만료   5) 자격 정리   6) 배정
+```
+
+- **2 가 5·6 보다 앞**이어야 먹기·소화를 마친 손님이 같은 틱에 자격을 되찾는다. 뒤에 두면
+  손님이 매번 한 틱씩 굶는다
+- **1 이 3 보다 앞**이어야 이미 내려간 초밥이 같은 틱에 인식되는 유령 배정이 없다
+- **4 가 6 보다 앞**이어야 래치 상한이 의미를 갖는다
 
 ## 8. 관련 규칙
 

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4eb45a57eddac4f2693ce88a67a57a85, type: 3}
+  m_Name: Customer.SmallEater
+  m_EditorClassIdentifier: 
+  _id: customer-small-eater
+  _displayName: 소식
+  _description: 적게 먹지만 비싼 초밥을 노린다.
+  _kind: 1
+  _reach: 3
+  _targetingPrice: 300
+  _eatSeconds: 2
+  _maxSaturation: 3
+  _digestSeconds: 3.5
+  _recruitCost: 40
+  _icon: {fileID: 0}

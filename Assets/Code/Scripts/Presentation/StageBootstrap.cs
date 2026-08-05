@@ -1,6 +1,8 @@
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
+using SushiDefense.UI;
 using UnityEngine;
 
 namespace SushiDefense
@@ -27,6 +29,13 @@ namespace SushiDefense
         [SerializeField] private CustomerPlacementController _placementController;
         [SerializeField] private TableSlotView[] _slots;
         [SerializeField] private CustomerData _defaultCustomer;
+        [SerializeField] private StageHudView _hud;
+
+        /// <summary>이 스테이지의 정의. 진단·테스트용으로 읽기만 노출한다.</summary>
+        public StageConfig StageConfig => _stageConfig;
+
+        /// <summary>이 스테이지의 진행 표시. 씬에 없으면 <c>null</c> 이다.</summary>
+        public StageHudView Hud => _hud;
 
         /// <summary>이 스테이지의 벨트. 진단·테스트용으로 노출한다.</summary>
         public SushiBelt Belt { get; private set; }
@@ -36,6 +45,12 @@ namespace SushiDefense
 
         /// <summary>이 스테이지의 배치 서비스.</summary>
         public CustomerPlacementService Placement { get; private set; }
+
+        /// <summary>이 스테이지의 영입 재화. 스테이지마다 초기 예산으로 새로 열린다.</summary>
+        public RecruitWallet Wallet { get; private set; }
+
+        /// <summary>이 스테이지의 매출. 스테이지마다 0 에서 시작한다.</summary>
+        public RevenueLedger Revenue { get; private set; }
 
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
@@ -64,15 +79,22 @@ namespace SushiDefense
 
             Belt = new SushiBelt(_stageConfig, new SequenceNumberIssuer(),
                                  new SushiPool<SushiItem>(new SushiItemFactory()));
-            Coordinator = new ClaimCoordinator(Belt, _stageConfig);
+            Revenue = new RevenueLedger();
+            Wallet = new RecruitWallet(_stageConfig.InitialRecruitBudget);
+            Coordinator = new ClaimCoordinator(Belt, _stageConfig, Revenue, Wallet);
             Placement = new CustomerPlacementService(Coordinator, _stageConfig,
-                                                     new SequenceNumberIssuer());
+                                                     new SequenceNumberIssuer(), Wallet);
 
             _beltView.Initialize(_viewPool, _stageConfig, _beltStart, _beltEnd);
             _beltView.Bind(Belt);
 
             _placementController.Initialize(_slots, _defaultCustomer);
             _placementController.Bind(Placement);
+
+            if (_hud != null)
+            {
+                _hud.Bind(Revenue, Wallet, Placement, _stageConfig);
+            }
         }
 
         /// <summary>
@@ -94,6 +116,11 @@ namespace SushiDefense
             if (_beltView == null)
             {
                 _beltView = GetComponentInChildren<SushiBeltView>(true);
+            }
+
+            if (_hud == null)
+            {
+                _hud = GetComponentInChildren<StageHudView>(true);
             }
 
             if (_placementController == null)
@@ -144,10 +171,17 @@ namespace SushiDefense
         private void Teardown()
         {
             _beltView?.Unbind();
+            if (_hud != null)
+            {
+                _hud.Unbind();
+            }
+
             Coordinator?.Dispose();
             Coordinator = null;
             Belt = null;
             Placement = null;
+            Wallet = null;
+            Revenue = null;
         }
     }
 }

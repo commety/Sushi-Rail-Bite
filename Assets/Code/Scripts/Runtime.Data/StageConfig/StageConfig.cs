@@ -32,6 +32,7 @@ namespace SushiDefense.Data
         [SerializeField, Min(0.01f)] private float _spawnIntervalSeconds = 1f;
         [SerializeField, Min(0.01f)] private float _beltLength = 1f;
         [SerializeField, Min(0f)] private float _recognitionLatchSeconds;
+        [SerializeField, Min(0f)] private float _sparsityExponent = 1f;
         [SerializeField] private List<TableSlotDefinition> _tableSlots = new();
         [SerializeField] private List<SushiSpawnEntry> _spawnTable = new();
         [SerializeField] private List<BonusObjective> _bonusObjectives = new();
@@ -81,10 +82,32 @@ namespace SushiDefense.Data
         /// </summary>
         public float RecognitionLatchSeconds => _recognitionLatchSeconds;
 
+        /// <summary>
+        /// 희소성 지수 α. 유형별 등장 비율이 <c>(덱 내 최저가 / 가격) ^ α</c> 에 비례한다.
+        ///
+        /// <para>
+        /// <b>가격의 비율만 쓴다.</b> <c>가격 / 10</c> 같은 절대 스케일이 아니라서 100엔짜리
+        /// 덱이든 1000엔짜리 덱이든 동일하게 동작하고, 별도 정규화가 필요 없다.
+        /// </para>
+        /// <para>
+        /// <b>α = 1.0 은 유형별 매출 기여가 균등해지는 지점</b>이다 (<c>가격 × share</c> 가 상수).
+        /// 비싼 초밥은 적게 나오지만 한 방이 크다 — 총량으로는 이득도 손해도 아니고, 존재
+        /// 의의는 타겟팅이 높은 손님을 먹일 유일한 수단이라는 데 있다. 더 희소하게 만들려면
+        /// 값을 올린다.
+        /// </para>
+        /// <para>
+        /// <b>0 은 유효한 값이다</b> — 모든 유형의 share 가 같아진다. 하한만 막는다.
+        /// </para>
+        /// </summary>
+        public float SparsityExponent => _sparsityExponent;
+
         /// <summary>손님을 앉힐 수 있는 자리 목록.</summary>
         public IReadOnlyList<TableSlotDefinition> TableSlots => _tableSlots;
 
-        /// <summary>어떤 초밥이 어떤 비중으로 벨트에 오르는지.</summary>
+        /// <summary>
+        /// 이 스테이지의 덱 — 벨트에 오를 수 있는 초밥 종류 목록.
+        /// <b>비중은 여기 없다.</b> 등장 비율은 가격과 <see cref="SparsityExponent"/> 에서 나온다.
+        /// </summary>
         public IReadOnlyList<SushiSpawnEntry> SpawnTable => _spawnTable;
 
         /// <summary>추가 보상을 주는 목표 목록.</summary>
@@ -107,6 +130,10 @@ namespace SushiDefense.Data
 
             // 0 은 "상한 없음" 이라 유효한 값이다. 하한만 막는다.
             _recognitionLatchSeconds = Mathf.Max(0f, _recognitionLatchSeconds);
+
+            // α 도 0 이 유효하다 — 모든 유형의 share 가 같아지는 구성이다.
+            // 음수면 비쌀수록 자주 나오게 뒤집혀 기획과 정반대가 된다.
+            _sparsityExponent = Mathf.Max(0f, _sparsityExponent);
         }
     }
 }

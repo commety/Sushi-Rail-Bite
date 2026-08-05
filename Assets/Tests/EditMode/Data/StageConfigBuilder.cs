@@ -32,8 +32,13 @@ namespace SushiDefense.Tests.EditMode.Data
 
         public StageConfigBuilder WithMaxPlacedCustomers(int value) => SetInt("_maxPlacedCustomers", value);
 
-        /// <summary>스폰 표에 항목을 하나 붙인다. 넣은 순서가 그대로 스폰 순서가 된다.</summary>
-        public StageConfigBuilder WithSpawnEntry(SushiData sushi, int weight)
+        public StageConfigBuilder WithSparsityExponent(float value) => SetFloat("_sparsityExponent", value);
+
+        /// <summary>
+        /// 덱에 초밥 1종을 붙인다. 넣은 순서가 덱 순서이며, 배출 동률을 끝내는 기준이 된다.
+        /// <b>비중 인자가 없다</b> — 등장 비율은 가격에서 유도된다.
+        /// </summary>
+        public StageConfigBuilder WithSpawnEntry(SushiData sushi)
         {
             var serialized = new SerializedObject(_config);
             var table = Find(serialized, "_spawnTable");
@@ -41,7 +46,6 @@ namespace SushiDefense.Tests.EditMode.Data
             table.InsertArrayElementAtIndex(table.arraySize);
             var entry = table.GetArrayElementAtIndex(table.arraySize - 1);
             entry.FindPropertyRelative("_sushi").objectReferenceValue = sushi;
-            entry.FindPropertyRelative("_weight").intValue = weight;
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return this;
@@ -92,6 +96,19 @@ namespace SushiDefense.Tests.EditMode.Data
         {
             var sushi = ScriptableObject.CreateInstance<SushiData>();
             disposables.Add(sushi);
+            return sushi;
+        }
+
+        /// <summary>
+        /// 가격을 지정해 초밥 데이터를 만든다. 등장 비율·배정 우선순위가 전부 가격에서
+        /// 나오므로, 그 계산을 검증하는 테스트는 가격이 서로 다른 초밥을 필요로 한다.
+        /// </summary>
+        public static SushiData CreateSushi(List<Object> disposables, int price,
+                                            int saturationAmount = 0)
+        {
+            var sushi = CreateSushi(disposables);
+            SerializedFieldSetter.SetInt(sushi, "_price", price);
+            SerializedFieldSetter.SetInt(sushi, "_saturationAmount", saturationAmount);
             return sushi;
         }
     }

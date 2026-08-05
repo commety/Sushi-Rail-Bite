@@ -125,6 +125,36 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         [Test]
+        public void SparsityExponent_FreshConfig_DefaultsToOne()
+        {
+            // α = 1.0 은 유형별 매출 기여가 균등해지는 지점이다. 기획 확정값이라
+            // 애셋을 새로 만들었을 때 바로 그 지점에서 시작해야 한다.
+            Assert.AreEqual(1f, _config.SparsityExponent);
+        }
+
+        [Test]
+        public void OnValidate_NegativeSparsityExponent_ClampsToZero()
+        {
+            SerializedFieldSetter.SetFloat(_config, "_sparsityExponent", -0.5f);
+
+            _config.OnValidate();
+
+            Assert.AreEqual(0f, _config.SparsityExponent);
+        }
+
+        [Test]
+        public void OnValidate_ZeroSparsityExponent_Kept()
+        {
+            // α = 0 은 "모든 유형의 share 가 같다" 는 유효한 구성이다.
+            // 하한을 양수로 잡으면 그 구성을 표현할 방법이 사라진다.
+            SerializedFieldSetter.SetFloat(_config, "_sparsityExponent", 0f);
+
+            _config.OnValidate();
+
+            Assert.AreEqual(0f, _config.SparsityExponent);
+        }
+
+        [Test]
         public void RecognitionLatchSeconds_Zero_MeansNoCap()
         {
             // 0 은 "상한 없음" 규약이다. 클램프가 0 을 양수로 밀어 올리면

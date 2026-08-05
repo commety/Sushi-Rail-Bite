@@ -28,7 +28,7 @@ namespace SushiDefense.Tests.EditMode.Belt
                 .WithBeltSpeed(Speed)
                 .WithSpawnInterval(Interval)
                 .WithBeltLength(Length)
-                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables), 1)
+                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables))
                 .Build();
 
             _pool = new SushiPool<SushiItem>(new SushiItemFactory());
@@ -271,7 +271,7 @@ namespace SushiDefense.Tests.EditMode.Belt
                 .WithBeltSpeed(Speed)
                 .WithSpawnInterval(Interval)
                 .WithBeltLength(ShortLength)
-                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables), 1)
+                .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables))
                 .Build();
 
             return NewBelt();
