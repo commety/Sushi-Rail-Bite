@@ -60,6 +60,50 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Play_Scene_DeckHasSeveralPricedSushi()
+        {
+            // 초밥이 1종이면 타겟팅 거리가 전부 같아 M2 의 배정 규칙이 화면에서
+            // 관측되지 않는다. 밸런스 애셋이 되돌아가면 여기서 잡는다.
+            yield return null;
+
+            var prices = new System.Collections.Generic.HashSet<int>();
+            foreach (var entry in _stage.StageConfig.SpawnTable)
+            {
+                Assert.IsNotNull(entry.Sushi, "덱에 빈 슬롯이 있다");
+                prices.Add(entry.Sushi.Price);
+            }
+
+            Assert.GreaterOrEqual(prices.Count, 3, "가격이 서로 다른 초밥이 최소 3종은 있어야 한다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HudShowsStageProgress()
+        {
+            yield return WaitSeconds(1f);
+
+            Assert.IsNotNull(_stage.Hud, "씬에 HUD 가 없다");
+            Assert.IsNotEmpty(_stage.Hud.RevenueText);
+            Assert.IsNotEmpty(_stage.Hud.WalletText);
+            Assert.IsNotEmpty(_stage.Hud.PlacementText);
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_PlacedCustomerEarnsRevenue()
+        {
+            // M2 완료 판정의 끝 — 실제 씬에서 먹고 매출·재화가 붙는다.
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+
+            yield return WaitSeconds(15f);
+
+            Assert.Greater(_stage.Revenue.Total, 0, "배치된 손님이 먹으면 매출이 오른다");
+            Assert.AreEqual(_stage.Revenue.Total / 10 + _stage.StageConfig.InitialRecruitBudget
+                            - DefaultCustomer().RecruitCost,
+                            _stage.Wallet.Balance,
+                            "잔액 = 초기 예산 − 영입 비용 + 매출/10");
+        }
+
+        [UnityTest]
         public IEnumerator Play_Scene_SushiViewsFollowModels()
         {
             yield return WaitSeconds(3f);
@@ -88,7 +132,7 @@ namespace SushiDefense.Tests.PlayMode
         {
 #if UNITY_EDITOR
             return UnityEditor.AssetDatabase.LoadAssetAtPath<SushiDefense.Data.CustomerData>(
-                "Assets/Level/Balance/Customer.Placeholder.asset");
+                "Assets/Level/Balance/Customer.Standard.asset");
 #else
             return null;
 #endif

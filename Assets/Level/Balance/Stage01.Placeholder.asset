@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _stageNumber: 1
   _displayName: Stage 01 (Placeholder)
-  _targetRevenue: 1000
+  _targetRevenue: 2500
   _timeLimitSeconds: 60
   _maxPlacedCustomers: 3
-  _initialRecruitBudget: 0
+  _initialRecruitBudget: 60
   _beltSpeed: 2
   _spawnIntervalSeconds: 1.5
   _beltLength: 20
   _recognitionLatchSeconds: 1
+  _sparsityExponent: 1
   _tableSlots:
   - _slotIndex: 0
     _position: {x: -4, y: -2}
@@ -33,6 +34,9 @@ MonoBehaviour:
     _position: {x: 4, y: -2}
     _beltPosition: 15
   _spawnTable:
-  - _sushi: {fileID: 11400000, guid: 55b7db7064b3f4450925efeacdd5340b, type: 2}
-    _weight: 1
+  - _sushi: {fileID: 11400000, guid: b793657f3432b475a9c8cc77f579b52f, type: 2}
+  - _sushi: {fileID: 11400000, guid: 744437b36d9a54f0ea5fa7241b1d5f06, type: 2}
+  - _sushi: {fileID: 11400000, guid: e96f5bd3e10134fbd89d260ed9096605, type: 2}
+  - _sushi: {fileID: 11400000, guid: ae8103942209a49cbb52ee3812269b21, type: 2}
+  - _sushi: {fileID: 11400000, guid: a361b8b927ca344ff9e4242f978b873e, type: 2}
   _bonusObjectives: []
