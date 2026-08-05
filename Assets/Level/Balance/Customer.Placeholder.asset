@@ -17,7 +17,8 @@ MonoBehaviour:
   _description: 
   _kind: 0
   _reach: 2
-  _targetingPrice: 100
+  _targetingMin: 100
+  _targetingMax: 300
   _eatSeconds: 0
   _maxSaturation: 99
   _digestSeconds: 0
