@@ -84,6 +84,11 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **keywords:** 데이터 모델, data model, SushiData, SushiItem, CustomerData, CustomerRuntimeState, StageConfig, 필드, 스탯, 가격, 포화도, 특성, Trait, 집기 범위, 먹는 시간, 소화 시간, 영입 비용, RecruitCost, 최대 배치, 초기 예산, 영입 재화, 점수/10, 경제, 시너지, 버프, buff, 순차번호 카운터
 - **when to read:** SO 스키마 설계·수정, 새 필드 추가 판단, 경제·보상 구현, 시너지 설계
 
+#### [domain/spawn-composition.md](domain/spawn-composition.md)
+어떤 초밥이 얼마나 자주 벨트에 오르는가. **share 를 가격에서 유도**(`(덱 내 최저가/가격)^α`)하고 **credit 누적**으로 배출 순서를 만든다. 난수 없음, 가방(인스턴스 재고) 방식 아님.
+- **keywords:** 스폰, spawn, 등장 빈도, 출현율, share, 비중, 가중치, weight, 희소성, sparsity, 알파, α, SparsityExponent, 최저가, minPrice, credit, 배출, 수열, 덱, deck, SpawnTable, SushiSpawnEntry, SpawnShareTable, SpawnSequence, 뭉침, 분산, 결정적, 풀 크기, 프리웜, prewarm
+- **when to read:** 스폰 빈도·덱 구성을 만지기 직전, "비싼 게 너무 자주/드물게 나온다" 증상, α 튜닝, 새 초밥 종류 추가
+
 ---
 
 ## Level 3 — Immutable Constraints
