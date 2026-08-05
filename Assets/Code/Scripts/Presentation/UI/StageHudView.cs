@@ -26,20 +26,21 @@ namespace SushiDefense.UI
 
         private const string WalletLabelName = "WalletLabel";
         private const string PlacementLabelName = "PlacementLabel";
-
-        /// <summary>Unity 내장 폰트. placeholder 라벨이 폰트 없이 아무것도 안 그리는 것을 막는다.</summary>
-        private const string FallbackFontName = "LegacyRuntime.ttf";
+        private const string WaitingLabelName = "WaitingLabel";
 
         [SerializeField] private TextMesh _revenueLabel;
         [SerializeField] private TextMesh _walletLabel;
         [SerializeField] private TextMesh _placementLabel;
+        [SerializeField] private TextMesh _waitingLabel;
 
         private RevenueLedger _revenue;
         private RecruitWallet _wallet;
         private CustomerPlacementService _placement;
         private StageConfig _config;
+        private ClaimCoordinator _coordinator;
 
         private int _shownPlacedCount = -1;
+        private int _shownWaitingCount = -1;
 
         /// <summary>지금 표시 중인 매출 문구. 검증용이다.</summary>
         public string RevenueText { get; private set; }
@@ -51,11 +52,23 @@ namespace SushiDefense.UI
         public string PlacementText { get; private set; }
 
         /// <summary>
+        /// 지금 표시 중인 대기 인원 문구.
+        ///
+        /// <para>
+        /// 손님별 대역·대기는 <c>CustomerView</c> 가 자리 옆에 그린다. 여기 있는 것은
+        /// <b>전역 요약</b>이다 — "왜 아무도 안 먹지" 에 답하는 한 줄이며, 대기가 정상
+        /// 동작임을 플레이어가 알 수 있게 한다.
+        /// </para>
+        /// </summary>
+        public string WaitingText { get; private set; }
+
+        /// <summary>
         /// 표시 대상을 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 를 두 번 부르면
         /// 구독이 겹쳐 한 번의 변화가 두 번 반영된다.
         /// </summary>
         public void Bind(RevenueLedger revenue, RecruitWallet wallet,
-                         CustomerPlacementService placement, StageConfig config)
+                         CustomerPlacementService placement, StageConfig config,
+                         ClaimCoordinator coordinator)
         {
             Unbind();
 
@@ -63,6 +76,7 @@ namespace SushiDefense.UI
             _wallet = wallet;
             _placement = placement;
             _config = config;
+            _coordinator = coordinator;
 
             if (_revenue != null)
             {
@@ -77,7 +91,9 @@ namespace SushiDefense.UI
             }
 
             _shownPlacedCount = -1;
+            _shownWaitingCount = -1;
             RefreshPlacement();
+            RefreshWaiting();
         }
 
         /// <summary>
@@ -101,6 +117,7 @@ namespace SushiDefense.UI
 
             _placement = null;
             _config = null;
+            _coordinator = null;
         }
 
         private void OnDestroy()
@@ -116,26 +133,10 @@ namespace SushiDefense.UI
         /// </summary>
         private void Awake()
         {
-            _revenueLabel = Resolve(_revenueLabel, RevenueLabelName);
-            _walletLabel = Resolve(_walletLabel, WalletLabelName);
-            _placementLabel = Resolve(_placementLabel, PlacementLabelName);
-        }
-
-        private TextMesh Resolve(TextMesh assigned, string childName)
-        {
-            if (assigned != null)
-            {
-                return assigned;
-            }
-
-            var child = transform.Find(childName);
-            if (child == null || !child.TryGetComponent<TextMesh>(out var label))
-            {
-                return null;
-            }
-
-            EnsureFont(label);
-            return label;
+            _revenueLabel = PlaceholderLabel.Resolve(transform, _revenueLabel, RevenueLabelName);
+            _walletLabel = PlaceholderLabel.Resolve(transform, _walletLabel, WalletLabelName);
+            _placementLabel = PlaceholderLabel.Resolve(transform, _placementLabel, PlacementLabelName);
+            _waitingLabel = PlaceholderLabel.Resolve(transform, _waitingLabel, WaitingLabelName);
         }
 
         /// <summary>
@@ -146,6 +147,38 @@ namespace SushiDefense.UI
         private void LateUpdate()
         {
             RefreshPlacement();
+            RefreshWaiting();
+        }
+
+        /// <summary>
+        /// 대기 인원도 변경 이벤트가 없어 매 프레임 센다. 조율자에 대기 이벤트를 만들면
+        /// 매 틱 손님 수만큼 델리게이트가 튀고 해제 경로도 함께 는다 — 세는 편이 싸다.
+        /// </summary>
+        private void RefreshWaiting()
+        {
+            if (_coordinator == null)
+            {
+                return;
+            }
+
+            var waiting = 0;
+            var customers = _coordinator.Customers;
+            for (var i = 0; i < customers.Count; i++)
+            {
+                if (_coordinator.IsWaiting(customers[i]))
+                {
+                    waiting++;
+                }
+            }
+
+            if (waiting == _shownWaitingCount)
+            {
+                return;
+            }
+
+            _shownWaitingCount = waiting;
+            WaitingText = $"대기 {waiting}";
+            PlaceholderLabel.Write(_waitingLabel, WaitingText);
         }
 
         private void RefreshPlacement()
@@ -163,53 +196,21 @@ namespace SushiDefense.UI
 
             _shownPlacedCount = placed;
             PlacementText = $"손님 {placed}/{_placement.MaxPlacedCustomers}";
-            Write(_placementLabel, PlacementText);
+            PlaceholderLabel.Write(_placementLabel, PlacementText);
         }
 
         private void OnRevenueChanged(int total)
         {
             var target = _config != null ? _config.TargetRevenue : 0;
             RevenueText = $"매출 {total}/{target}";
-            Write(_revenueLabel, RevenueText);
+            PlaceholderLabel.Write(_revenueLabel, RevenueText);
         }
 
         private void OnBalanceChanged(int balance)
         {
             WalletText = $"영입 재화 {balance}";
-            Write(_walletLabel, WalletText);
+            PlaceholderLabel.Write(_walletLabel, WalletText);
         }
 
-        /// <summary>
-        /// 폰트가 없으면 <see cref="TextMesh"/> 는 아무것도 그리지 않는다. 라벨의 머티리얼도
-        /// 폰트의 것으로 맞춰야 글자가 나온다 — 씬에서 이 둘을 일일이 물리지 않아도 되도록
-        /// 내장 폰트로 채워 둔다. <b>placeholder 를 위한 장치이고 M6 에서 사라진다.</b>
-        /// </summary>
-        private static void EnsureFont(TextMesh label)
-        {
-            if (label.font != null)
-            {
-                return;
-            }
-
-            var font = Resources.GetBuiltinResource<Font>(FallbackFontName);
-            if (font == null)
-            {
-                return;
-            }
-
-            label.font = font;
-            if (label.TryGetComponent<MeshRenderer>(out var renderer))
-            {
-                renderer.sharedMaterial = font.material;
-            }
-        }
-
-        private static void Write(TextMesh label, string value)
-        {
-            if (label != null)
-            {
-                label.text = value;
-            }
-        }
     }
 }

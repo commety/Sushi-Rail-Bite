@@ -18,11 +18,16 @@ namespace SushiDefense.Customers
         [SerializeField] private CustomerData _pendingCustomer;
 
         private CustomerPlacementService _service;
+        private ClaimCoordinator _coordinator;
 
-        /// <summary>씬 진입점이 배치 서비스를 물려 준다.</summary>
-        public void Bind(CustomerPlacementService service)
+        /// <summary>
+        /// 씬 진입점이 배치 서비스를 물려 준다. 조율자는 <b>여기서 쓰지 않고</b> 앉히는
+        /// 손님 뷰에 그대로 넘긴다 — 뷰가 스스로 찾으면 §4.3 위반이다.
+        /// </summary>
+        public void Bind(CustomerPlacementService service, ClaimCoordinator coordinator)
         {
             _service = service;
+            _coordinator = coordinator;
         }
 
         /// <summary>인스펙터 없이 자리 목록을 물린다. 테스트·부트스트랩용이다.</summary>
@@ -44,7 +49,7 @@ namespace SushiDefense.Customers
                 return false;
             }
 
-            slot.Occupy(placed);
+            slot.Occupy(placed, _coordinator);
             return true;
         }
 
