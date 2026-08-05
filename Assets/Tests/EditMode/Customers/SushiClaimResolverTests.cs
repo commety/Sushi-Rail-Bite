@@ -56,7 +56,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Resolve_OneCustomerManySushi_TakesNearestToTargeting()
         {
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var far = Recognize(customer, NewSushi(0, price: 800));
             var near = Recognize(customer, NewSushi(9, price: 210));
 
@@ -71,7 +71,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         public void Resolve_EqualDistance_TakesHigherPrice()
         {
             // 타겟팅 200 → 190 과 210 은 동거리. 비싼 쪽을 집는다.
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var cheap = Recognize(customer, NewSushi(0, price: 190));
             var expensive = Recognize(customer, NewSushi(9, price: 210));
 
@@ -99,7 +99,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         {
             // 타겟팅에서 아무리 멀어도 더 맞는 대안이 없으면 먹는다.
             // 손님이 눈앞의 초밥을 두고 구경하는 것은 버그다 (CLAUDE.md §1.1-3a).
-            var customer = AddCustomer(0, targetingPrice: 200);
+            var customer = AddCustomer(0, targetingPoint: 200);
             var farAway = Recognize(customer, NewSushi(0, price: 5000));
 
             Resolve();
@@ -113,8 +113,8 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Resolve_ManyCustomersOneSushi_NearestTargetingWins()
         {
-            var offTarget = AddCustomer(0, targetingPrice: 900);
-            var onTarget = AddCustomer(1, targetingPrice: 200);
+            var offTarget = AddCustomer(0, targetingPoint: 900);
+            var onTarget = AddCustomer(1, targetingPoint: 200);
             var sushi = NewSushi(0, price: 200);
             Recognize(offTarget, sushi);
             Recognize(onTarget, sushi);
@@ -149,8 +149,8 @@ namespace SushiDefense.Tests.EditMode.Customers
             //   (luxuryLover, cheapSushi) → (cheapLover, luxurySushi)
             // 로 둘 다 반대 것을 집는다. 이 엇갈림이 없으면 잘못된 정렬로도
             // 우연히 정답이 나와 테스트가 아무것도 잡지 못한다.
-            var luxuryLover = AddCustomer(0, targetingPrice: 800);
-            var cheapLover = AddCustomer(1, targetingPrice: 120);
+            var luxuryLover = AddCustomer(0, targetingPoint: 800);
+            var cheapLover = AddCustomer(1, targetingPoint: 120);
             var cheapSushi = NewSushi(0, price: 120);
             var luxurySushi = NewSushi(1, price: 800);
 
@@ -301,9 +301,9 @@ namespace SushiDefense.Tests.EditMode.Customers
             _candidates.Clear();
 
             // 타겟팅·가격을 서로 다르게 둬 네 키가 모두 관여하게 만든다.
-            var first = AddCustomer(0, targetingPrice: 150);
-            var second = AddCustomer(1, targetingPrice: 300);
-            var third = AddCustomer(2, targetingPrice: 150);
+            var first = AddCustomer(0, targetingPoint: 150);
+            var second = AddCustomer(1, targetingPoint: 300);
+            var third = AddCustomer(2, targetingPoint: 150);
             var sushiA = NewSushi(7, price: 300);
             var sushiB = NewSushi(3, price: 150);
 
@@ -338,12 +338,16 @@ namespace SushiDefense.Tests.EditMode.Customers
 
         private void Resolve() => _resolver.Resolve(_customers, _candidates, _results);
 
-        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPrice = NeutralPrice)
+        /// <summary>
+        /// 대역 폭 0 인 손님. step-01 은 옛 단일 값 동작을 보존하는 것이 목적이다 —
+        /// 폭이 있는 대역과 전문가 우선(정렬 키 4)은 step-03 이 다룬다.
+        /// </summary>
+        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPoint = NeutralPrice)
         {
             var data = ScriptableObject.CreateInstance<CustomerData>();
             _disposables.Add(data);
             SerializedFieldSetter.SetFloat(data, "_reach", 100f);
-            SerializedFieldSetter.SetInt(data, "_targetingPrice", targetingPrice);
+            SerializedFieldSetter.SetTargetingBand(data, targetingPoint, targetingPoint);
             SerializedFieldSetter.SetInt(data, "_maxSaturation", 5);
 
             var customer = new CustomerLogic(new CustomerRuntimeState(data, sequenceNumber), 0f);

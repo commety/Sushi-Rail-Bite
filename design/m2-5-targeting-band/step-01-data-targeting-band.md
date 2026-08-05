@@ -56,17 +56,31 @@ _targetingMax = Mathf.Max(_targetingMin, _targetingMax);   // min ≤ max
 
 **`TargetingWidth` 프로퍼티도 두지 않는다.** 대역 폭은 정렬 키라서 `TargetingPriority.BandWidth` 에 들어간다 (D2·step-02). `Runtime.Data` 는 산술을 갖지 않는다.
 
-### 호출부 — 지금 컴파일이 깨지는 곳
+### 호출부 — 지금 깨지는 곳
 
-`grep -rn "TargetingPrice" Assets/` 로 확인한 **현재 5곳**이다.
+**두 종류를 모두 grep 해야 한다.** 프로퍼티 `TargetingPrice` 만 보면 절반을 놓친다:
 
-| 파일 | 무엇 | 이 단계에서 |
+```bash
+grep -rn --include='*.cs' "TargetingPrice" Assets/      # 컴파일러가 잡아 준다
+grep -rn --include='*.cs' "_targetingPrice" Assets/     # 문자열 필드명 — 컴파일러가 못 잡는다
+```
+
+두 번째가 중요하다. `SerializedFieldSetter.SetInt(data, "_targetingPrice", …)` 는 **문자열**이라 컴파일은 통과하고 `AssertFound` 가 **테스트 실행 시점에** 터진다. 컴파일만 보고 넘어가면 놓친다.
+
+**총 8곳**이다 (작업서 초판이 프로퍼티만 grep 해 3곳을 빠뜨렸다):
+
+| 파일 | 줄 | 이 단계에서 |
 |---|---|---|
-| `Runtime.Data/CustomerData/CustomerData.cs:44` | 프로퍼티 정의 | **교체** |
-| `Runtime.Data/SushiData/SushiData.cs:39` | XML `cref` | 대역을 가리키게 문구 수정 |
-| `Runtime/Customers/ClaimPairComparer.cs:64` | `TargetingPriority.Distance(...)` 인자 | **최소 수정** — `Data.TargetingMin` 을 넘겨 컴파일만 살린다 |
-| `Tests/EditMode/Data/CustomerDataTests.cs:24,30,74,82` | 검증 2건 | 대역 검증으로 다시 쓴다 |
-| `Tests/EditMode/Customers/CustomerRuntimeStateTests.cs:60,63,74` | `SetTargetingPrice` 헬퍼 | `SetTargetingBand(min, max)` |
+| `Runtime.Data/CustomerData/CustomerData.cs` | 17, 44, 68 | **교체** — 필드·프로퍼티·클램프 |
+| `Runtime.Data/SushiData/SushiData.cs` | 39 | XML `cref` 문구 수정 |
+| `Runtime/Customers/ClaimPairComparer.cs` | 64 | **최소 수정** — `Data.TargetingMin` 을 넘겨 컴파일만 살린다 |
+| `Tests/EditMode/Data/CustomerDataTests.cs` | 24, 26, 30, 74, 78, 82 | 대역 검증으로 다시 쓴다 |
+| `Tests/EditMode/Customers/CustomerRuntimeStateTests.cs` | 60, 63, 74, 76 | `SetTargetingBand(min, max)` |
+| `Tests/EditMode/Customers/ClaimPairComparerTests.cs` | 159 | **문자열 필드명** — `NewCustomer` 헬퍼 |
+| `Tests/EditMode/Customers/CustomerLogicTests.cs` | 170, 180 | **문자열 필드명** — 자격 회귀 테스트 2건 |
+| `Tests/EditMode/Customers/SushiClaimResolverTests.cs` | 346 | **문자열 필드명** — `AddCustomer` 헬퍼 |
+
+> 테스트 헬퍼는 **폭 0 대역**(`min == max == 옛 단일 값`)으로 옮긴다. 그래야 step-01 이 기존 동작을 그대로 보존하고, step-02·03 의 Red 가 대역 때문에 생긴 것임이 분명해진다.
 
 > `ClaimPairComparer` 를 "최소 수정" 으로 지나가는 것은 M2 step-01 이 `SpawnSequence` 를 다룬 방식과 같다. **이 단계에서 대역 거리를 구현하지 않는다** — 그러면 step-02 의 Red 를 관측할 수 없다.
 

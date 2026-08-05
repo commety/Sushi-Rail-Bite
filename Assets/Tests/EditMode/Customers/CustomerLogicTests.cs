@@ -163,11 +163,14 @@ namespace SushiDefense.Tests.EditMode.Customers
         // ── 가격은 자격에 영향을 주지 않는다 (M2 회귀 방지) ─────
 
         [Test]
-        public void CanTake_ExpensiveSushiFarFromTargeting_ReturnsTrue()
+        public void CanTake_ExpensiveSushiFarFromBand_ReturnsTrue()
         {
             // 이 두 테스트는 M1 에서는 당연히 통과한다. 누군가 자격에 가격을 끼우는 순간
             // 가장 먼저 깨지라고 두는 장치다 (CLAUDE.md §1.1-3a). 지우지 않는다.
-            SerializedFieldSetter.SetInt(_customerData, "_targetingPrice", 100);
+            //
+            // M2.5 에서 타겟팅이 대역이 되어 더 중요해졌다 — "대역 밖이면 return false" 가
+            // 이 마일스톤 최대 위험이고, 그 사고를 여기서 잡는다.
+            SerializedFieldSetter.SetTargetingBand(_customerData, 100, 100);
             SerializedFieldSetter.SetInt(_sushiData, "_price", 99999);
             var logic = NewLogic();
 
@@ -177,7 +180,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void CanTake_CheapSushi_ReturnsTrue()
         {
-            SerializedFieldSetter.SetInt(_customerData, "_targetingPrice", 100);
+            SerializedFieldSetter.SetTargetingBand(_customerData, 100, 100);
             SerializedFieldSetter.SetInt(_sushiData, "_price", 0);
             var logic = NewLogic();
 

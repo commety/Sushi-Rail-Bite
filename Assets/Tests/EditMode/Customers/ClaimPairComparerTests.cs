@@ -44,7 +44,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         [Test]
         public void Compare_NearerToTargeting_ComesFirst()
         {
-            var customer = NewCustomer(0, targetingPrice: 200);
+            var customer = NewCustomer(0, targetingPoint: 200);
             var near = new ClaimCandidatePair(customer, NewSushi(9, price: 220));
             var far = new ClaimCandidatePair(customer, NewSushi(0, price: 500));
 
@@ -58,7 +58,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         {
             // 타겟팅 200 에서 190 과 210 은 똑같이 가깝다. 이때 비싼 쪽을 집는다 —
             // 목적이 점수 최대화이기 때문이다. 부호를 뒤집어 쓰면 여기가 먼저 깨진다.
-            var customer = NewCustomer(0, targetingPrice: 200);
+            var customer = NewCustomer(0, targetingPoint: 200);
             var expensive = new ClaimCandidatePair(customer, NewSushi(9, price: 210));
             var cheap = new ClaimCandidatePair(customer, NewSushi(0, price: 190));
 
@@ -105,8 +105,8 @@ namespace SushiDefense.Tests.EditMode.Customers
             // 순차번호는 어그로 시스템이 아니다 — 타겟팅이 항상 위다. 정렬을 뒤집어
             // "먼저 배치하면 항상 먼저 먹는" 방식은 검토 후 미채택됐다 (§2).
             var sushi = NewSushi(0, price: 200);
-            var lateButOnTarget = new ClaimCandidatePair(NewCustomer(99, targetingPrice: 200), sushi);
-            var earlyButOffTarget = new ClaimCandidatePair(NewCustomer(0, targetingPrice: 900), sushi);
+            var lateButOnTarget = new ClaimCandidatePair(NewCustomer(99, targetingPoint: 200), sushi);
+            var earlyButOffTarget = new ClaimCandidatePair(NewCustomer(0, targetingPoint: 900), sushi);
 
             Assert.Less(_comparer.Compare(lateButOnTarget, earlyButOffTarget), 0);
         }
@@ -151,12 +151,16 @@ namespace SushiDefense.Tests.EditMode.Customers
             }
         }
 
-        private CustomerLogic NewCustomer(int sequenceNumber, int targetingPrice = NeutralPrice)
+        /// <summary>
+        /// 대역 폭 0 인 손님. step-01 은 옛 단일 값 동작을 그대로 보존하는 것이 목적이라
+        /// 한 점짜리 대역을 쓴다 — 폭이 있는 대역과 정렬 키 5단은 step-03 이 다룬다.
+        /// </summary>
+        private CustomerLogic NewCustomer(int sequenceNumber, int targetingPoint = NeutralPrice)
         {
             var data = ScriptableObject.CreateInstance<CustomerData>();
             _disposables.Add(data);
             SerializedFieldSetter.SetFloat(data, "_reach", 10f);
-            SerializedFieldSetter.SetInt(data, "_targetingPrice", targetingPrice);
+            SerializedFieldSetter.SetTargetingBand(data, targetingPoint, targetingPoint);
 
             return new CustomerLogic(new CustomerRuntimeState(data, sequenceNumber), 0f);
         }
