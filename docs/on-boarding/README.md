@@ -118,6 +118,8 @@ if (Mathf.Abs(sushi.Price - _data.Targeting) > threshold)
 
 타겟팅은 **단일 가격 값**이다 (TD 의 공격력 대응). 대역이 아니다.
 
+> ⚠️ **M2.5 에서 대역으로 바뀐다** — [`docs/plan/M2.5-targeting-band.md`](../plan/M2.5-targeting-band.md). 자격 게이트가 아니라는 점은 그대로다.
+
 배정에 **난수는 없다** — 순차번호가 동률을 끝낸다 (§1.1-3b). 탐색은 **이벤트 기반**이고 인식은 **래치**된다 (§1.1-3c).
 
 상세 플로우는 [`.claude/domain/sushi-claim-flow.md`](../../.claude/domain/sushi-claim-flow.md).

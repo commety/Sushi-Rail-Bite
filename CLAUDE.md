@@ -21,6 +21,7 @@ This document defines the rules and context that Claude (and any other AI coding
      - **Satiety**: total amount they can eat before becoming full
      - **Digestion time**: cooldown after becoming full before they can eat again
   3a. **How a sushi gets claimed.** Eligibility is separate from who-gets-what, and conflating them is the most common implementation error in this project.
+     > ⚠️ **Targeting changes in M2.5.** A design revision replaces the single price with a **band**, and eager commit with a **deadline** (claim just before the piece leaves reach). The eligibility/assignment split below stays; what changes is sort key 1 and *when* a claim is confirmed. Everything in this section describes the code as it stands through M2 — do not implement the new rule piecemeal. Spec: [`docs/plan/M2.5-targeting-band.md`](docs/plan/M2.5-targeting-band.md).
      - **Eligibility — can this customer take anything at all?** Decided by **reach ∧ satiety headroom ∧ state** only. **Price is never a gate.** A customer never sits and watches sushi it could physically reach — that is a bad play experience and is treated as a bug.
      - **Assignment — who gets which piece?** Every recognized (customer, sushi) pair is ranked by **one sort key, applied in this order**:
 
@@ -69,7 +70,7 @@ Agents must not rename these terms arbitrarily anywhere in code, commits, or PRs
 |---|---|---|
 | Sushi | Score unit flowing on the belt | `SushiData`, `SushiItem` |
 | Customer | Tower-role customer | `CustomerData`, `Customer` |
-| Targeting | The **single price** a customer aims for (the TD "attack power" analogue). Ranks (customer, sushi) pairs during assignment (§1.1-3a). Never an eligibility gate — it can never make a customer refuse to eat | `TargetingPrice`, `TargetingPriority` |
+| Targeting | The **single price** a customer aims for (the TD "attack power" analogue). Ranks (customer, sushi) pairs during assignment (§1.1-3a). Never an eligibility gate — it can never make a customer refuse to eat. **Becomes a band (`min`~`max`) in M2.5** — still never an eligibility gate | `TargetingPrice`, `TargetingPriority` |
 | Sequence Number | Deterministic order key. Sushi are numbered on spawn, customers on placement. Breaks Targeting ties — **replaces randomness entirely** (§1.1-3b) | `SequenceNumber` |
 | Claim | Resolving which customer takes which sushi | `SushiClaimResolver` |
 | Trait | A tag on sushi that can trigger a synergy buff on the customer that eats it (optional, demo-scope) | `SushiTrait` |
