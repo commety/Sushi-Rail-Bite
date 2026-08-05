@@ -126,6 +126,40 @@ namespace SushiDefense.Tests.EditMode.Customers
         }
 
         [Test]
+        public void Resolve_TwoInBandSushi_TakesHigherPrice()
+        {
+            // 대역 안은 거리가 전부 0 이라 키 2(고가 우선)가 정한다. 여기가 깨지면
+            // 대역 안에서 FIFO 로 되돌아간 것이다 — 이 마일스톤이 없애려는 버그다.
+            var customer = AddBandCustomer(0, 100, 300);
+            var cheap = Recognize(customer, NewSushi(0, price: 110));
+            var expensive = Recognize(customer, NewSushi(9, price: 290));
+
+            Resolve();
+
+            Assert.AreSame(expensive, _results[0].Sushi, "초밥 SeqNo 가 뒤여도 비싼 쪽이다");
+            Assert.AreEqual(SushiState.OnBelt, cheap.State);
+        }
+
+        [Test]
+        public void Resolve_NarrowBandPlacedLater_StillWins()
+        {
+            // 전문가가 범용가를 이긴다 (정렬 키 4). 배치 순서를 **반대로** 준 것이 핵심이다 —
+            // 좁은 대역 손님을 먼저 앉히면 키 5 만으로도 통과해 아무것도 증명하지 못한다.
+            //
+            // 이 규칙이 없으면 소식좌가 자기 전문 분야를 먼저 앉은 범용 손님에게 빼앗긴다.
+            var generalist = AddBandCustomer(0, 100, 300);
+            var specialist = AddBandCustomer(1, 190, 210);
+            var sushi = NewSushi(0, price: 200);
+            Recognize(generalist, sushi);
+            Recognize(specialist, sushi);
+
+            Resolve();
+
+            Assert.AreEqual(1, _results.Count);
+            Assert.AreSame(specialist, _results[0].Customer, "대역 폭이 배치 순서를 이긴다");
+        }
+
+        [Test]
         public void Resolve_EqualDistanceSameSushi_LowerCustomerSequenceWins()
         {
             var first = AddCustomer(0);
@@ -300,10 +334,11 @@ namespace SushiDefense.Tests.EditMode.Customers
             _customers.Clear();
             _candidates.Clear();
 
-            // 타겟팅·가격을 서로 다르게 둬 네 키가 모두 관여하게 만든다.
-            var first = AddCustomer(0, targetingPoint: 150);
-            var second = AddCustomer(1, targetingPoint: 300);
-            var third = AddCustomer(2, targetingPoint: 150);
+            // 대역 위치·폭·가격을 서로 다르게 둬 **다섯 키가 모두** 관여하게 만든다.
+            // first 와 third 는 같은 대역이지만 폭이 달라 키 4에서 갈린다.
+            var first = AddBandCustomer(0, 120, 180);
+            var second = AddBandCustomer(1, 290, 310);
+            var third = AddBandCustomer(2, 140, 160);
             var sushiA = NewSushi(7, price: 300);
             var sushiB = NewSushi(3, price: 150);
 
@@ -339,15 +374,18 @@ namespace SushiDefense.Tests.EditMode.Customers
         private void Resolve() => _resolver.Resolve(_customers, _candidates, _results);
 
         /// <summary>
-        /// 대역 폭 0 인 손님. step-01 은 옛 단일 값 동작을 보존하는 것이 목적이다 —
-        /// 폭이 있는 대역과 전문가 우선(정렬 키 4)은 step-03 이 다룬다.
+        /// 대역 폭 0 인 손님. 폭이 관여하지 않아야 하는 테스트가 쓴다 — 모든 손님의 폭이
+        /// 같으면 키 4가 동률이 되어 그 아래 키(손님 SeqNo)가 드러난다.
         /// </summary>
-        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPoint = NeutralPrice)
+        private CustomerLogic AddCustomer(int sequenceNumber, int targetingPoint = NeutralPrice) =>
+            AddBandCustomer(sequenceNumber, targetingPoint, targetingPoint);
+
+        private CustomerLogic AddBandCustomer(int sequenceNumber, int targetingMin, int targetingMax)
         {
             var data = ScriptableObject.CreateInstance<CustomerData>();
             _disposables.Add(data);
             SerializedFieldSetter.SetFloat(data, "_reach", 100f);
-            SerializedFieldSetter.SetTargetingBand(data, targetingPoint, targetingPoint);
+            SerializedFieldSetter.SetTargetingBand(data, targetingMin, targetingMax);
             SerializedFieldSetter.SetInt(data, "_maxSaturation", 5);
 
             var customer = new CustomerLogic(new CustomerRuntimeState(data, sequenceNumber), 0f);
