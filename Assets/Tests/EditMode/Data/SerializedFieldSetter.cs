@@ -30,6 +30,24 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         /// <summary>
+        /// 오브젝트 참조 리스트 끝에 한 개를 붙인다.
+        ///
+        /// <c>InsertArrayElementAtIndex</c> 는 직전 원소를 복제하므로, 붙인 직후 값을 덮어써야
+        /// 같은 참조가 두 번 들어가지 않는다.
+        /// </summary>
+        public static void AppendObject(UnityEngine.Object target, string listFieldName,
+                                        UnityEngine.Object value)
+        {
+            var serialized = new SerializedObject(target);
+            var list = serialized.FindProperty(listFieldName).AssertFound(listFieldName);
+
+            list.InsertArrayElementAtIndex(list.arraySize);
+            list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = value;
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
         /// <c>CustomerData</c> 의 타겟팅 대역을 한 번에 밀어 넣는다.
         ///
         /// 두 필드가 항상 짝으로 움직이는데다, M2.5 에서 <c>_targetingPrice</c> 를 대역으로
