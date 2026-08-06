@@ -75,14 +75,53 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.AreEqual(CustomerState.Idle, _view.ShownState);
         }
 
+        /// <summary>
+        /// 라벨은 <b>이름과 대역을 함께</b> 보여 준다. 유형이 셋으로 늘면 대역 숫자만으로는
+        /// "이게 소식인가 먹보인가" 를 매번 역산해야 한다 (M4).
+        /// </summary>
         [Test]
-        public void Bind_Customer_ShowsTargetingBand()
+        public void Bind_Customer_ShowsNameAndTargetingBand()
         {
+            SetDisplayName("소식");
             SetBand(300, 550);
 
             _view.Bind(_logic, null);
 
-            Assert.AreEqual("300~550", _view.BandText);
+            StringAssert.Contains("소식", _view.BandText);
+            StringAssert.Contains("300~550", _view.BandText);
+        }
+
+        /// <summary>
+        /// 다른 유형으로도 <b>자기 값</b>을 쓰는지 본다 — 위 테스트만 있으면 상수를
+        /// 돌려주는 구현이 통과한다.
+        /// </summary>
+        [Test]
+        public void Bind_BigEaterData_ShowsItsOwnNameAndBand()
+        {
+            SetDisplayName("먹보");
+            SetBand(100, 150);
+
+            _view.Bind(_logic, null);
+
+            StringAssert.Contains("먹보", _view.BandText);
+            StringAssert.Contains("100~150", _view.BandText);
+            StringAssert.DoesNotContain("소식", _view.BandText);
+        }
+
+        /// <summary>
+        /// 이름을 아직 안 채운 애셋에서 빈 줄이 나오면 라벨이 고장 난 것처럼 보인다.
+        /// 애셋 이름으로 대신한다.
+        /// </summary>
+        [Test]
+        public void Bind_DataWithoutDisplayName_FallsBackToAssetName()
+        {
+            _customerData.name = "Customer.Nameless";
+            SetDisplayName(string.Empty);
+            SetBand(100, 150);
+
+            _view.Bind(_logic, null);
+
+            StringAssert.Contains("Customer.Nameless", _view.BandText);
         }
 
         [Test]
@@ -201,6 +240,15 @@ namespace SushiDefense.Tests.PlayMode.Customers
         /// 대역만 건드린다. <b>최대 포화도를 함께 손대지 않는다</b> — 기본값 1 이라야
         /// 한 입에 포화돼 Eating → Digesting 전이를 한 틱으로 볼 수 있다.
         /// </summary>
+        private void SetDisplayName(string displayName)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(_customerData);
+            serialized.FindProperty("_displayName").stringValue = displayName;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+        }
+
         private void SetBand(int min, int max)
         {
 #if UNITY_EDITOR
