@@ -117,6 +117,29 @@ namespace SushiDefense.Tests.EditMode.Run
             Assert.AreNotSame(first, progression.CurrentStage);
         }
 
+        /// <summary>
+        /// 화면이 "스테이지 2 클리어" 를 쓰려면 번호가 필요하다. <c>StageConfig.StageNumber</c>
+        /// 를 쓰지 않는 이유는 그것이 <b>표시용</b>이라 목록 순서와 어긋나도 오류가 아니라고
+        /// 정했기 때문이다 (step-01). 진행 순서의 번호는 여기서 나온다.
+        /// </summary>
+        [Test]
+        public void CurrentStageNumber_FreshRun_IsOne()
+        {
+            var progression = NewProgression(NewRun(), CreateStage(), CreateStage());
+
+            Assert.AreEqual(1, progression.CurrentStageNumber);
+        }
+
+        [Test]
+        public void CurrentStageNumber_AfterOneAdvance_IsTwo()
+        {
+            var progression = NewProgression(NewRun(), CreateStage(), CreateStage(), CreateStage());
+
+            progression.AdvanceAfterClear();
+
+            Assert.AreEqual(2, progression.CurrentStageNumber);
+        }
+
         [Test]
         public void CurrentStage_RunComplete_IsNull()
         {

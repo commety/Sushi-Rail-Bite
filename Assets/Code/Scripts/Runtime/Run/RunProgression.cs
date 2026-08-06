@@ -86,6 +86,21 @@ namespace SushiDefense.Run
         public bool HasNextStage => _run.StageNumber < StageCount;
 
         /// <summary>
+        /// 지금 도전 중인 스테이지의 <b>진행 순서 번호</b>. 1 부터 시작한다.
+        ///
+        /// <para>
+        /// 화면이 "스테이지 2 클리어" 를 쓰는 데 필요하다. <c>StageConfig.StageNumber</c> 를
+        /// 쓰지 않는 이유는 그것이 <b>표시용</b>이고 목록 순서와 어긋나도 오류가 아니라고
+        /// 정했기 때문이다 — 순서의 진실은 목록이므로 번호도 목록에서 나와야 한다.
+        /// </para>
+        /// <para>
+        /// 런이 끝나면 <see cref="StageCount"/> 를 넘는다. 그 상태가 곧
+        /// <see cref="IsRunComplete"/> 이므로, <b>진행 표시에 그대로 쓰면 안 된다.</b>
+        /// </para>
+        /// </summary>
+        public int CurrentStageNumber => _run.StageNumber;
+
+        /// <summary>
         /// 지금 도전 중인 스테이지. 런이 끝났으면 <c>null</c> 이다.
         ///
         /// <para>

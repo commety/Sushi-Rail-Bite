@@ -124,6 +124,19 @@ return advanced;
 - `SushiDefense.Run.RunProgression` — step-03
 - `SushiDefense.Data.StageConfig` — 이미 있다
 
+> **작업서에 빠져 있던 것 (실행 중 발견 · 반영 완료).** 이 계약은 *깬 스테이지 번호* 를
+> 요구하는데, step-03 의 `RunProgression` 은 그 값을 노출하지 않았다. 대안이 셋이었다:
+>
+> | 안 | 왜 안 되나 |
+> |---|---|
+> | `CurrentStage.StageNumber` 를 읽는다 | 그 필드는 **표시용**이고 목록 순서와 어긋나도 오류가 아니라고 step-01 에서 정했다. 순서의 진실이 아닌 값으로 진행을 표시하게 된다 |
+> | `Open(int cleared)` 로 인자를 받는다 | 호출자가 같은 문제를 떠안는다 — 번호를 어디서도 못 얻는다 |
+> | **`RunProgression.CurrentStageNumber` 추가** | 채택. 순수 pass-through 이고 `RunState` 는 그대로다 (D4 유지) |
+>
+> 아래 "금지 사항" 의 *`RunProgression` 을 수정하지 않는다* 는 이 한 건에 한해 해제된다.
+> 추가는 순수 가산이며 `CurrentStageNumber_FreshRun_IsOne` · `..._AfterOneAdvance_IsTwo`
+> 두 테스트가 `RunProgressionTests` 에 함께 들어갔다.
+
 ### 밸런스 수치
 
 없음.
