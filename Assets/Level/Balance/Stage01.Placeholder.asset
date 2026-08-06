@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _stageNumber: 1
   _displayName: Stage 01 (Placeholder)
-  _targetRevenue: 2500
+  _targetRevenue: 5000
   _timeLimitSeconds: 60
   _maxPlacedCustomers: 3
   _initialRecruitBudget: 60
