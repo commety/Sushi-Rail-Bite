@@ -170,12 +170,28 @@ StageController.OutcomeDecided(Cleared)
 
 ### 주입 검증 (구현 후 반드시)
 
-| 주입 | 실패해야 하는 테스트 |
+| 주입 | 실패해야 하는 테스트 (실측) |
 |---|---|
-| `Teardown()` 에 `Rewards = null` 복원 | `Proceed_MidRun_KeepsSameRewardsPresenter` · `Proceed_Twice_DoesNotThrow` |
-| `EnsureRunScope()` 의 조기 반환 제거 | `Proceed_MidRun_KeepsSameRunStateInstance` · `..._KeepsRunDeckAndRoster` |
-| `ActiveStage` 를 항상 첫 스테이지로 | `Proceed_MidRun_RebuildsWithNextStageConfig` |
+| `Teardown()` 에 `Rewards = null` 복원 | `Proceed_MidRun_KeepsSameRewardsPresenter` **하나뿐** |
+| `EnsureRunScope()` 의 조기 반환 제거 | **6건** — 진행 3건 + 재시도·`Build_CalledTwice` 등 M3 테스트까지 |
+| `ActiveStage` 를 항상 첫 스테이지로 | `Proceed_MidRun_RebuildsWithNextStageConfig` 외 2건 |
 | `RunCompleted` 에서도 `Build()` 호출 | `Proceed_LastStage_DoesNotRebuild` |
+
+> **첫 줄에 `Proceed_Twice_DoesNotThrow` 도 적혀 있었다. 틀렸다.** 그 테스트는 `Rewards` 를
+> 아예 건드리지 않고 전환 화면만 두 번 민다. 재진입 사고를 잡는 것은
+> `KeepsSameRewardsPresenter` 하나이며, 프레젠터 인스턴스를 `AreSame` 으로 확인하는 것이
+> 그 계약의 유일한 방어선이다.
+
+### 이 단계에서 의미가 바뀐 것 (step-07 테스트 1건 이관)
+
+`_stageConfig` 를 갈아 끼우고 `Build()` 를 다시 부르는 것으로는 **더 이상 스테이지가
+바뀌지 않는다.** 지금 도는 스테이지의 진실은 `RunProgression` 이다.
+
+step-07 의 `Build_Rebuilt_WithDifferentSlotCount_UpdatesActiveSlots` 가 옛 방식에 기대고
+있어 깨졌고, 진짜 경로인 스테이지 전이로 옮겨
+`Advance_StagesWithDifferentSlotCounts_UpdatesActiveSlots` 가 됐다. **테스트를 통과시키려
+고친 것이 아니라 기대 동작 자체가 바뀐 경우다** — 옮긴 뒤에도 줄이는 방향·늘리는 방향을
+모두 본다.
 
 전량 통과하는 주입이 나오면 되돌리고 **테스트를 먼저 추가한 뒤 보고**한다.
 

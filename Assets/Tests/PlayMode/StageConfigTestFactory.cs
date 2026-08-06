@@ -74,6 +74,27 @@ namespace SushiDefense.Tests.PlayMode
 #endif
         }
 
+        /// <summary>주어진 스테이지를 <b>그 순서대로</b> 담은 런 구성을 만든다.</summary>
+        public static RunConfig CreateRun(params StageConfig[] stages)
+        {
+            var runConfig = ScriptableObject.CreateInstance<RunConfig>();
+
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(runConfig);
+            var list = serialized.FindProperty("_stages");
+
+            for (var i = 0; i < stages.Length; i++)
+            {
+                list.InsertArrayElementAtIndex(i);
+                list.GetArrayElementAtIndex(i).objectReferenceValue = stages[i];
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+
+            return runConfig;
+        }
+
         /// <summary>직렬화된 정수 필드에 값을 밀어 넣는다. 프로덕션에 세터를 열지 않기 위해서다.</summary>
         public static void SetInt(StageConfig config, string fieldName, int value)
         {

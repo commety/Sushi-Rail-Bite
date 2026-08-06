@@ -6,6 +6,7 @@ using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Stages;
+using SushiDefense.UI;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -31,6 +32,12 @@ namespace SushiDefense.Tests.PlayMode
         /// 스코프를 벗어나도 사라지지 않는다.
         /// </summary>
         private readonly List<StageConfig> _configs = new();
+
+        /// <summary>진행 테스트가 만든 런 구성·보상 카탈로그. 스테이지 설정과 타입이 달라 따로 둔다.</summary>
+        private readonly List<Object> _runConfigs = new();
+
+        /// <summary>지금 진행 테스트가 쓰고 있는 스테이지들. 인스턴스 동일성 비교에 쓴다.</summary>
+        private StageConfig[] _runStages;
 
         private SushiData _sushiData;
         private CustomerData _customerData;
@@ -91,6 +98,14 @@ namespace SushiDefense.Tests.PlayMode
             }
 
             _configs.Clear();
+
+            foreach (var asset in _runConfigs)
+            {
+                Object.DestroyImmediate(asset);
+            }
+
+            _runConfigs.Clear();
+            _runStages = null;
         }
 
         [UnityTest]
@@ -373,30 +388,234 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         /// <summary>
-        /// 스테이지 교체의 핵심 — <b>줄이는 방향과 늘리는 방향을 모두</b> 본다. 한 방향만
-        /// 보면 비활성화만 하고 다시 켜지 않는 구현이 통과한다.
+        /// 스테이지가 넘어가면 자리도 따라 바뀐다 — <b>줄이는 방향과 늘리는 방향을 모두</b>
+        /// 본다. 한 방향만 보면 비활성화만 하고 다시 켜지 않는 구현이 통과한다.
+        ///
+        /// <para>
+        /// step-08 이전에는 <c>_stageConfig</c> 를 갈아 끼우고 <c>Build()</c> 를 다시 부르는
+        /// 방식으로 이 상황을 만들었다. 이제 <b>지금 도는 스테이지의 진실은 진행 객체</b>이므로
+        /// 진짜 경로인 스테이지 전이로 확인한다.
+        /// </para>
         /// </summary>
         [Test]
-        public void Build_Rebuilt_WithDifferentSlotCount_UpdatesActiveSlots()
+        public void Advance_StagesWithDifferentSlotCounts_UpdatesActiveSlots()
         {
             var slots = NewSlots(4);
-            DefineSlots(4);
-            RebuildWith(slots);
-            Assert.IsTrue(slots[3].gameObject.activeSelf, "전제가 깨졌다 — 4자리 구성에서 전부 켜져 있어야 한다");
+            var run = BuildRun(3, slots, new[] { 4, 2, 4 });
+            Assert.IsTrue(slots[3].gameObject.activeSelf, "전제가 깨졌다 — 4자리 스테이지에서 전부 켜져 있어야 한다");
 
-            _config = NewStageConfig();
-            DefineSlots(2);
-            RebuildWith(slots);
+            Advance(run);
 
             Assert.IsFalse(slots[2].gameObject.activeSelf);
             Assert.IsFalse(slots[3].gameObject.activeSelf);
 
-            _config = NewStageConfig();
-            DefineSlots(4);
-            RebuildWith(slots);
+            Advance(run);
 
             Assert.IsTrue(slots[2].gameObject.activeSelf, "다시 늘어난 자리가 켜져야 한다");
             Assert.IsTrue(slots[3].gameObject.activeSelf);
+        }
+
+        // ── 스테이지 진행 (step-08) ──────────────────────────────
+
+        /// <summary>
+        /// 스테이지 목록을 물리지 않은 구성이 곧 M3 까지의 동작이다 (README D5). "진행이 없는
+        /// 모드" 라는 두 번째 경로가 아니라 <b>한 장짜리 런</b>으로 취급된다.
+        /// </summary>
+        [Test]
+        public void Build_NoRunConfig_TreatsSingleStageAsRun()
+        {
+            Assert.AreSame(_config, _bootstrap.ActiveStage);
+            Assert.AreEqual(1, _bootstrap.Progression.StageCount);
+            Assert.IsFalse(_bootstrap.Progression.HasNextStage);
+        }
+
+        [Test]
+        public void Build_RunConfigWithThreeStages_StartsAtFirst()
+        {
+            var run = BuildRun(3);
+
+            Assert.AreSame(_runStages[0], run.ActiveStage);
+            Assert.AreEqual(3, run.Progression.StageCount);
+        }
+
+        /// <summary>보상 화면이 닫히면 전환 화면이 열린다 — 구독이 실제로 걸려 있는지 본다.</summary>
+        [Test]
+        public void Clear_MidRunStage_OpensTransitionAfterRewardsClosed()
+        {
+            var run = BuildRun(3);
+            Assert.IsFalse(run.Transition.IsOpen, "전제가 깨졌다 — 아직 열려 있으면 안 된다");
+
+            run.Rewards.Open(run.Run);
+            run.Rewards.Skip();
+
+            Assert.IsTrue(run.Transition.IsOpen);
+        }
+
+        /// <summary>
+        /// 두 스테이지에 <b>서로 다른 값</b>을 넣고 인스턴스를 <c>AreSame</c> 으로 본다.
+        /// 같은 값이면 갈아 끼우지 않는 구현도 통과한다.
+        /// </summary>
+        [Test]
+        public void Proceed_MidRun_RebuildsWithNextStageConfig()
+        {
+            var run = BuildRun(3);
+
+            Advance(run);
+
+            Assert.AreSame(_runStages[1], run.ActiveStage);
+            Assert.AreEqual(2, run.ActiveStage.MaxPlacedCustomers, "설정이 실제로 바뀌어야 한다");
+        }
+
+        /// <summary>
+        /// <b>D6 이 지켜지는지 보는 유일한 테스트다.</b> 진행 전에 보상 카드를 한 장 넣는다 —
+        /// 시작 덱만으로 비교하면 <c>SushiDeck.FromSpawnTable</c> 을 다시 부르는 구현도
+        /// 통과한다.
+        /// </summary>
+        [Test]
+        public void Proceed_MidRun_KeepsRunDeckAndRoster()
+        {
+            var run = BuildRun(3);
+            var rewardSushi = ScriptableObject.CreateInstance<SushiData>();
+            var rewardCustomer = ScriptableObject.CreateInstance<CustomerData>();
+            try
+            {
+                Assert.IsTrue(run.Run.Sushi.TryAdd(rewardSushi));
+                Assert.IsTrue(run.Run.Customers.TryAdd(rewardCustomer));
+
+                Advance(run);
+
+                Assert.IsTrue(run.Run.Sushi.Contains(rewardSushi), "보상 초밥이 사라졌다");
+                Assert.IsTrue(run.Run.Customers.Contains(rewardCustomer), "영입한 손님이 사라졌다");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rewardSushi);
+                Object.DestroyImmediate(rewardCustomer);
+            }
+        }
+
+        [Test]
+        public void Proceed_MidRun_ResetsRevenueAndWallet()
+        {
+            var run = BuildRun(3);
+            run.Revenue.Add(500);
+            Assert.AreEqual(500, run.Revenue.Total, "전제가 깨졌다 — 매출이 0 이면 아무것도 검증하지 않는다");
+
+            Advance(run);
+
+            Assert.AreEqual(0, run.Revenue.Total);
+            Assert.AreEqual(run.ActiveStage.InitialRecruitBudget, run.Wallet.Balance);
+        }
+
+        [Test]
+        public void Proceed_LastStage_DoesNotRebuild()
+        {
+            var run = BuildRun(1);
+            var beltBefore = run.Belt;
+
+            Advance(run);
+
+            Assert.AreSame(_runStages[0], run.ActiveStage);
+            Assert.AreSame(beltBefore, run.Belt, "갈 곳이 없으면 판을 다시 세우지 않는다");
+            Assert.IsTrue(run.Progression.IsRunComplete);
+        }
+
+        [Test]
+        public void Proceed_MidRun_KeepsSameRunStateInstance()
+        {
+            var run = BuildRun(3);
+            var before = run.Run;
+
+            Advance(run);
+
+            Assert.AreSame(before, run.Run, "런은 스테이지가 넘어가도 살아남는다");
+        }
+
+        /// <summary>
+        /// <b>재진입 사고의 회귀 방지다</b> (README D8). 프레젠터가 스테이지 수명이면,
+        /// 확인 입력이 부른 <c>Build()</c> 가 자기를 부른 프레젠터를 파괴한다.
+        /// </summary>
+        [Test]
+        public void Proceed_MidRun_KeepsSameRewardsPresenter()
+        {
+            var run = BuildRun(3);
+            var rewardsBefore = run.Rewards;
+            var transitionBefore = run.Transition;
+
+            Advance(run);
+
+            Assert.AreSame(rewardsBefore, run.Rewards);
+            Assert.AreSame(transitionBefore, run.Transition);
+        }
+
+        [Test]
+        public void Proceed_Twice_DoesNotThrow()
+        {
+            var run = BuildRun(3);
+
+            Advance(run);
+            Advance(run);
+
+            Assert.AreSame(_runStages[2], run.ActiveStage);
+        }
+
+        /// <summary>전환 화면을 열고 확인 입력을 넣는다 — 플레이어 조작 한 번에 해당한다.</summary>
+        private static void Advance(StageBootstrap bootstrap)
+        {
+            bootstrap.Transition.Open();
+            bootstrap.Transition.Proceed();
+        }
+
+        /// <summary>
+        /// 스테이지 목록·보상·전환 화면을 갖춘 진입점을 세운다.
+        /// <b>스테이지마다 배치 한도를 다르게</b> 줘, 설정을 갈아 끼우지 않는 구현이 드러나게 한다.
+        /// </summary>
+        private StageBootstrap BuildRun(int stageCount)
+        {
+            return BuildRun(stageCount, null, null);
+        }
+
+        /// <param name="slots">쓰지 않으면 자리 하나짜리 구성을 만든다.</param>
+        /// <param name="definitionCounts">
+        /// 스테이지별 자리 정의 수. <c>null</c> 이면 자리 정의를 두지 않는다 — 그러면
+        /// 자리 바인딩이 no-op 이 되어 씬에 박힌 값이 그대로 쓰인다.
+        /// </param>
+        private StageBootstrap BuildRun(int stageCount, TableSlotView[] slots,
+                                        int[] definitionCounts)
+        {
+            _runStages = new StageConfig[stageCount];
+            for (var i = 0; i < stageCount; i++)
+            {
+                _runStages[i] = NewStageConfig();
+                StageConfigTestFactory.SetInt(_runStages[i], "_maxPlacedCustomers", i + 1);
+                StageConfigTestFactory.SetInt(_runStages[i], "_initialRecruitBudget", (i + 1) * 10);
+
+                if (definitionCounts != null)
+                {
+                    DefineSlots(_runStages[i], definitionCounts[i]);
+                }
+            }
+
+            var runConfig = StageConfigTestFactory.CreateRun(_runStages);
+            _runConfigs.Add(runConfig);
+
+            var catalog = ScriptableObject.CreateInstance<RewardCatalog>();
+            _runConfigs.Add(catalog);
+
+            var rewardView = NewObject("RewardView").AddComponent<RewardSelectionView>();
+            var transitionView = NewObject("StageTransition").AddComponent<StageTransitionView>();
+            var beltView = NewObject("BeltViewForRun").AddComponent<SushiBeltView>();
+            var placement = NewObject("PlacementForRun").AddComponent<CustomerPlacementController>();
+            slots ??= NewSlots(1);
+
+            var bootstrap = NewObject("RunBootstrap").AddComponent<StageBootstrap>();
+            bootstrap.Initialize(_runStages[0], _pool, beltView,
+                                 NewObject("BeltStartForRun").transform,
+                                 NewObject("BeltEndForRun").transform,
+                                 placement, slots, new[] { _customerData });
+            bootstrap.InitializeRun(runConfig, catalog, rewardView, transitionView);
+            bootstrap.Build();
+            return bootstrap;
         }
 
         /// <summary>씬에 손으로 박아 둔 자리를 만든다. 정의값과 <b>겹치지 않는</b> 값을 쓴다.</summary>
@@ -427,9 +646,14 @@ namespace SushiDefense.Tests.PlayMode
 
         private void DefineSlots(int count)
         {
+            DefineSlots(_config, count);
+        }
+
+        private static void DefineSlots(StageConfig config, int count)
+        {
             for (var i = 0; i < count; i++)
             {
-                StageConfigTestFactory.AddTableSlot(_config, DefinedIndex(i), DefinedBeltPosition(i),
+                StageConfigTestFactory.AddTableSlot(config, DefinedIndex(i), DefinedBeltPosition(i),
                                                     new Vector2(i, -2f));
             }
         }
