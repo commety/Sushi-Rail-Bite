@@ -1,6 +1,7 @@
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.UI;
 using UnityEngine;
@@ -77,7 +78,10 @@ namespace SushiDefense
             Teardown();
             ResolveMissingReferences();
 
-            Belt = new SushiBelt(_stageConfig, new SequenceNumberIssuer(),
+            // 덱은 설정에서 풀어 넘긴다. step-05 이후 이 자리가 런 상태의 덱으로 바뀌면
+            // 클리어 보상으로 얻은 초밥이 그대로 벨트에 오른다.
+            Belt = new SushiBelt(_stageConfig, SushiDeck.FromSpawnTable(_stageConfig).Cards,
+                                 new SequenceNumberIssuer(),
                                  new SushiPool<SushiItem>(new SushiItemFactory()));
             Revenue = new RevenueLedger();
             Wallet = new RecruitWallet(_stageConfig.InitialRecruitBudget);

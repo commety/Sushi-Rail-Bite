@@ -2,6 +2,7 @@ using System.Collections;
 using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -52,7 +53,8 @@ namespace SushiDefense.Tests.PlayMode.Belt
             _view = _viewHost.AddComponent<SushiBeltView>();
             _view.Initialize(_pool, _config, _startMarker.transform, _endMarker.transform);
 
-            _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
+            _belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
+                                  new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
         }
 

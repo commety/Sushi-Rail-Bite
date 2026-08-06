@@ -43,7 +43,7 @@ namespace SushiDefense.Belt
         /// <c>Mathf.Pow</c> 를 돌면 스폰 경로에 연산이 쌓인다 — 배포 타깃이 WebGL 이다.
         /// </para>
         /// </summary>
-        public SpawnShareTable(IReadOnlyList<SushiSpawnEntry> deck, float sparsityExponent)
+        public SpawnShareTable(IReadOnlyList<SushiData> deck, float sparsityExponent)
         {
             var included = Collect(deck);
             _sushi = included.ToArray();
@@ -64,7 +64,7 @@ namespace SushiDefense.Belt
         /// <summary>이 인덱스의 등장 비율. 전체 합은 1 이다.</summary>
         public float ShareOf(int index) => _shares[index];
 
-        private static List<SushiData> Collect(IReadOnlyList<SushiSpawnEntry> deck)
+        private static List<SushiData> Collect(IReadOnlyList<SushiData> deck)
         {
             var included = new List<SushiData>();
             if (deck == null)
@@ -74,13 +74,12 @@ namespace SushiDefense.Belt
 
             for (var i = 0; i < deck.Count; i++)
             {
-                var entry = deck[i];
-                if (entry?.Sushi == null)
+                if (deck[i] == null)
                 {
                     continue;
                 }
 
-                included.Add(entry.Sushi);
+                included.Add(deck[i]);
             }
 
             return included;

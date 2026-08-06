@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.UI;
 using UnityEngine;
@@ -48,7 +49,8 @@ namespace SushiDefense.Tests.PlayMode.UI
             StageConfigTestFactory.SetInt(_config, "_initialRecruitBudget", InitialBudget);
             StageConfigTestFactory.SetInt(_config, "_targetRevenue", 1000);
 
-            var belt = new SushiBelt(_config, new SequenceNumberIssuer(),
+            var belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
+                                  new SequenceNumberIssuer(),
                                      new SushiPool<SushiItem>(new SushiItemFactory()));
             _revenue = new RevenueLedger();
             _wallet = new RecruitWallet(InitialBudget);
