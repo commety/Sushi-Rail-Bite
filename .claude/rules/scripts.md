@@ -51,6 +51,8 @@ globs: ["Assets/Code/Scripts/**/*.cs", "Assets/Tests/**/*.cs", "Assets/Editor/**
 
 **배정에 난수를 쓰지 않는다.** 순차번호가 모든 동률을 끝낸다. 프로덕션 배정 경로에 `Random` 이 있으면 규칙 위반이다.
 
+난수가 정당한 곳은 **보상 추첨 하나뿐**이고 (M3), 그것도 `Runtime/Run/` 안에서 주입된 `IRandomSource` 를 거친다. 전역 난수(`UnityEngine.Random`·`System.Random`)는 `Runtime` 어디에서도 쓰지 않는다 — 시드를 우리가 들고 있지 않으면 같은 런을 다시 돌려볼 수 없다. → [`../domain/stage-and-run.md`](../domain/stage-and-run.md) §6
+
 - **자격 판정에 가격이 들어가면 기획 위반이다.** 손님이 눈앞의 초밥을 두고 구경하게 된다.
 - **금지 패턴**:
   ```csharp

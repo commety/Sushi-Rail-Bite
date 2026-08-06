@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Tests.EditMode.Data;
 using UnityEngine;
@@ -710,7 +711,8 @@ namespace SushiDefense.Tests.EditMode.Customers
                 .WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables, SushiPrice, saturationPerSushi))
                 .Build();
 
-            _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
+            _belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
+                                  new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
             _revenue = new RevenueLedger();
             _wallet = new RecruitWallet(0);

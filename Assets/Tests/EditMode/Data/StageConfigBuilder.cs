@@ -24,6 +24,10 @@ namespace SushiDefense.Tests.EditMode.Data
 
         public StageConfigBuilder WithBeltSpeed(float value) => SetFloat("_beltSpeed", value);
 
+        public StageConfigBuilder WithTargetRevenue(int value) => SetInt("_targetRevenue", value);
+
+        public StageConfigBuilder WithTimeLimit(float value) => SetFloat("_timeLimitSeconds", value);
+
         public StageConfigBuilder WithSpawnInterval(float value) => SetFloat("_spawnIntervalSeconds", value);
 
         public StageConfigBuilder WithBeltLength(float value) => SetFloat("_beltLength", value);

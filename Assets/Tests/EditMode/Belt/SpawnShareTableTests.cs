@@ -25,7 +25,6 @@ namespace SushiDefense.Tests.EditMode.Belt
         private const float AlphaOne = 1f;
 
         private readonly List<Object> _disposables = new();
-        private StageConfig _config;
 
         [TearDown]
         public void TearDown()
@@ -36,12 +35,6 @@ namespace SushiDefense.Tests.EditMode.Belt
             }
 
             _disposables.Clear();
-
-            if (_config != null)
-            {
-                Object.DestroyImmediate(_config);
-                _config = null;
-            }
         }
 
         [Test]
@@ -159,12 +152,8 @@ namespace SushiDefense.Tests.EditMode.Belt
         public void Count_EntryWithNullSushi_ExcludesIt()
         {
             var sushi = StageConfigBuilder.CreateSushi(_disposables, 100);
-            _config = new StageConfigBuilder()
-                .WithSpawnEntry(null)
-                .WithSpawnEntry(sushi)
-                .Build();
 
-            var table = new SpawnShareTable(_config.SpawnTable, AlphaOne);
+            var table = new SpawnShareTable(new[] { null, sushi }, AlphaOne);
 
             Assert.AreEqual(1, table.Count);
             Assert.AreSame(sushi, table.SushiAt(0));
@@ -182,16 +171,19 @@ namespace SushiDefense.Tests.EditMode.Belt
             Assert.AreEqual(200, table.SushiAt(2).Price);
         }
 
+        /// <summary>
+        /// 덱을 바로 만든다. 비율표가 <c>StageConfig</c> 대신 초밥 목록을 받게 되면서
+        /// 스테이지 SO 를 세울 이유가 사라졌다.
+        /// </summary>
         private SpawnShareTable NewTable(float sparsityExponent, params int[] prices)
         {
-            var builder = new StageConfigBuilder();
+            var deck = new List<SushiData>();
             foreach (var price in prices)
             {
-                builder.WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables, price));
+                deck.Add(StageConfigBuilder.CreateSushi(_disposables, price));
             }
 
-            _config = builder.Build();
-            return new SpawnShareTable(_config.SpawnTable, sparsityExponent);
+            return new SpawnShareTable(deck, sparsityExponent);
         }
     }
 }

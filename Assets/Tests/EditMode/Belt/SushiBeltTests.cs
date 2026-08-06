@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Tests.EditMode.Data;
 using UnityEngine;
 
@@ -239,7 +240,8 @@ namespace SushiDefense.Tests.EditMode.Belt
         public void Tick_SameConfigTwice_ProducesIdenticalPositions()
         {
             var left = NewBelt();
-            var right = new SushiBelt(_config, new SequenceNumberIssuer(),
+            var right = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
+                                  new SequenceNumberIssuer(),
                                       new SushiPool<SushiItem>(new SushiItemFactory()));
 
             for (var i = 0; i < 5; i++)
@@ -258,7 +260,8 @@ namespace SushiDefense.Tests.EditMode.Belt
             }
         }
 
-        private SushiBelt NewBelt() => new(_config, _sequenceNumbers, _pool);
+        private SushiBelt NewBelt() =>
+            new(_config, SushiDeck.FromSpawnTable(_config).Cards, _sequenceNumbers, _pool);
 
         /// <summary>
         /// 끝점 검증용 벨트. 통과 시간(<see cref="ShortBeltTravelSeconds"/>)이 스폰 간격보다

@@ -38,9 +38,9 @@ namespace SushiDefense.Belt
         /// <summary>
         /// 덱과 희소성 지수로 배출기를 만든다. 초밥이 비어 있는 항목은 빠진다.
         /// </summary>
-        public SpawnSequence(IReadOnlyList<SushiSpawnEntry> entries, float sparsityExponent)
+        public SpawnSequence(IReadOnlyList<SushiData> deck, float sparsityExponent)
         {
-            _shares = new SpawnShareTable(entries, sparsityExponent);
+            _shares = new SpawnShareTable(deck, sparsityExponent);
 
             // credit 배열은 여기서 한 번만 잡는다. Next() 가 매번 배열을 만들면
             // 스폰 경로에 할당이 쌓이고, 배포 타깃이 WebGL 이라 그대로 히칭이 된다.

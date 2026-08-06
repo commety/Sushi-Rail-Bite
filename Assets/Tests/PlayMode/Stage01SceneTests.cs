@@ -2,6 +2,8 @@ using System.Collections;
 using NUnit.Framework;
 using SushiDefense;
 using SushiDefense.Belt;
+using SushiDefense.Customers;
+using SushiDefense.Run;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -49,6 +51,65 @@ namespace SushiDefense.Tests.PlayMode
             Assert.IsNotNull(_stage.Belt, "벨트가 조립되지 않았다 — StageConfig 참조를 확인하라");
             Assert.IsNotNull(_stage.Coordinator);
             Assert.IsNotNull(_stage.Placement);
+            Assert.IsNotNull(_stage.Run, "런 상태가 조립되지 않았다");
+            Assert.IsNotNull(_stage.Stage, "스테이지 컨트롤러가 조립되지 않았다");
+        }
+
+        /// <summary>
+        /// <b>씬의 명부가 비어 있으면 아무도 앉힐 수 없다.</b> 다른 씬 테스트는 자기가 들고 온
+        /// <c>CustomerData</c> 로 직접 배치하므로 이 구멍을 지나친다 — 실제 플레이 경로는
+        /// 배치 껍데기의 명부를 타므로 그쪽을 본다.
+        ///
+        /// <para>
+        /// 직렬화 필드 이름이 바뀌면 Unity 가 옛 값을 조용히 버린다. 그때 코드도 테스트도
+        /// 멀쩡한데 씬만 죽으므로, 이 테스트가 그 사고를 잡는다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasPlaceableCustomerInRoster()
+        {
+            yield return null;
+
+            Assert.Greater(_stage.Run.Customers.Count, 0,
+                           "씬의 손님 명부가 비었다 — StageBootstrap 의 시작 손님 참조를 확인하라");
+
+            var controller = Object.FindAnyObjectByType<CustomerPlacementController>();
+            Assert.IsNotNull(controller, "씬에 배치 껍데기가 없다");
+            Assert.IsNotNull(controller.PendingCustomer,
+                             "배치 예정 손님이 없다 — 명부가 껍데기에 물리지 않았다");
+        }
+
+        /// <summary>
+        /// 보상 화면은 <b>카탈로그와 뷰가 둘 다 씬에 물려야</b> 선다. 카탈로그는 애셋이라
+        /// 자동 해석 대상이 아니므로 인스펙터 참조가 빠지면 조용히 <c>null</c> 이 되고,
+        /// 클리어해도 아무 화면이 안 뜬다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasRewardScreenWired()
+        {
+            yield return null;
+
+            Assert.IsNotNull(_stage.Rewards,
+                             "보상 프레젠터가 없다 — RewardCatalog 또는 RewardSelectionView 참조를 확인하라");
+        }
+
+        /// <summary>
+        /// 보상으로 줄 수 있는 카드가 실제로 있는지 본다. 카탈로그가 물려 있어도 미보유
+        /// 카드가 0개면 화면이 늘 "받을 보상 없음" 이라, 코드는 멀쩡한데 기능이 죽는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardPoolHasUnownedCards()
+        {
+            yield return null;
+
+            _stage.Rewards.Open(_stage.Run);
+
+            Assert.Greater(_stage.Rewards.OfferCount, 0,
+                           "제시할 보상이 없다 — 시작 덱과 보상 풀이 완전히 겹친다");
+
+            // 건너뛰기가 런을 건드리지 않는다는 것은 EditMode 가 검증한다. 여기서는
+            // 화면을 열어 둔 채 테스트가 끝나지 않도록 닫기만 한다.
+            _stage.Rewards.Skip();
         }
 
         [UnityTest]

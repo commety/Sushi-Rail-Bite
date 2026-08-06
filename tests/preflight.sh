@@ -59,17 +59,39 @@ else
     record "공유 폴더 (RULE-02·§7)" "PASS" "심링크 폴더 9곳 변경 없음"
 fi
 
-# ── 4. 배정 경로 난수 (rules/tests.md §5) ───────────────────────────────
-# 순차번호가 모든 동률을 끝내므로 프로덕션 배정 경로에 Random 이 있으면 규칙 위반.
+# ── 4. 난수 격리 (rules/tests.md §5) ────────────────────────────────────
+# 배정은 순차번호가 모든 동률을 끝내므로 난수가 없다. 보상 추첨(M3)만 예외이고,
+# 그것도 주입된 IRandomSource 를 거친다.
+#
+# 옛 가드는 `Random\.` 이라는 **금지형**을 정규식으로 잡았는데 구멍이 있었다 —
+# `new System.Random()` 은 그 형태가 아니라 그냥 통과했다. 대역 산술 가드(5)와 같은
+# **허용 목록** 방식으로 바꾸고, 그 구멍도 함께 막는다.
+RANDOM_ALLOW='Assets/Code/Scripts/Runtime/Run/'
 if [ -d "Assets/Code/Scripts/Runtime" ]; then
-    RANDOM_HITS=$(grep -rnE '\b(UnityEngine\.)?Random\.' Assets/Code/Scripts/Runtime 2>/dev/null || true)
+    RANDOM_HITS=$(grep -rnE '\bRandom\b' Assets/Code/Scripts/Runtime 2>/dev/null \
+        | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)' \
+        | grep -vE "^$RANDOM_ALLOW" || true)
     if [ -n "$RANDOM_HITS" ]; then
-        record "배정 난수 금지" "FAIL" "$(echo "$RANDOM_HITS" | wc -l | tr -d ' ')건 발견"
+        record "배정 난수 금지" "FAIL" "허용 목록 밖 $(echo "$RANDOM_HITS" | wc -l | tr -d ' ')건"
+        echo "$RANDOM_HITS" | head -5 >&2
     else
-        record "배정 난수 금지" "PASS" "Runtime 에 Random 0건"
+        record "배정 난수 금지" "PASS" "허용 목록(Run/) 밖 0건"
+    fi
+
+    # 전역 난수는 허용 목록 안에서도 금지다. 시드를 우리가 들고 있지 않으면 같은 런을
+    # 다시 돌려볼 수 없고, 보상 테스트가 값 비교가 아니라 통계 검증이 된다.
+    GLOBAL_RANDOM=$(grep -rnE '(UnityEngine|System)\.Random|new[[:space:]]+Random\(' \
+        Assets/Code/Scripts/Runtime 2>/dev/null \
+        | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///|//|\*)' || true)
+    if [ -n "$GLOBAL_RANDOM" ]; then
+        record "전역 난수 금지" "FAIL" "$(echo "$GLOBAL_RANDOM" | wc -l | tr -d ' ')건 — IRandomSource 주입으로 바꾸세요"
+        echo "$GLOBAL_RANDOM" | head -5 >&2
+    else
+        record "전역 난수 금지" "PASS" "Unity·BCL 전역 난수 0건"
     fi
 else
     record "배정 난수 금지" "SKIP" "Runtime 어셈블리 아직 없음"
+    record "전역 난수 금지" "SKIP" "Runtime 어셈블리 아직 없음"
 fi
 
 # ── 5. 대역 산술 격리 (CLAUDE.md §1.1-3a) ──────────────────────────────

@@ -4,6 +4,7 @@
   "references": [
     "Runtime",
     "Runtime.Data",
+    "Presentation",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

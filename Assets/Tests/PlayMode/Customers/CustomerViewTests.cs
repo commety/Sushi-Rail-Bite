@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using UnityEngine;
 
@@ -244,7 +245,8 @@ namespace SushiDefense.Tests.PlayMode.Customers
                                                            beltLength: 100f, spawnSushi: sushi);
                 assets.Add(config);
 
-                var belt = new SushiBelt(config, new SequenceNumberIssuer(),
+                var belt = new SushiBelt(config, SushiDeck.FromSpawnTable(config).Cards,
+                                  new SequenceNumberIssuer(),
                                          new SushiPool<SushiItem>(new SushiItemFactory()));
                 Coordinator = new ClaimCoordinator(belt, config, new RevenueLedger(),
                                                    new RecruitWallet(0));

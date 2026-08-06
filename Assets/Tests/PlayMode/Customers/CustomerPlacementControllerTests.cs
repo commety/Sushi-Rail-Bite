@@ -3,6 +3,7 @@ using NUnit.Framework;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using UnityEngine;
 
@@ -37,7 +38,8 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _customerData = ScriptableObject.CreateInstance<CustomerData>();
             _config = StageConfigTestFactory.Create(Speed, Interval, Length, _sushiData);
 
-            _belt = new SushiBelt(_config, new SequenceNumberIssuer(),
+            _belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
+                                  new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
             // 배치 규칙만 보는 테스트라 비용 검사가 끼어들지 않게 예산을 넉넉히 준다.
             var wallet = new RecruitWallet(100000);
@@ -50,7 +52,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _slot.Initialize(slotIndex: 0, beltPosition: 5f, _seatVisual);
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
-            _controller.Initialize(new[] { _slot }, _customerData);
+            _controller.Initialize(new[] { _slot }, new[] { _customerData });
             _controller.Bind(_service, _coordinator);
         }
 

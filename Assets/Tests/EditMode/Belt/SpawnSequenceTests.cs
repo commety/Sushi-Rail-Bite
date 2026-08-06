@@ -22,7 +22,6 @@ namespace SushiDefense.Tests.EditMode.Belt
         private const float AlphaOne = 1f;
 
         private readonly List<Object> _disposables = new();
-        private StageConfig _config;
 
         [TearDown]
         public void TearDown()
@@ -33,12 +32,6 @@ namespace SushiDefense.Tests.EditMode.Belt
             }
 
             _disposables.Clear();
-
-            if (_config != null)
-            {
-                Object.DestroyImmediate(_config);
-                _config = null;
-            }
         }
 
         [Test]
@@ -52,9 +45,7 @@ namespace SushiDefense.Tests.EditMode.Belt
         [Test]
         public void IsEmpty_OnlyEntriesWithoutSushi_ReturnsTrue()
         {
-            _config = new StageConfigBuilder().WithSpawnEntry(null).Build();
-
-            var sequence = new SpawnSequence(_config.SpawnTable, AlphaOne);
+            var sequence = new SpawnSequence(new SushiData[] { null }, AlphaOne);
 
             Assert.IsTrue(sequence.IsEmpty);
         }
@@ -70,8 +61,9 @@ namespace SushiDefense.Tests.EditMode.Belt
         [Test]
         public void Next_SingleEntry_AlwaysReturnsThatSushi()
         {
-            var sequence = NewSequence(100);
-            var only = _config.SpawnTable[0].Sushi;
+            var deck = BuildDeck(100);
+            var sequence = new SpawnSequence(deck, AlphaOne);
+            var only = deck[0];
 
             Assert.AreSame(only, sequence.Next());
             Assert.AreSame(only, sequence.Next());
@@ -82,12 +74,8 @@ namespace SushiDefense.Tests.EditMode.Belt
         public void Next_EntryWithoutSushi_IsSkipped()
         {
             var sushi = StageConfigBuilder.CreateSushi(_disposables, 100);
-            _config = new StageConfigBuilder()
-                .WithSpawnEntry(null)
-                .WithSpawnEntry(sushi)
-                .Build();
 
-            var sequence = new SpawnSequence(_config.SpawnTable, AlphaOne);
+            var sequence = new SpawnSequence(new[] { null, sushi }, AlphaOne);
 
             Assert.AreSame(sushi, sequence.Next());
         }
@@ -98,10 +86,11 @@ namespace SushiDefense.Tests.EditMode.Belt
             // 가격 100 / 200 / 200 → share 0.5 / 0.25 / 0.25.
             // credit 누적이 내는 순서는 A B C A | A B C A — 비율은 정확히 2:1:1 이고
             // A 가 앞에 몰리지 않는다.
-            var sequence = NewSequence(100, 200, 200);
-            var a = _config.SpawnTable[0].Sushi;
-            var b = _config.SpawnTable[1].Sushi;
-            var c = _config.SpawnTable[2].Sushi;
+            var deck = BuildDeck(100, 200, 200);
+            var sequence = new SpawnSequence(deck, AlphaOne);
+            var a = deck[0];
+            var b = deck[1];
+            var c = deck[2];
 
             var expected = new[] { a, b, c, a, a, b, c, a };
 
@@ -120,8 +109,9 @@ namespace SushiDefense.Tests.EditMode.Belt
             const int Window = 8;
             const int MaxInWindow = 1;
 
-            var sequence = NewSequence(300, 150, 120, 100, 100);
-            var rare = _config.SpawnTable[0].Sushi;
+            var deck = BuildDeck(300, 150, 120, 100, 100);
+            var sequence = new SpawnSequence(deck, AlphaOne);
+            var rare = deck[0];
 
             var seen = 0;
             for (var i = 0; i < Window; i++)
@@ -142,8 +132,9 @@ namespace SushiDefense.Tests.EditMode.Belt
             const int Emissions = 1000;
             const float Tolerance = 0.01f;
 
-            var table = new SpawnShareTable(BuildDeck(300, 150, 120, 100, 100), AlphaOne);
-            var sequence = new SpawnSequence(_config.SpawnTable, AlphaOne);
+            var deck = BuildDeck(300, 150, 120, 100, 100);
+            var table = new SpawnShareTable(deck, AlphaOne);
+            var sequence = new SpawnSequence(deck, AlphaOne);
 
             var counts = new int[table.Count];
             for (var i = 0; i < Emissions; i++)
@@ -218,16 +209,19 @@ namespace SushiDefense.Tests.EditMode.Belt
             return new SpawnSequence(BuildDeck(prices), AlphaOne);
         }
 
-        private IReadOnlyList<SushiSpawnEntry> BuildDeck(params int[] prices)
+        /// <summary>
+        /// 덱을 바로 만든다. 벨트가 <c>StageConfig</c> 대신 초밥 목록을 주입받게 되면서
+        /// 스폰 테스트가 더 이상 스테이지 SO 를 세우지 않아도 된다.
+        /// </summary>
+        private IReadOnlyList<SushiData> BuildDeck(params int[] prices)
         {
-            var builder = new StageConfigBuilder();
+            var deck = new List<SushiData>();
             foreach (var price in prices)
             {
-                builder.WithSpawnEntry(StageConfigBuilder.CreateSushi(_disposables, price));
+                deck.Add(StageConfigBuilder.CreateSushi(_disposables, price));
             }
 
-            _config = builder.Build();
-            return _config.SpawnTable;
+            return deck;
         }
     }
 }

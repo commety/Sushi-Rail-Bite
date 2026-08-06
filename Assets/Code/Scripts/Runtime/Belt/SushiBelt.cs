@@ -37,13 +37,18 @@ namespace SushiDefense.Belt
         /// </summary>
         public event Action<SushiItem> SushiRemoved;
 
-        public SushiBelt(StageConfig config, SequenceNumberIssuer sequenceNumbers,
-                         SushiPool<SushiItem> pool)
+        /// <summary>
+        /// 벨트를 연다. <b>덱은 밖에서 주입받는다</b> — <c>StageConfig.SpawnTable</c> 을 직접
+        /// 읽으면 런 중에 자란 덱(클리어 보상)이 벨트에 반영될 자리가 없다. 설정의 덱은
+        /// 이제 런의 <b>시작 상태</b>일 뿐이다.
+        /// </summary>
+        public SushiBelt(StageConfig config, IReadOnlyList<SushiData> deck,
+                         SequenceNumberIssuer sequenceNumbers, SushiPool<SushiItem> pool)
         {
             _config = config != null ? config : throw new ArgumentNullException(nameof(config));
             _sequenceNumbers = sequenceNumbers ?? throw new ArgumentNullException(nameof(sequenceNumbers));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
-            _spawnSequence = new SpawnSequence(config.SpawnTable, config.SparsityExponent);
+            _spawnSequence = new SpawnSequence(deck, config.SparsityExponent);
         }
 
         /// <summary>
