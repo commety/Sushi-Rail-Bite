@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4eb45a57eddac4f2693ce88a67a57a85, type: 3}
+  m_Name: Customer.BigEater
+  m_EditorClassIdentifier:
+  _id: customer-big-eater
+  _displayName: 먹보
+  _description: 빠르게 많이 먹지만 싼 초밥만 노린다.
+  _kind: 2
+  _reach: 3
+  _targetingMin: 100
+  _targetingMax: 150
+  _eatSeconds: 1
+  _maxSaturation: 8
+  _digestSeconds: 3
+  _recruitCost: 60
+  _icon: {fileID: 0}

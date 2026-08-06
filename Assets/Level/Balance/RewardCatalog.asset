@@ -18,4 +18,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8e3299cdaa18d422db9a448171fbe767, type: 2}
   _customerPool:
   - {fileID: 11400000, guid: 23c446122577d4b36ba8a73794167f6a, type: 2}
+  - {fileID: 11400000, guid: 1591fac2ea15842ff81004c9c6f24cb1, type: 2}
   _offerCount: 3

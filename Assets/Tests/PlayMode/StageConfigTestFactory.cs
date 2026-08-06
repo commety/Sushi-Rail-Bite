@@ -53,6 +53,48 @@ namespace SushiDefense.Tests.PlayMode
             return config;
         }
 
+        /// <summary>
+        /// 자리 정의를 하나 붙인다. <b>씬에 박힌 값과 다른 값을 주는 것이 쓰임새다</b> —
+        /// 같은 값을 주면 바인딩을 아예 안 하는 구현도 통과한다.
+        /// </summary>
+        public static void AddTableSlot(StageConfig config, int slotIndex, float beltPosition,
+                                        Vector2 position)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(config);
+            var slots = serialized.FindProperty("_tableSlots");
+
+            slots.InsertArrayElementAtIndex(slots.arraySize);
+            var slot = slots.GetArrayElementAtIndex(slots.arraySize - 1);
+            slot.FindPropertyRelative("_slotIndex").intValue = slotIndex;
+            slot.FindPropertyRelative("_beltPosition").floatValue = beltPosition;
+            slot.FindPropertyRelative("_position").vector2Value = position;
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+        }
+
+        /// <summary>주어진 스테이지를 <b>그 순서대로</b> 담은 런 구성을 만든다.</summary>
+        public static RunConfig CreateRun(params StageConfig[] stages)
+        {
+            var runConfig = ScriptableObject.CreateInstance<RunConfig>();
+
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(runConfig);
+            var list = serialized.FindProperty("_stages");
+
+            for (var i = 0; i < stages.Length; i++)
+            {
+                list.InsertArrayElementAtIndex(i);
+                list.GetArrayElementAtIndex(i).objectReferenceValue = stages[i];
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+
+            return runConfig;
+        }
+
         /// <summary>직렬화된 정수 필드에 값을 밀어 넣는다. 프로덕션에 세터를 열지 않기 위해서다.</summary>
         public static void SetInt(StageConfig config, string fieldName, int value)
         {
