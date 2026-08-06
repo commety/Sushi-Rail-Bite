@@ -32,6 +32,8 @@ namespace SushiDefense
         [SerializeField] private TableSlotView[] _slots;
         [SerializeField] private CustomerData[] _startingCustomers;
         [SerializeField] private StageHudView _hud;
+        [SerializeField] private RewardCatalog _rewardCatalog;
+        [SerializeField] private RewardSelectionView _rewardView;
 
         /// <summary>이 스테이지의 정의. 진단·테스트용으로 읽기만 노출한다.</summary>
         public StageConfig StageConfig => _stageConfig;
@@ -66,6 +68,9 @@ namespace SushiDefense
 
         /// <summary>이 스테이지의 진행. 시간을 흘리고 클리어/실패를 판정한다.</summary>
         public StageController Stage { get; private set; }
+
+        /// <summary>보상 선택의 로직. 카탈로그나 화면이 씬에 없으면 <c>null</c> 이다.</summary>
+        public RewardSelectionPresenter Rewards { get; private set; }
 
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
@@ -116,6 +121,24 @@ namespace SushiDefense
             {
                 _hud.Bind(Revenue, Wallet, Placement, Coordinator, Stage, _placementController);
             }
+
+            BuildRewards();
+        }
+
+        /// <summary>
+        /// 보상 화면을 세운다. 카탈로그나 화면이 없으면 조용히 건너뛴다 — 보상은 스테이지가
+        /// 돌아가는 데 필요한 것이 아니라 클리어 뒤에 붙는 것이라, 없다고 판이 서지 못하면
+        /// 씬을 조금씩 조립하는 동안 아무것도 못 돌린다.
+        /// </summary>
+        private void BuildRewards()
+        {
+            if (_rewardCatalog == null || _rewardView == null)
+            {
+                return;
+            }
+
+            Rewards = new RewardSelectionPresenter(_rewardView, new RewardGenerator(_rewardCatalog));
+            _rewardView.Bind(Rewards);
         }
 
         /// <summary>
@@ -159,11 +182,19 @@ namespace SushiDefense
         }
 
         /// <summary>
-        /// 판정이 났다. 지금은 표시가 전부이며, 클리어 시 보상 화면을 여는 것은 step-08 이
-        /// 여기에 붙인다.
+        /// 판정이 났다. <b>클리어에만 보상 화면을 연다</b> — 실패는 재시도 경로다.
+        ///
+        /// <para>
+        /// 다음 스테이지로 넘어가는 것(<c>RunState.AdvanceStage</c>)은 여기서 하지 않는다.
+        /// 다음 스테이지의 씬·설정이 M4 이고, 프레젠터의 <c>Closed</c> 가 그때 붙일 자리다.
+        /// </para>
         /// </summary>
         private void OnOutcomeDecided(StageOutcome outcome)
         {
+            if (outcome == StageOutcome.Cleared)
+            {
+                Rewards?.Open(Run);
+            }
         }
 
         /// <summary>
@@ -190,6 +221,11 @@ namespace SushiDefense
             if (_hud == null)
             {
                 _hud = GetComponentInChildren<StageHudView>(true);
+            }
+
+            if (_rewardView == null)
+            {
+                _rewardView = GetComponentInChildren<RewardSelectionView>(true);
             }
 
             if (_placementController == null)
@@ -254,6 +290,8 @@ namespace SushiDefense
                 Stage.OutcomeDecided -= OnOutcomeDecided;
                 Stage = null;
             }
+
+            Rewards = null;
 
             Coordinator?.Dispose();
             Coordinator = null;
