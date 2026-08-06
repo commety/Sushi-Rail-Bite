@@ -37,6 +37,20 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         /// <summary>
+        /// 오브젝트 참조 필드 하나를 물린다.
+        ///
+        /// <c>fieldName</c> 은 중첩 경로를 받는다 (<c>"_sushiEaten._clip"</c>) — <c>[Serializable]</c>
+        /// 클래스 안의 필드는 그 자체가 <c>UnityEngine.Object</c> 가 아니라 직접 겨눌 수 없다.
+        /// </summary>
+        public static void SetObject(UnityEngine.Object target, string fieldName,
+                                     UnityEngine.Object value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(fieldName).AssertFound(fieldName).objectReferenceValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
         /// 오브젝트 참조 리스트 끝에 한 개를 붙인다.
         ///
         /// <c>InsertArrayElementAtIndex</c> 는 직전 원소를 복제하므로, 붙인 직후 값을 덮어써야
