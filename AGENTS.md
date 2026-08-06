@@ -84,7 +84,10 @@ Agents must not rename these terms arbitrarily anywhere in code, commits, or PRs
 | Belt | The rotating line sushi flows on | `SushiBelt` |
 | Deck | The set of sushi/customer cards assembled before a stage | `SushiDeck`, `CustomerDeck` |
 | Stage | A single play session unit | `StageConfig`, `StageController` |
-| Run | The full roguelite progression unit (a 3-stage set) | `RunState` |
+| Run | The full roguelite progression unit (a 3-stage set). Survives a stage restart — deck, roster, stage number | `RunState` |
+| Stage outcome | Cleared / Failed / InProgress. **Revenue is checked before expiry**, so hitting the target exactly at the deadline clears | `StageOutcome`, `StageEvaluator` |
+| Reward | A card offered after a clear — a sushi card or a customer. Already-owned cards are never offered | `RewardCatalog`, `RewardOffer`, `RewardGenerator` |
+| Random source | The **only** sanctioned randomness (reward draws), injected so a run is reproducible. Assignment stays random-free — Sequence Numbers settle every tie | `IRandomSource` |
 
 ---
 
@@ -312,7 +315,9 @@ ProjectRoot
 │   │       ├── Runtime/          # Runtime.asmdef — pure game logic
 │   │       │   ├── Belt/
 │   │       │   ├── Customers/
+│   │       │   ├── Run/           #   run state, decks, reward draws (the only Random)
 │   │       │   ├── Scoring/
+│   │       │   ├── Stages/        #   clock, clear/fail evaluation, stage controller
 │   │       │   └── StateMachines/
 │   │       ├── Runtime.Data/     # Runtime.Data.asmdef — ScriptableObject definitions
 │   │       │   ├── SushiData/

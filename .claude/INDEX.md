@@ -84,6 +84,11 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **keywords:** 데이터 모델, data model, SushiData, SushiItem, CustomerData, CustomerRuntimeState, StageConfig, 필드, 스탯, 가격, 포화도, 특성, Trait, 집기 범위, 먹는 시간, 소화 시간, 영입 비용, RecruitCost, 최대 배치, 초기 예산, 영입 재화, 점수/10, 경제, 시너지, 버프, buff, 순차번호 카운터
 - **when to read:** SO 스키마 설계·수정, 새 필드 추가 판단, 경제·보상 구현, 시너지 설계
 
+#### [domain/stage-and-run.md](domain/stage-and-run.md)
+클리어/실패 판정(매출 먼저 → 정각 달성은 클리어), 틱 계약(판정은 조율자 뒤), 판정 후 정지, 런의 수명(`Build()` 바깥 — 재시도에 덱이 남는다), 덱의 진실이 SO 에서 런으로 옮겨 간 것, **난수의 경계**(배정엔 없음/보상만 주입), 스테이지 1 밸런스 근거.
+- **keywords:** 스테이지, stage, 클리어, clear, 실패, fail, 판정, outcome, StageOutcome, StageEvaluator, StageClock, StageController, 제한 시간, 남은 시간, 목표 매출, targetRevenue, 경계, 정각, 틱 순서, 정지, 재시도, retry, 런, run, RunState, SushiDeck, CustomerDeck, 덱, 명부, roster, 보상, reward, RewardCatalog, RewardOffer, RewardGenerator, 추첨, 난수, Random, IRandomSource, xorshift, 시드, seed, Fisher-Yates, 영속성, 저장, persistence, MVP, Presenter, RewardSelectionPresenter
+- **when to read:** 클리어·실패·재시도·보상 관련 코드를 만지기 직전, 난수를 도입하려 할 때, 스테이지 진행(M4)을 붙일 때
+
 #### [domain/spawn-composition.md](domain/spawn-composition.md)
 어떤 초밥이 얼마나 자주 벨트에 오르는가. **share 를 가격에서 유도**(`(덱 내 최저가/가격)^α`)하고 **credit 누적**으로 배출 순서를 만든다. 난수 없음, 가방(인스턴스 재고) 방식 아님.
 - **keywords:** 스폰, spawn, 등장 빈도, 출현율, share, 비중, 가중치, weight, 희소성, sparsity, 알파, α, SparsityExponent, 최저가, minPrice, credit, 배출, 수열, 덱, deck, SpawnTable, SushiSpawnEntry, SpawnShareTable, SpawnSequence, 뭉침, 분산, 결정적, 풀 크기, 프리웜, prewarm
