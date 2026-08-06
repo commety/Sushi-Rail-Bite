@@ -5,6 +5,7 @@ using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
+using SushiDefense.Stages;
 using SushiDefense.UI;
 using UnityEngine;
 
@@ -19,6 +20,7 @@ namespace SushiDefense.Tests.PlayMode.UI
     {
         private const int InitialBudget = 40;
         private const int MaxPlaced = 3;
+        private const float TimeLimit = 30f;
 
         private readonly List<GameObject> _objects = new();
         private readonly List<Object> _assets = new();
@@ -30,12 +32,15 @@ namespace SushiDefense.Tests.PlayMode.UI
         private ClaimCoordinator _coordinator;
         private CustomerPlacementService _placement;
         private StageHudView _hud;
+        private StageController _stage;
+        private CustomerPlacementController _placementController;
         private TextMesh _revenueLabel;
 
         [SetUp]
         public void SetUp()
         {
             _customerData = ScriptableObject.CreateInstance<CustomerData>();
+            _customerData.name = "Customer.ForHudTest";
             _assets.Add(_customerData);
 
             // 범위가 0 이면 초밥이 영영 인식되지 않아 대기 판정이 나오지 않는다.
@@ -48,6 +53,7 @@ namespace SushiDefense.Tests.PlayMode.UI
             StageConfigTestFactory.SetInt(_config, "_maxPlacedCustomers", MaxPlaced);
             StageConfigTestFactory.SetInt(_config, "_initialRecruitBudget", InitialBudget);
             StageConfigTestFactory.SetInt(_config, "_targetRevenue", 1000);
+            StageConfigTestFactory.SetFloat(_config, "_timeLimitSeconds", TimeLimit);
 
             var belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
                                   new SequenceNumberIssuer(),
@@ -58,10 +64,16 @@ namespace SushiDefense.Tests.PlayMode.UI
             _placement = new CustomerPlacementService(_coordinator, _config,
                                                       new SequenceNumberIssuer(), _wallet);
 
+            _stage = new StageController(_coordinator, _revenue, _config);
+
+            _placementController = NewObject("Placement").AddComponent<CustomerPlacementController>();
+            _placementController.Initialize(System.Array.Empty<TableSlotView>(),
+                                            new[] { _customerData });
+
             _revenueLabel = NewObject("RevenueLabel").AddComponent<TextMesh>();
             _hud = NewObject("Hud").AddComponent<StageHudView>();
             SetLabel(_hud, "_revenueLabel", _revenueLabel);
-            _hud.Bind(_revenue, _wallet, _placement, _config, _coordinator);
+            _hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _placementController);
         }
 
         [TearDown]
@@ -168,6 +180,80 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             Assert.AreEqual(before, hud.RevenueText,
                             "파괴된 뷰가 아직 원장을 구독하고 있다 — OnDestroy 에서 끊어야 한다");
+        }
+
+        // ── 남은 시간 · 결과 (M3) ────────────────────────────────
+
+        [Test]
+        public void TimeText_Bind_ShowsFullLimit()
+        {
+            Assert.AreEqual("남은 시간 30", _hud.TimeText);
+        }
+
+        [Test]
+        public void TimeText_AfterTick_CountsDown()
+        {
+            _stage.Tick(5f);
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("남은 시간 25", _hud.TimeText);
+        }
+
+        /// <summary>
+        /// 매 프레임 문자열을 만들면 WebGL 에서 GC 스파이크가 그대로 히칭이 된다 (§4.3).
+        /// 문구가 같은지만 보면 매번 새로 만드는 구현도 통과하므로 <b>인스턴스</b>를 비교한다.
+        /// </summary>
+        [Test]
+        public void TimeText_SameSecondTwice_DoesNotRewrite()
+        {
+            _stage.Tick(0.1f);
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+            var first = _hud.TimeText;
+
+            _stage.Tick(0.1f);
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.IsTrue(ReferenceEquals(first, _hud.TimeText),
+                          "같은 초인데 문자열을 새로 만들었다");
+        }
+
+        [Test]
+        public void OutcomeText_InProgress_IsEmpty()
+        {
+            Assert.IsEmpty(_hud.OutcomeText);
+        }
+
+        [Test]
+        public void OutcomeText_Cleared_ShowsClear()
+        {
+            _revenue.Add(1000);
+            _stage.Tick(0.1f);
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("클리어", _hud.OutcomeText);
+        }
+
+        [Test]
+        public void OutcomeText_Failed_ShowsFail()
+        {
+            _stage.Tick(TimeLimit);
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("실패", _hud.OutcomeText);
+        }
+
+        [Test]
+        public void PendingCustomerText_RosterSelected_ShowsThatCustomer()
+        {
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            // 이름을 명시적으로 준다. CreateInstance 기본 이름이 빈 문자열이면
+            // StringAssert.Contains 가 무엇이든 통과해 공허해진다.
+            Assert.AreSame(_customerData, _placementController.PendingCustomer);
+            StringAssert.Contains("Customer.ForHudTest", _hud.PendingCustomerText);
         }
 
         private static void SetReach(CustomerData data, float reach)

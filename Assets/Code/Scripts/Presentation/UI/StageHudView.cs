@@ -1,6 +1,7 @@
 using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Scoring;
+using SushiDefense.Stages;
 using UnityEngine;
 
 namespace SushiDefense.UI
@@ -27,20 +28,30 @@ namespace SushiDefense.UI
         private const string WalletLabelName = "WalletLabel";
         private const string PlacementLabelName = "PlacementLabel";
         private const string WaitingLabelName = "WaitingLabel";
+        private const string TimeLabelName = "TimeLabel";
+        private const string OutcomeLabelName = "OutcomeLabel";
+        private const string PendingCustomerLabelName = "PendingCustomerLabel";
 
         [SerializeField] private TextMesh _revenueLabel;
         [SerializeField] private TextMesh _walletLabel;
         [SerializeField] private TextMesh _placementLabel;
         [SerializeField] private TextMesh _waitingLabel;
+        [SerializeField] private TextMesh _timeLabel;
+        [SerializeField] private TextMesh _outcomeLabel;
+        [SerializeField] private TextMesh _pendingCustomerLabel;
 
         private RevenueLedger _revenue;
         private RecruitWallet _wallet;
         private CustomerPlacementService _placement;
-        private StageConfig _config;
         private ClaimCoordinator _coordinator;
+        private StageController _stage;
+        private CustomerPlacementController _roster;
 
         private int _shownPlacedCount = -1;
         private int _shownWaitingCount = -1;
+        private int _shownSeconds = -1;
+        private StageOutcome _shownOutcome = StageOutcome.InProgress;
+        private CustomerData _shownPendingCustomer;
 
         /// <summary>지금 표시 중인 매출 문구. 검증용이다.</summary>
         public string RevenueText { get; private set; }
@@ -62,21 +73,31 @@ namespace SushiDefense.UI
         /// </summary>
         public string WaitingText { get; private set; }
 
+        /// <summary>지금 표시 중인 남은 시간 문구.</summary>
+        public string TimeText { get; private set; }
+
+        /// <summary>지금 표시 중인 결과 문구. 진행 중이면 빈 문자열이다.</summary>
+        public string OutcomeText { get; private set; } = string.Empty;
+
+        /// <summary>지금 표시 중인 배치 예정 손님 문구.</summary>
+        public string PendingCustomerText { get; private set; }
+
         /// <summary>
         /// 표시 대상을 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 를 두 번 부르면
         /// 구독이 겹쳐 한 번의 변화가 두 번 반영된다.
         /// </summary>
         public void Bind(RevenueLedger revenue, RecruitWallet wallet,
-                         CustomerPlacementService placement, StageConfig config,
-                         ClaimCoordinator coordinator)
+                         CustomerPlacementService placement, ClaimCoordinator coordinator,
+                         StageController stage, CustomerPlacementController roster)
         {
             Unbind();
 
             _revenue = revenue;
             _wallet = wallet;
             _placement = placement;
-            _config = config;
             _coordinator = coordinator;
+            _stage = stage;
+            _roster = roster;
 
             if (_revenue != null)
             {
@@ -92,8 +113,16 @@ namespace SushiDefense.UI
 
             _shownPlacedCount = -1;
             _shownWaitingCount = -1;
+            _shownSeconds = -1;
+            _shownOutcome = StageOutcome.InProgress;
+            _shownPendingCustomer = null;
+            OutcomeText = string.Empty;
+            PlaceholderLabel.Write(_outcomeLabel, OutcomeText);
+
             RefreshPlacement();
             RefreshWaiting();
+            RefreshTime();
+            RefreshPendingCustomer();
         }
 
         /// <summary>
@@ -116,8 +145,9 @@ namespace SushiDefense.UI
             }
 
             _placement = null;
-            _config = null;
             _coordinator = null;
+            _stage = null;
+            _roster = null;
         }
 
         private void OnDestroy()
@@ -137,6 +167,10 @@ namespace SushiDefense.UI
             _walletLabel = PlaceholderLabel.Resolve(transform, _walletLabel, WalletLabelName);
             _placementLabel = PlaceholderLabel.Resolve(transform, _placementLabel, PlacementLabelName);
             _waitingLabel = PlaceholderLabel.Resolve(transform, _waitingLabel, WaitingLabelName);
+            _timeLabel = PlaceholderLabel.Resolve(transform, _timeLabel, TimeLabelName);
+            _outcomeLabel = PlaceholderLabel.Resolve(transform, _outcomeLabel, OutcomeLabelName);
+            _pendingCustomerLabel = PlaceholderLabel.Resolve(transform, _pendingCustomerLabel,
+                                                            PendingCustomerLabelName);
         }
 
         /// <summary>
@@ -148,6 +182,80 @@ namespace SushiDefense.UI
         {
             RefreshPlacement();
             RefreshWaiting();
+            RefreshTime();
+            RefreshOutcome();
+            RefreshPendingCustomer();
+        }
+
+        /// <summary>
+        /// 남은 시간은 <b>초 단위로 잘라</b> 변경을 감지한다. 매 프레임 문자열을 만들면
+        /// WebGL 에서 GC 스파이크가 그대로 히칭이 된다 (§4.3).
+        ///
+        /// <para>
+        /// <c>CeilToInt</c> 인 이유: 0.3초 남았을 때 <c>0</c> 보다 <c>1</c> 이 낫다. 실제로
+        /// 0 이 되는 순간은 만료 시점뿐이다.
+        /// </para>
+        /// </summary>
+        private void RefreshTime()
+        {
+            if (_stage == null)
+            {
+                return;
+            }
+
+            var seconds = Mathf.CeilToInt(_stage.RemainingSeconds);
+            if (seconds == _shownSeconds)
+            {
+                return;
+            }
+
+            _shownSeconds = seconds;
+            TimeText = $"남은 시간 {seconds}";
+            PlaceholderLabel.Write(_timeLabel, TimeText);
+        }
+
+        /// <summary>
+        /// 결과는 컨트롤러가 이미 정했다. <b>여기서 판정하지 않는다</b> — 뷰가 매출과
+        /// 시간을 다시 비교하면 판정이 두 곳에 살게 된다 (<c>CLAUDE.md</c> §3.2).
+        /// </summary>
+        private void RefreshOutcome()
+        {
+            if (_stage == null || _stage.Outcome == _shownOutcome)
+            {
+                return;
+            }
+
+            _shownOutcome = _stage.Outcome;
+            OutcomeText = _shownOutcome switch
+            {
+                StageOutcome.Cleared => "클리어",
+                StageOutcome.Failed => "실패",
+                _ => string.Empty
+            };
+
+            PlaceholderLabel.Write(_outcomeLabel, OutcomeText);
+        }
+
+        /// <summary>
+        /// 배치 예정 손님. 보상으로 영입한 손님이 실제로 앉힐 수 있는 상태임을 보여 준다 —
+        /// 이 한 줄이 없으면 손님 보상이 화면에서 아무 일도 하지 않는 것처럼 보인다.
+        /// </summary>
+        private void RefreshPendingCustomer()
+        {
+            if (_roster == null)
+            {
+                return;
+            }
+
+            var pending = _roster.PendingCustomer;
+            if (pending == _shownPendingCustomer)
+            {
+                return;
+            }
+
+            _shownPendingCustomer = pending;
+            PendingCustomerText = pending != null ? $"배치 예정 {pending.name}" : "배치 예정 없음";
+            PlaceholderLabel.Write(_pendingCustomerLabel, PendingCustomerText);
         }
 
         /// <summary>
@@ -201,7 +309,7 @@ namespace SushiDefense.UI
 
         private void OnRevenueChanged(int total)
         {
-            var target = _config != null ? _config.TargetRevenue : 0;
+            var target = _stage != null ? _stage.TargetRevenue : 0;
             RevenueText = $"매출 {total}/{target}";
             PlaceholderLabel.Write(_revenueLabel, RevenueText);
         }

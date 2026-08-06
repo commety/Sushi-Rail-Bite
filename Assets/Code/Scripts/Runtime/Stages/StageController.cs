@@ -31,6 +31,12 @@ namespace SushiDefense.Stages
         /// <summary>남은 시간(초). 0 아래로 내려가지 않는다.</summary>
         public float RemainingSeconds => _clock.RemainingSeconds;
 
+        /// <summary>
+        /// 이 판의 목표 매출. 진행도를 그리는 쪽이 <c>StageConfig</c> 를 따로 들지 않도록
+        /// 여기서 내보낸다 — 판정하는 쪽에 물어보는 것이 맞다.
+        /// </summary>
+        public int TargetRevenue => _config.TargetRevenue;
+
         /// <summary>아직 진행 중인가.</summary>
         public bool IsRunning => Outcome == StageOutcome.InProgress;
 

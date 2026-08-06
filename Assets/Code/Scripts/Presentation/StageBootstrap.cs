@@ -3,6 +3,7 @@ using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
+using SushiDefense.Stages;
 using SushiDefense.UI;
 using UnityEngine;
 
@@ -29,7 +30,7 @@ namespace SushiDefense
         [SerializeField] private Transform _beltEnd;
         [SerializeField] private CustomerPlacementController _placementController;
         [SerializeField] private TableSlotView[] _slots;
-        [SerializeField] private CustomerData _defaultCustomer;
+        [SerializeField] private CustomerData[] _startingCustomers;
         [SerializeField] private StageHudView _hud;
 
         /// <summary>이 스테이지의 정의. 진단·테스트용으로 읽기만 노출한다.</summary>
@@ -53,11 +54,24 @@ namespace SushiDefense
         /// <summary>이 스테이지의 매출. 스테이지마다 0 에서 시작한다.</summary>
         public RevenueLedger Revenue { get; private set; }
 
+        /// <summary>
+        /// 이 런의 기억 — 덱 · 손님 명부 · 진행 스테이지.
+        ///
+        /// <para>
+        /// <b><see cref="Build"/> 바깥에 산다.</b> 원장·지갑·벨트·순차번호 발급기는 호출마다
+        /// 새로 열리지만 이 객체는 살아남는다. 재시도에 새 코드가 거의 없는 이유다.
+        /// </para>
+        /// </summary>
+        public RunState Run { get; private set; }
+
+        /// <summary>이 스테이지의 진행. 시간을 흘리고 클리어/실패를 판정한다.</summary>
+        public StageController Stage { get; private set; }
+
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
                                SushiBeltView beltView, Transform beltStart, Transform beltEnd,
                                CustomerPlacementController placementController,
-                               TableSlotView[] slots, CustomerData defaultCustomer)
+                               TableSlotView[] slots, CustomerData[] startingCustomers)
         {
             _stageConfig = stageConfig;
             _viewPool = viewPool;
@@ -66,7 +80,7 @@ namespace SushiDefense
             _beltEnd = beltEnd;
             _placementController = placementController;
             _slots = slots;
-            _defaultCustomer = defaultCustomer;
+            _startingCustomers = startingCustomers;
         }
 
         /// <summary>
@@ -78,27 +92,78 @@ namespace SushiDefense
             Teardown();
             ResolveMissingReferences();
 
-            // 덱은 설정에서 풀어 넘긴다. step-05 이후 이 자리가 런 상태의 덱으로 바뀌면
-            // 클리어 보상으로 얻은 초밥이 그대로 벨트에 오른다.
-            Belt = new SushiBelt(_stageConfig, SushiDeck.FromSpawnTable(_stageConfig).Cards,
-                                 new SequenceNumberIssuer(),
+            // 런은 한 번만 만든다. Build() 를 다시 불러도 살아남아야 재시도에 덱이 유지된다.
+            Run ??= new RunState(SushiDeck.FromSpawnTable(_stageConfig),
+                                 new CustomerDeck(_startingCustomers), NewSeed());
+
+            Belt = new SushiBelt(_stageConfig, Run.Sushi.Cards, new SequenceNumberIssuer(),
                                  new SushiPool<SushiItem>(new SushiItemFactory()));
             Revenue = new RevenueLedger();
             Wallet = new RecruitWallet(_stageConfig.InitialRecruitBudget);
             Coordinator = new ClaimCoordinator(Belt, _stageConfig, Revenue, Wallet);
             Placement = new CustomerPlacementService(Coordinator, _stageConfig,
                                                      new SequenceNumberIssuer(), Wallet);
+            Stage = new StageController(Coordinator, Revenue, _stageConfig);
+            Stage.OutcomeDecided += OnOutcomeDecided;
 
             _beltView.Initialize(_viewPool, _stageConfig, _beltStart, _beltEnd);
             _beltView.Bind(Belt);
 
-            _placementController.Initialize(_slots, _defaultCustomer);
+            _placementController.Initialize(_slots, RosterArray());
             _placementController.Bind(Placement, Coordinator);
 
             if (_hud != null)
             {
-                _hud.Bind(Revenue, Wallet, Placement, _stageConfig, Coordinator);
+                _hud.Bind(Revenue, Wallet, Placement, Coordinator, Stage, _placementController);
             }
+        }
+
+        /// <summary>
+        /// 같은 스테이지를 다시 시작한다. <b>덱·명부는 유지되고</b> 원장·지갑·벨트·순차번호는
+        /// 새로 열린다 (착수 시 확정 — 실패해도 런은 끝나지 않는다).
+        ///
+        /// <para>
+        /// <see cref="Build"/> 가 이미 <c>Teardown</c> 으로 시작하므로 정리 코드를 새로 쓰지
+        /// 않는다.
+        /// </para>
+        /// </summary>
+        public void Retry()
+        {
+            Run?.RecordFailedAttempt();
+            Build();
+        }
+
+        /// <summary>
+        /// 명부를 배열로 옮긴다. 배치 껍데기가 인스펙터 배열을 그대로 쓰던 형태를 유지하되,
+        /// 내용은 런에서 온다 — 보상으로 영입한 손님이 다음 판부터 앉힐 수 있게 된다.
+        /// </summary>
+        private CustomerData[] RosterArray()
+        {
+            var members = Run.Customers.Members;
+            var roster = new CustomerData[members.Count];
+            for (var i = 0; i < members.Count; i++)
+            {
+                roster[i] = members[i];
+            }
+
+            return roster;
+        }
+
+        /// <summary>
+        /// 런마다 달라지는 유일한 지점. 테스트에서 시드를 고정하고 싶어지면 갈아 끼울 자리다.
+        /// <c>Presentation</c> 이라 전역 난수를 써도 되지만, <b>여기 한 곳뿐</b>이어야 한다.
+        /// </summary>
+        private static int NewSeed()
+        {
+            return UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+        }
+
+        /// <summary>
+        /// 판정이 났다. 지금은 표시가 전부이며, 클리어 시 보상 화면을 여는 것은 step-08 이
+        /// 여기에 붙인다.
+        /// </summary>
+        private void OnOutcomeDecided(StageOutcome outcome)
+        {
         }
 
         /// <summary>
@@ -162,9 +227,13 @@ namespace SushiDefense
             }
         }
 
+        /// <summary>
+        /// 조율자를 <b>직접 틱하지 않는다.</b> 컨트롤러를 우회하면 결과가 난 뒤에도 벨트가
+        /// 계속 흘러 정지 계약이 무너진다.
+        /// </summary>
         private void Update()
         {
-            Coordinator?.Tick(Time.deltaTime);
+            Stage?.Tick(Time.deltaTime);
         }
 
         private void OnDestroy()
@@ -178,6 +247,12 @@ namespace SushiDefense
             if (_hud != null)
             {
                 _hud.Unbind();
+            }
+
+            if (Stage != null)
+            {
+                Stage.OutcomeDecided -= OnOutcomeDecided;
+                Stage = null;
             }
 
             Coordinator?.Dispose();

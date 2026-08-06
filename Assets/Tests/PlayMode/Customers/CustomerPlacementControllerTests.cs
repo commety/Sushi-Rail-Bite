@@ -52,7 +52,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _slot.Initialize(slotIndex: 0, beltPosition: 5f, _seatVisual);
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
-            _controller.Initialize(new[] { _slot }, _customerData);
+            _controller.Initialize(new[] { _slot }, new[] { _customerData });
             _controller.Bind(_service, _coordinator);
         }
 

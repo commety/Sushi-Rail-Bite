@@ -5,6 +5,7 @@ using SushiDefense;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Stages;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -61,7 +62,7 @@ namespace SushiDefense.Tests.PlayMode
 
             _bootstrap = NewObject("StageBootstrap").AddComponent<StageBootstrap>();
             _bootstrap.Initialize(_config, _pool, _beltView, beltStart, beltEnd,
-                                  placement, new[] { _slot }, _customerData);
+                                  placement, new[] { _slot }, new[] { _customerData });
             _bootstrap.Build();
         }
 
@@ -233,6 +234,82 @@ namespace SushiDefense.Tests.PlayMode
             var view = _pool.transform.GetComponentInChildren<SushiItemView>(true);
 
             Assert.AreSame(sushi, view.Model, "뷰가 모델을 따라간다");
+        }
+
+        // ── 클리어 · 재시도 (M3) ────────────────────────────────
+
+        [UnityTest]
+        public IEnumerator Play_TargetReached_StageStopsAndRevenueFreezes()
+        {
+            // 초밥 하나(기본 가격 100)만 먹어도 닿는 목표로 다시 세운다.
+            StageConfigTestFactory.SetInt(_config, "_targetRevenue", 100);
+            _bootstrap.Build();
+            _bootstrap.Placement.Place(_customerData, _slot.SlotIndex, _slot.BeltPosition);
+
+            yield return WaitUntilDecided(6f);
+
+            Assert.AreEqual(StageOutcome.Cleared, _bootstrap.Stage.Outcome);
+
+            var frozen = _bootstrap.Revenue.Total;
+            yield return WaitSeconds(2f);
+
+            Assert.AreEqual(frozen, _bootstrap.Revenue.Total,
+                            "판정 뒤에도 벨트가 돌면 매출이 계속 오른다");
+        }
+
+        /// <summary>
+        /// <b>재시도의 전부다</b> — 덱은 남고 매출은 0 이 된다. 하나만 보면 런 전체를 새로
+        /// 만드는 구현도, 아무것도 리셋하지 않는 구현도 통과한다.
+        /// </summary>
+        [Test]
+        public void Play_Retry_KeepsDeckAndResetsRevenue()
+        {
+            var reward = ScriptableObject.CreateInstance<SushiData>();
+            try
+            {
+                Assert.IsTrue(_bootstrap.Run.Sushi.TryAdd(reward));
+                _bootstrap.Revenue.Add(500);
+
+                _bootstrap.Retry();
+
+                Assert.IsTrue(_bootstrap.Run.Sushi.Contains(reward), "재시도에 덱이 사라졌다");
+                Assert.AreEqual(0, _bootstrap.Revenue.Total);
+            }
+            finally
+            {
+                Object.DestroyImmediate(reward);
+            }
+        }
+
+        [Test]
+        public void Play_Retry_IncrementsAttemptAndKeepsStageNumber()
+        {
+            _bootstrap.Retry();
+
+            Assert.AreEqual(1, _bootstrap.Run.StageNumber, "실패해도 같은 스테이지에 머문다");
+            Assert.AreEqual(2, _bootstrap.Run.AttemptNumber);
+        }
+
+        [Test]
+        public void Build_CalledTwice_KeepsTheSameRun()
+        {
+            var before = _bootstrap.Run;
+
+            _bootstrap.Build();
+
+            Assert.AreSame(before, _bootstrap.Run, "런은 Build() 바깥에 산다");
+        }
+
+        private IEnumerator WaitUntilDecided(float timeoutSeconds)
+        {
+            var elapsed = 0f;
+            while (elapsed < timeoutSeconds && _bootstrap.Stage.IsRunning)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.IsFalse(_bootstrap.Stage.IsRunning, "제한 시간 안에 판정이 나지 않았다");
         }
 
         private static IEnumerator WaitSeconds(float seconds)

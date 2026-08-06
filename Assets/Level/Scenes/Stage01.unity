@@ -758,7 +758,8 @@ MonoBehaviour:
   _beltEnd: {fileID: 0}
   _placementController: {fileID: 0}
   _slots: []
-  _defaultCustomer: {fileID: 11400000, guid: 8957d732facfc4ac3ba1627131b6f47f, type: 2}
+  _startingCustomers:
+  - {fileID: 11400000, guid: 8957d732facfc4ac3ba1627131b6f47f, type: 2}
   _hud: {fileID: 0}
 --- !u!4 &1201889959
 Transform:

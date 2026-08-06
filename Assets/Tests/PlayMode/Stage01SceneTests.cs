@@ -2,6 +2,7 @@ using System.Collections;
 using NUnit.Framework;
 using SushiDefense;
 using SushiDefense.Belt;
+using SushiDefense.Customers;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -49,6 +50,32 @@ namespace SushiDefense.Tests.PlayMode
             Assert.IsNotNull(_stage.Belt, "벨트가 조립되지 않았다 — StageConfig 참조를 확인하라");
             Assert.IsNotNull(_stage.Coordinator);
             Assert.IsNotNull(_stage.Placement);
+            Assert.IsNotNull(_stage.Run, "런 상태가 조립되지 않았다");
+            Assert.IsNotNull(_stage.Stage, "스테이지 컨트롤러가 조립되지 않았다");
+        }
+
+        /// <summary>
+        /// <b>씬의 명부가 비어 있으면 아무도 앉힐 수 없다.</b> 다른 씬 테스트는 자기가 들고 온
+        /// <c>CustomerData</c> 로 직접 배치하므로 이 구멍을 지나친다 — 실제 플레이 경로는
+        /// 배치 껍데기의 명부를 타므로 그쪽을 본다.
+        ///
+        /// <para>
+        /// 직렬화 필드 이름이 바뀌면 Unity 가 옛 값을 조용히 버린다. 그때 코드도 테스트도
+        /// 멀쩡한데 씬만 죽으므로, 이 테스트가 그 사고를 잡는다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasPlaceableCustomerInRoster()
+        {
+            yield return null;
+
+            Assert.Greater(_stage.Run.Customers.Count, 0,
+                           "씬의 손님 명부가 비었다 — StageBootstrap 의 시작 손님 참조를 확인하라");
+
+            var controller = Object.FindAnyObjectByType<CustomerPlacementController>();
+            Assert.IsNotNull(controller, "씬에 배치 껍데기가 없다");
+            Assert.IsNotNull(controller.PendingCustomer,
+                             "배치 예정 손님이 없다 — 명부가 껍데기에 물리지 않았다");
         }
 
         [UnityTest]
