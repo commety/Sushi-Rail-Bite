@@ -96,12 +96,17 @@ return !IsRunComplete
 
 계약이 실제로 테스트에 걸리는지 확인한다. **하나씩** 깨뜨리고, 지목한 테스트가 실제로 실패하는지 본 뒤 되돌린다.
 
-| 주입 | 실패해야 하는 테스트 |
+| 주입 | 실패해야 하는 테스트 (실측) |
 |---|---|
 | `AdvanceAfterClear` 의 조기 반환 제거 | `AdvanceAfterClear_AfterRunComplete_ReturnsFalseAndDoesNotAdvance` |
-| `IsRunComplete` 를 `>=` 로 | `IsRunComplete_FreshRun_IsFalse` (스테이지 1개 런에서) |
+| `IsRunComplete` 를 `>=` 로 | `AdvanceAfterClear_LastStage_ReturnsFalse` · `CurrentStage_SingleStageRun_IsThatStage` · `IsRunComplete_AfterClearingLastStage_IsTrue` |
 | 생성자의 `null` 필터 제거 | `StageCount_ListWithNullEntries_CountsOnlySurvivors` |
-| `CurrentStage` 인덱스를 `StageNumber` 로 (off-by-one) | `CurrentStage_FreshRun_IsFirstStage` |
+| `CurrentStage` 인덱스를 `StageNumber` 로 (off-by-one) | `CurrentStage_FreshRun_IsFirstStage` 외 4개 |
+
+> **두 번째 줄은 원래 `IsRunComplete_FreshRun_IsFalse` 라고 적혀 있었다. 틀렸다.** 그 테스트는
+> 3스테이지 런이라 `1 >= 3` 이 여전히 거짓이어서 **주입에도 통과한다**. `>=` 를 실제로 잡으려면
+> **번호와 총수가 같아지는 지점**을 보는 테스트가 필요하고, 위 셋이 그 자리에 있다.
+> 주입 실험으로 드러나 정정한 서술이다 — 지목이 틀린 표는 "잡혔다" 는 오답을 준다.
 
 **전량 통과하는 주입이 나오면 그 계약은 아직 테스트가 없는 것이다.** 되돌린 뒤 테스트를 먼저 추가하고, 결과를 보고한다.
 
