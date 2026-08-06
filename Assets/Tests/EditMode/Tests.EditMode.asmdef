@@ -5,6 +5,7 @@
     "Runtime",
     "Runtime.Data",
     "Presentation",
+    "Editor",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

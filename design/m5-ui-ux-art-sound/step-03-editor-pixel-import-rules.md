@@ -83,6 +83,16 @@ Assets/Art/Sprites/**          ← 최종 픽셀 아트 (CLAUDE.md §10 정본)
 Assets/Level/Placeholder/**    ← 기존 블록 placeholder
 ```
 
+> **PPU 는 32 이고, 기존 플레이스홀더 2장은 이 단계에서 32×32 로 재작업한다.**
+> 착수 시 실측: `SushiBlock.png` · `CustomerBlock.png` 이 **64×64 @ PPU 64 = 1 유닛**이었다.
+> PPU 32 만 강제하면 이 둘이 화면에서 2배가 되어, 벨트 길이 20·자리 4·8·12·16 에 맞춰 놓은
+> 배치가 어긋난다. **같은 경로에 덮어쓰면 `.meta` 가 남아 GUID 가 보존**되므로
+> `SushiItem.prefab` · `Customer.prefab` 의 참조는 끊기지 않는다 (실측으로 확인).
+>
+> **`maxTextureSize` 는 규칙에 넣지 않는다.** step-11 의 배경 이미지가 정당하게 클 수 있고,
+> 캡을 걸면 사람이 의도한 해상도를 조용히 반토막 낸다. 규칙은 *"빠지면 언제나 틀린 것"* 만
+> 강제한다.
+
 `Assets/Art/Sprites/UI/` 도 포함한다. UI 아이콘도 픽셀 아트다.
 
 **대상 밖 경로에서는 아무것도 하지 않는다.** `AppliesTo` 가 `false` 면 임포터가 손을 떼야 한다 — 나중에 들어올 사진·일러스트·폰트 아틀라스까지 `Point` 로 만들면 안 된다.
@@ -149,7 +159,29 @@ Assets/Level/Placeholder/**    ← 기존 블록 placeholder
            PlanFor_NonPixelArt_IsNotPixelArt
 ```
 
-**부분 문자열 오탐 테스트를 빠뜨리지 않는다.** `path.Contains("Art/Sprites")` 는 `Assets/Level/Fan Art/Sprites-old/x.png` 도 잡는다. 경로 경계를 보는 구현인지 확인하는 반례를 같은 테스트 파일에 박는다.
+**부분 문자열 오탐 테스트를 빠뜨리지 않는다.** 경로 경계를 보는 구현인지 확인하는 반례를 같은 테스트 파일에 박는다.
+
+### 주입 실측 — 여기서 공허한 테스트를 하나 잡았다
+
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `StartsWith` → `Contains` | `AppliesTo_PathContainingRootMidway_ReturnsFalse` | **0건 — 전량 통과** |
+| 루트에서 끝 슬래시 제거 | 1건 | 예측대로 **1건** (`AppliesTo_SiblingFolderWithSamePrefix_ReturnsFalse`) |
+| 폰트 폴더를 규칙 대상에 포함 | 1건 | 예측대로 **1건** (`AppliesTo_FontsPath_ReturnsFalse`) |
+| `Point` → `Bilinear` | 1건 | 예측대로 **1건** (`PlanFor_PixelArt_UsesPointFilter`) |
+
+> **첫 번째가 이 단계의 수확이다.** *"부분 문자열 오탐 반례를 박았다"* 고 믿고 쓴
+> `"Assets/Level/Fan Art/Sprites/x.png"` 는 **`Contains` 구현으로도 통과한다** — 루트가
+> `"Assets/Art/Sprites/"` 라 `Assets/` 접두 때문에 애초에 매칭되지 않기 때문이다.
+> 반례를 쓴 사람(나)조차 그 반례가 무엇을 배제하는지 착각했다.
+>
+> `tests.md` §3 의 처방대로 되돌리고 **테스트를 먼저 추가**했다 —
+> `"Packages/com.vendor.kit/Assets/Art/Sprites/icon.png"` 처럼 **루트가 경로 중간에 통째로
+> 박힌** 경우라야 `Contains` 를 배제한다. 추가 후 같은 주입을 다시 넣어 실제로 잡히는 것을
+> 확인했다.
+>
+> 교훈: **반례는 "비슷해 보이는 문자열" 이 아니라 "잘못된 구현이 실제로 참을 돌려주는
+> 입력" 이어야 한다.** 둘은 다르며, 눈으로는 구분되지 않는다.
 
 ### 완료 판정
 
