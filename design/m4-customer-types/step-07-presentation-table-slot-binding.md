@@ -100,11 +100,20 @@ Build_Rebuilt_WithDifferentSlotCount_UpdatesActiveSlots
 
 ### 주입 검증 (구현 후 반드시)
 
-| 주입 | 실패해야 하는 테스트 |
+| 주입 | 실패해야 하는 테스트 (실측) |
 |---|---|
-| 빈 목록에서도 전부 비활성화하도록 | `Build_ConfigWithNoSlotDefinitions_LeavesSceneSlotsUntouched` (+ 기존 PlayMode 다수) |
+| 빈 목록에서도 전부 비활성화하도록 | `Build_ConfigWithNoSlotDefinitions_LeavesSceneSlotsUntouched` **하나뿐** |
 | 비활성화만 하고 재활성화는 안 하도록 | `Build_Rebuilt_WithDifferentSlotCount_UpdatesActiveSlots` |
 | `Bind` 호출을 통째로 제거 | `Build_ConfigWithThreeSlotDefinitions_BindsBeltPositions` |
+
+> **첫 줄은 원래 "+ 기존 PlayMode 다수" 라고 적혀 있었다. 틀렸다.** 자리를 전부 꺼도
+> 기존 테스트는 **하나도 죽지 않는다** — 그 테스트들이 `Placement.Place(...)` 를 직접 부르고
+> 자리 뷰에서는 `SlotIndex`·`BeltPosition` 만 읽기 때문이다. `GameObject` 가 꺼져도 로직은
+> 그대로 돈다.
+>
+> **M3 에서 씬이 조용히 죽었던 것과 정확히 같은 사각지대다.** 이 하네스는 뷰 계층을
+> 우회하므로, **자리·좌석이 화면에서 사라지는 종류의 사고를 구조적으로 못 잡는다.**
+> 그런 회귀를 막고 싶으면 `Play_Scene_*` 계열처럼 실제 씬을 여는 테스트가 필요하다.
 
 ### 예상 커밋 메시지
 

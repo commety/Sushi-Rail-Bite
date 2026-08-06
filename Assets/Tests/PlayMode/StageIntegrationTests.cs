@@ -25,6 +25,13 @@ namespace SushiDefense.Tests.PlayMode
 
         private readonly List<GameObject> _objects = new();
 
+        /// <summary>
+        /// 이 테스트가 만든 모든 스테이지 설정. 스테이지 교체 테스트가 <c>_config</c> 를
+        /// 갈아 끼우므로 버려진 것도 여기 남아야 정리된다 — <c>ScriptableObject</c> 는
+        /// 스코프를 벗어나도 사라지지 않는다.
+        /// </summary>
+        private readonly List<StageConfig> _configs = new();
+
         private SushiData _sushiData;
         private CustomerData _customerData;
         private StageConfig _config;
@@ -39,7 +46,7 @@ namespace SushiDefense.Tests.PlayMode
             _sushiData = ScriptableObject.CreateInstance<SushiData>();
             _customerData = ScriptableObject.CreateInstance<CustomerData>();
             SetCustomerStats(reach: Reach, maxSaturation: 99);
-            _config = StageConfigTestFactory.Create(Speed, Interval, Length, _sushiData);
+            _config = NewStageConfig();
 
             var prefab = NewObject("SushiPrefab");
             prefab.AddComponent<SushiItemView>();
@@ -77,7 +84,13 @@ namespace SushiDefense.Tests.PlayMode
             _objects.Clear();
             Object.DestroyImmediate(_sushiData);
             Object.DestroyImmediate(_customerData);
-            Object.DestroyImmediate(_config);
+
+            foreach (var config in _configs)
+            {
+                Object.DestroyImmediate(config);
+            }
+
+            _configs.Clear();
         }
 
         [UnityTest]
@@ -299,6 +312,146 @@ namespace SushiDefense.Tests.PlayMode
 
             Assert.AreSame(before, _bootstrap.Run, "런은 Build() 바깥에 산다");
         }
+
+        // ── 자리 정의 바인딩 (step-07) ──────────────────────────
+        //
+        // 이 단계 전까지 StageConfig.TableSlots 는 **프로덕션 코드에서 아무도 읽지 않았다.**
+        // 자리 좌표는 씬의 TableSlotView 에 손으로 박혀 있었고, 스테이지 1 에서는 우연히
+        // 값이 같아 문제가 없었다. 스테이지 2·3 이 자리 4개를 쓰는 순간 "설정을 고쳐도
+        // 화면이 안 바뀌는" 상태가 된다.
+
+        /// <summary>
+        /// 씬에 박힌 값과 <b>다른 값</b>을 정의로 준다. 같은 값을 주면 바인딩을 아예 안 하는
+        /// 구현도 통과한다. <c>SlotIndex</c> 도 함께 보는 이유는, 벨트 좌표만 맞고 인덱스가
+        /// 어긋난 채로 배정이 도는 상태가 숨기 때문이다.
+        /// </summary>
+        [Test]
+        public void Build_ConfigWithThreeSlotDefinitions_BindsBeltPositions()
+        {
+            var slots = NewSlots(3);
+            DefineSlots(3);
+
+            RebuildWith(slots);
+
+            for (var i = 0; i < 3; i++)
+            {
+                Assert.AreEqual(DefinedIndex(i), slots[i].SlotIndex, $"{i}번 자리의 번호");
+                Assert.AreEqual(DefinedBeltPosition(i), slots[i].BeltPosition, $"{i}번 자리의 벨트 좌표");
+            }
+        }
+
+        [Test]
+        public void Build_ConfigWithFewerSlotsThanScene_DeactivatesExtras()
+        {
+            var slots = NewSlots(3);
+            DefineSlots(2);
+
+            RebuildWith(slots);
+
+            Assert.IsTrue(slots[0].gameObject.activeSelf);
+            Assert.IsTrue(slots[1].gameObject.activeSelf);
+            Assert.IsFalse(slots[2].gameObject.activeSelf, "정의에 없는 자리는 꺼진다");
+        }
+
+        /// <summary>
+        /// <b>빈 정의는 no-op 이다.</b> 자리 정의 없이 세우는 하네스가 이 파일의 다른 테스트
+        /// 전부를 포함해 살아 있는 이유이며, 여기서 전부 꺼 버리면 그 구성이 통째로 죽는다.
+        /// </summary>
+        [Test]
+        public void Build_ConfigWithNoSlotDefinitions_LeavesSceneSlotsUntouched()
+        {
+            var slots = NewSlots(3);
+
+            RebuildWith(slots);
+
+            for (var i = 0; i < 3; i++)
+            {
+                Assert.AreEqual(SceneIndex(i), slots[i].SlotIndex, "씬에 박힌 번호가 그대로여야 한다");
+                Assert.AreEqual(SceneBeltPosition(i), slots[i].BeltPosition);
+                Assert.IsTrue(slots[i].gameObject.activeSelf);
+            }
+        }
+
+        /// <summary>
+        /// 스테이지 교체의 핵심 — <b>줄이는 방향과 늘리는 방향을 모두</b> 본다. 한 방향만
+        /// 보면 비활성화만 하고 다시 켜지 않는 구현이 통과한다.
+        /// </summary>
+        [Test]
+        public void Build_Rebuilt_WithDifferentSlotCount_UpdatesActiveSlots()
+        {
+            var slots = NewSlots(4);
+            DefineSlots(4);
+            RebuildWith(slots);
+            Assert.IsTrue(slots[3].gameObject.activeSelf, "전제가 깨졌다 — 4자리 구성에서 전부 켜져 있어야 한다");
+
+            _config = NewStageConfig();
+            DefineSlots(2);
+            RebuildWith(slots);
+
+            Assert.IsFalse(slots[2].gameObject.activeSelf);
+            Assert.IsFalse(slots[3].gameObject.activeSelf);
+
+            _config = NewStageConfig();
+            DefineSlots(4);
+            RebuildWith(slots);
+
+            Assert.IsTrue(slots[2].gameObject.activeSelf, "다시 늘어난 자리가 켜져야 한다");
+            Assert.IsTrue(slots[3].gameObject.activeSelf);
+        }
+
+        /// <summary>씬에 손으로 박아 둔 자리를 만든다. 정의값과 <b>겹치지 않는</b> 값을 쓴다.</summary>
+        private TableSlotView[] NewSlots(int count)
+        {
+            var slots = new TableSlotView[count];
+            for (var i = 0; i < count; i++)
+            {
+                var seat = NewObject($"Seat{i}").AddComponent<CustomerView>();
+                var slot = NewObject($"Slot{i}").AddComponent<TableSlotView>();
+                slot.Initialize(SceneIndex(i), SceneBeltPosition(i), seat);
+                slots[i] = slot;
+            }
+
+            return slots;
+        }
+
+        /// <summary>
+        /// 스테이지를 갈아 끼우는 테스트가 쓸 새 설정. 버린 설정도 <c>TearDown</c> 이
+        /// 정리하도록 모아 둔다 — <c>ScriptableObject</c> 는 스코프를 벗어나도 사라지지 않는다.
+        /// </summary>
+        private StageConfig NewStageConfig()
+        {
+            var created = StageConfigTestFactory.Create(Speed, Interval, Length, _sushiData);
+            _configs.Add(created);
+            return created;
+        }
+
+        private void DefineSlots(int count)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                StageConfigTestFactory.AddTableSlot(_config, DefinedIndex(i), DefinedBeltPosition(i),
+                                                    new Vector2(i, -2f));
+            }
+        }
+
+        private void RebuildWith(TableSlotView[] slots)
+        {
+            var placement = NewObject("PlacementForSlots").AddComponent<CustomerPlacementController>();
+            var beltStart = NewObject("BeltStartForSlots").transform;
+            var beltEnd = NewObject("BeltEndForSlots").transform;
+
+            _bootstrap.Initialize(_config, _pool, _beltView, beltStart, beltEnd,
+                                  placement, slots, new[] { _customerData });
+            _bootstrap.Build();
+        }
+
+        private static int SceneIndex(int i) => 100 + i;
+
+        private static float SceneBeltPosition(int i) => 1f + i;
+
+        private static int DefinedIndex(int i) => i;
+
+        private static float DefinedBeltPosition(int i) => 20f + i * 4f;
 
         private IEnumerator WaitUntilDecided(float timeoutSeconds)
         {

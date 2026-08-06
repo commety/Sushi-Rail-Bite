@@ -114,6 +114,8 @@ namespace SushiDefense
             _beltView.Initialize(_viewPool, _stageConfig, _beltStart, _beltEnd);
             _beltView.Bind(Belt);
 
+            BindSlots();
+
             _placementController.Initialize(_slots, RosterArray());
             _placementController.Bind(Placement, Coordinator);
 
@@ -123,6 +125,56 @@ namespace SushiDefense
             }
 
             BuildRewards();
+        }
+
+        /// <summary>
+        /// 씬의 자리를 이 스테이지의 정의에 맞춘다. 정의보다 자리가 많으면 남는 자리를 끈다.
+        ///
+        /// <para>
+        /// <b><see cref="Build"/> 안에 있어야 한다.</b> 자리 수는 스테이지마다 다르고 스테이지
+        /// 교체는 <see cref="Build"/> 재호출이므로, <see cref="Awake"/> 에 두면 두 번째
+        /// 스테이지에서 자리가 그대로 남는다.
+        /// </para>
+        /// <para>
+        /// <b>정의가 비어 있으면 아무것도 하지 않는다.</b> 씬에 박힌 값을 그대로 쓴다는 뜻이며,
+        /// 자리 정의 없이 세우는 테스트 하네스가 살아 있는 이유다. 여기서 전부 꺼 버리면
+        /// 그런 구성이 통째로 죽는다.
+        /// </para>
+        /// <para>
+        /// <b>정의가 자리보다 많아도 예외를 내지 않는다.</b> 씬을 조금씩 조립하는 동안 흔한
+        /// 상태이고, 여기서 터지면 나머지를 아무것도 확인할 수 없다. 자리를 새로 만들지도
+        /// 않는다 — 프로덕션에서 오브젝트를 만드는 지점은 풀 하나로 유지한다 (§3.4).
+        /// </para>
+        /// </summary>
+        private void BindSlots()
+        {
+            if (_slots == null)
+            {
+                return;
+            }
+
+            var definitions = _stageConfig.TableSlots;
+            if (definitions.Count == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < _slots.Length; i++)
+            {
+                var slot = _slots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                var used = i < definitions.Count;
+                if (used)
+                {
+                    slot.Bind(definitions[i]);
+                }
+
+                slot.gameObject.SetActive(used);
+            }
         }
 
         /// <summary>
