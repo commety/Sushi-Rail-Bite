@@ -89,6 +89,11 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **keywords:** 스테이지, stage, 클리어, clear, 실패, fail, 판정, outcome, StageOutcome, StageEvaluator, StageClock, StageController, 제한 시간, 남은 시간, 목표 매출, targetRevenue, 경계, 정각, 틱 순서, 정지, 재시도, retry, 런, run, RunState, SushiDeck, CustomerDeck, 덱, 명부, roster, 보상, reward, RewardCatalog, RewardOffer, RewardGenerator, 추첨, 난수, Random, IRandomSource, xorshift, 시드, seed, Fisher-Yates, 영속성, 저장, persistence, MVP, Presenter, RewardSelectionPresenter
 - **when to read:** 클리어·실패·재시도·보상 관련 코드를 만지기 직전, 난수를 도입하려 할 때, 스테이지 진행(M4)을 붙일 때
 
+#### [domain/customer-kinds.md](domain/customer-kinds.md)
+세 손님 유형의 대역 배치와 근거. 유형은 **코드 분기가 아니라 데이터 차이**라는 불변식, 전문가는 좁고 범용가는 **덱 전 구간을 덮어야 한다**는 실측 결론(3분할로 좁혔다가 스테이지 1 이 클리어 불가가 된 사고), 경계값에서 폭이 승자를 정한다는 것.
+- **keywords:** 손님 유형, 유형, kind, CustomerKind, 기본, 소식, 먹보, BigEater, SmallEater, Normal, 대역 배치, 대역 폭, 전문가, 범용가, 겹침, 경계값, 영입 비용, RecruitCost, 처리량, 유예, 대기, 밸런스, 포화도
+- **when to read:** 손님 애셋 값을 만지기 직전, 새 손님 유형 추가, 새 초밥을 덱에 넣을 때(기본 대역과 함께 봐야 한다), "손님이 자꾸 논다" 증상
+
 #### [domain/spawn-composition.md](domain/spawn-composition.md)
 어떤 초밥이 얼마나 자주 벨트에 오르는가. **share 를 가격에서 유도**(`(덱 내 최저가/가격)^α`)하고 **credit 누적**으로 배출 순서를 만든다. 난수 없음, 가방(인스턴스 재고) 방식 아님.
 - **keywords:** 스폰, spawn, 등장 빈도, 출현율, share, 비중, 가중치, weight, 희소성, sparsity, 알파, α, SparsityExponent, 최저가, minPrice, credit, 배출, 수열, 덱, deck, SpawnTable, SushiSpawnEntry, SpawnShareTable, SpawnSequence, 뭉침, 분산, 결정적, 풀 크기, 프리웜, prewarm
