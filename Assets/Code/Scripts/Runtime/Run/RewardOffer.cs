@@ -44,6 +44,12 @@ namespace SushiDefense.Run
         /// <summary>
         /// 화면에 띄울 이름. 카드의 표시 이름이며, <b>비어 있으면 애셋 이름으로 대신한다</b> —
         /// 아직 이름을 안 채운 애셋에서 빈 칸이 그려지면 보상이 없는 것처럼 보인다.
+        ///
+        /// <para>
+        /// 손님 보상에는 <b>영입 비용을 함께 적는다.</b> 유형마다 비용이 다르고(기본 20 ·
+        /// 소식 40 · 먹보 60), 그 값을 모르면 "얻고 나서 예산이 모자라 못 앉히는" 상황을
+        /// 고르는 시점에 예측할 수 없다. 초밥에는 붙이지 않는다 — 덱에 들어갈 뿐 비용이 없다.
+        /// </para>
         /// </summary>
         public string DisplayName
         {
@@ -54,7 +60,12 @@ namespace SushiDefense.Run
                     return Sushi == null ? string.Empty : NameOf(Sushi.DisplayName, Sushi.name);
                 }
 
-                return Customer == null ? string.Empty : NameOf(Customer.DisplayName, Customer.name);
+                if (Customer == null)
+                {
+                    return string.Empty;
+                }
+
+                return $"{NameOf(Customer.DisplayName, Customer.name)} (영입 {Customer.RecruitCost})";
             }
         }
 

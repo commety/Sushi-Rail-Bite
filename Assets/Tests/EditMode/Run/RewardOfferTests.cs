@@ -62,15 +62,37 @@ namespace SushiDefense.Tests.EditMode.Run
         [Test]
         public void DisplayName_CustomerWithName_UsesIt()
         {
-            var offer = RewardOffer.OfCustomer(CreateCustomer("먹보"));
+            var offer = RewardOffer.OfCustomer(CreateCustomer("먹보", recruitCost: 60));
 
-            Assert.AreEqual("먹보", offer.DisplayName);
+            StringAssert.Contains("먹보", offer.DisplayName);
         }
 
         /// <summary>
         /// 표시 이름은 비어 있을 수 있다 (아직 안 채운 애셋). 그때 빈 문자열을 그리면
         /// 보상 화면에 아무것도 안 보이므로 애셋 이름으로 대신한다.
         /// </summary>
+        /// <summary>
+        /// 손님 보상에는 <b>영입 비용이 함께</b> 보여야 한다. 유형마다 비용이 다르므로
+        /// (기본 20 · 소식 40 · 먹보 60), 값을 모르면 "얻고 나서 예산이 모자라 못 앉히는"
+        /// 상황을 고르는 시점에 예측할 수 없다.
+        /// </summary>
+        [Test]
+        public void DisplayName_Customer_IncludesRecruitCost()
+        {
+            var offer = RewardOffer.OfCustomer(CreateCustomer("먹보", recruitCost: 60));
+
+            StringAssert.Contains("60", offer.DisplayName);
+        }
+
+        /// <summary>초밥에는 붙이지 않는다 — 덱에 들어갈 뿐 비용이 없다.</summary>
+        [Test]
+        public void DisplayName_Sushi_HasNoRecruitCost()
+        {
+            var offer = RewardOffer.OfSushi(CreateSushi("장어"));
+
+            Assert.AreEqual("장어", offer.DisplayName);
+        }
+
         [Test]
         public void DisplayName_SushiWithBlankName_FallsBackToAssetName()
         {
@@ -90,7 +112,7 @@ namespace SushiDefense.Tests.EditMode.Run
 
             var offer = RewardOffer.OfCustomer(customer);
 
-            Assert.AreEqual("Customer.Unnamed", offer.DisplayName);
+            StringAssert.Contains("Customer.Unnamed", offer.DisplayName);
         }
 
         private SushiData CreateSushi(string displayName)
@@ -100,11 +122,12 @@ namespace SushiDefense.Tests.EditMode.Run
             return sushi;
         }
 
-        private CustomerData CreateCustomer(string displayName)
+        private CustomerData CreateCustomer(string displayName, int recruitCost = 0)
         {
             var customer = ScriptableObject.CreateInstance<CustomerData>();
             _disposables.Add(customer);
             SerializedFieldSetter.SetString(customer, "_displayName", displayName);
+            SerializedFieldSetter.SetInt(customer, "_recruitCost", recruitCost);
             return customer;
         }
     }
