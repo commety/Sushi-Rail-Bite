@@ -271,6 +271,183 @@ namespace SushiDefense.Tests.PlayMode
             Assert.Greater(claimed, 0, "배치된 손님이 범위 안 초밥을 집는다");
         }
 
+        // ── 3스테이지 런 (M4) ────────────────────────────────────
+        //
+        // 이 계열이 M4 의 마지막 방어선이다. 다른 PlayMode 테스트는 구성을 코드로 세우고
+        // Placement.Place 를 직접 부르므로 **씬이 조용히 죽는 사고를 구조적으로 못 잡는다**
+        // (step-07 에서 주입으로 확인). 씬 애셋 자체를 보는 것은 여기뿐이다.
+
+        [UnityTest]
+        public IEnumerator Play_Scene_RunHasThreeStages()
+        {
+            yield return null;
+
+            Assert.IsNotNull(_stage.Progression, "런 진행이 조립되지 않았다");
+            Assert.AreEqual(3, _stage.Progression.StageCount,
+                            "데모는 3스테이지다 — StageBootstrap 의 RunConfig 참조를 확인하라");
+            Assert.AreEqual(1, _stage.Progression.CurrentStageNumber);
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HasTransitionScreenWired()
+        {
+            yield return null;
+
+            Assert.IsNotNull(_stage.Transition,
+                             "전환 프레젠터가 없다 — StageTransitionView 오브젝트를 확인하라");
+        }
+
+        /// <summary>
+        /// 씬에 자리가 <b>넷</b> 있어야 스테이지 2·3 의 4자리 구성이 성립한다. 셋뿐이면
+        /// 설정에는 자리가 넷인데 화면에는 셋만 나오고, 아무도 그것을 알려 주지 않는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasFourTableSlots()
+        {
+            yield return null;
+
+            var slots = Object.FindObjectsByType<SushiDefense.Customers.TableSlotView>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            Assert.AreEqual(4, slots.Length, "스테이지 2·3 이 자리 4개를 쓴다");
+        }
+
+        /// <summary>
+        /// 스테이지 1 은 자리 정의가 셋이므로 넷째는 꺼져 있어야 한다 — 자리 바인딩이
+        /// 실제로 도는지 보는 지점이다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_Stage1_UsesOnlyThreeSlots()
+        {
+            yield return null;
+
+            Assert.AreEqual(3, _stage.ActiveStage.TableSlots.Count, "전제: 스테이지 1 은 자리 셋이다");
+
+            var active = 0;
+            foreach (var slot in Object.FindObjectsByType<SushiDefense.Customers.TableSlotView>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (slot.gameObject.activeSelf)
+                {
+                    active++;
+                }
+            }
+
+            Assert.AreEqual(3, active, "정의에 없는 넷째 자리가 켜져 있다");
+        }
+
+        /// <summary>
+        /// 자리의 집기 범위가 벨트 끝을 넘는지를 <b>런의 모든 스테이지</b>에 대해 본다.
+        /// 스테이지 1 만 보면 2·3 의 자리 좌표(최대 16)가 검증되지 않은 채 지나간다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_EveryStageKeepsReachInsideBelt()
+        {
+            yield return null;
+
+            var reach = DefaultCustomer().Reach;
+            for (var i = 1; i <= _stage.Progression.StageCount; i++)
+            {
+                var stage = StageAt(i);
+                Assert.IsNotEmpty(stage.TableSlots, $"스테이지 {i} 에 자리 정의가 없다");
+
+                foreach (var slot in stage.TableSlots)
+                {
+                    Assert.Less(slot.BeltPosition + reach, stage.BeltLength,
+                                $"스테이지 {i} 자리 {slot.SlotIndex} 의 집기 범위가 벨트 끝을 넘는다 — "
+                                + "기다리는 손님이 초밥을 잃는다");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 두 전문가는 서로 겹치지 않고, 둘 다 범용가보다 좁다. 폭이 같으면 배정 키 4 가
+        /// 동률이 되어 유형 차이가 경합에서 사라진다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SpecialistsSitAtOppositeEnds()
+        {
+            yield return null;
+
+            var bigEater = LoadCustomer("Customer.BigEater");
+            var standard = LoadCustomer("Customer.Standard");
+            var smallEater = LoadCustomer("Customer.SmallEater");
+            Assert.IsNotNull(bigEater, "먹보 애셋이 없다");
+
+            Assert.Less(bigEater.TargetingMax, smallEater.TargetingMin,
+                        "먹보와 소식의 대역이 겹친다 — 두 전문가는 반대편 끝을 맡는다");
+
+            Assert.Less(BandWidth(bigEater), BandWidth(standard), "먹보가 기본보다 넓다");
+            Assert.Less(BandWidth(smallEater), BandWidth(standard), "소식이 기본보다 넓다");
+            Assert.AreNotEqual(BandWidth(bigEater), BandWidth(smallEater),
+                               "두 전문가의 폭이 같으면 겹치는 초밥에서 승자가 배치 순서로 정해진다");
+        }
+
+        /// <summary>
+        /// <b>기본 손님의 대역은 덱의 가격 전 구간을 덮어야 한다.</b>
+        ///
+        /// <para>
+        /// M4 에서 대역을 3분할(기본 150~250)로 좁혔다가 <b>스테이지 1 이 클리어 불가</b>가
+        /// 됐다. 원인은 경합이 아니라 <b>타이밍</b>이다 — 대역 밖 초밥(120·300)은 이탈 직전까지
+        /// 유예되므로, 명부에 기본밖에 없는 스테이지 1 에서도 손님이 그만큼 논다. 실측 소비율이
+        /// 96% → 78% 로 떨어졌다.
+        /// </para>
+        /// <para>
+        /// 겹침 자체는 의도다. 겹친 구간에서 기본이 전문가에게 양보하는 것이 전문가 우대(키 4)이고,
+        /// 기본의 값어치는 "아무거나 즉시 먹는 처리량" 이다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_GeneralistBandCoversWholeDeck()
+        {
+            yield return null;
+
+            var standard = LoadCustomer("Customer.Standard");
+            var cheapest = int.MaxValue;
+            var priciest = 0;
+
+            foreach (var entry in _stage.ActiveStage.SpawnTable)
+            {
+                cheapest = Mathf.Min(cheapest, entry.Sushi.Price);
+                priciest = Mathf.Max(priciest, entry.Sushi.Price);
+            }
+
+            Assert.LessOrEqual(standard.TargetingMin, cheapest,
+                               $"기본의 대역 하한이 덱 최저가({cheapest})보다 높다 — 그만큼 유예로 논다");
+            Assert.GreaterOrEqual(standard.TargetingMax, priciest,
+                                  $"기본의 대역 상한이 덱 최고가({priciest})보다 낮다 — 그만큼 유예로 논다");
+        }
+
+        /// <summary>보상 풀에 세 유형 중 미보유분이 실제로 들어 있는지 본다.</summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardPoolOffersUnownedCustomers()
+        {
+            yield return null;
+
+            var bigEater = LoadCustomer("Customer.BigEater");
+            Assert.IsFalse(_stage.Run.Customers.Contains(bigEater), "전제: 먹보는 시작 명부에 없다");
+
+            _stage.Rewards.Open(_stage.Run);
+
+            Assert.Greater(_stage.Rewards.OfferCount, 0,
+                           "제시할 보상이 없다 — 손님 풀이 시작 명부와 완전히 겹친다");
+            _stage.Rewards.Skip();
+        }
+
+        private static int BandWidth(SushiDefense.Data.CustomerData data) =>
+            data.TargetingMax - data.TargetingMin;
+
+        /// <summary>진행 순서 <paramref name="stageNumber"/> 번째 스테이지 설정.</summary>
+        private SushiDefense.Data.StageConfig StageAt(int stageNumber)
+        {
+            while (_stage.Progression.CurrentStageNumber < stageNumber)
+            {
+                _stage.Progression.AdvanceAfterClear();
+            }
+
+            return _stage.Progression.CurrentStage;
+        }
+
         private static SushiDefense.Data.CustomerData DefaultCustomer() => LoadCustomer("Customer.Standard");
 
         /// <summary>
