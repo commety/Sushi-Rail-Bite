@@ -108,15 +108,25 @@ namespace SushiDefense.Audio
 
 ### 주입으로 공허함을 확인한다
 
-Green 이 된 뒤 계약을 **하나씩** 깨뜨리고 지목한 테스트가 실제로 실패하는지 본 뒤 되돌린다:
+Green 이 된 뒤 계약을 **하나씩** 깨뜨리고 지목한 테스트가 실제로 실패하는지 본 뒤 되돌린다.
+아래는 **실측 결과**다 (예측 열은 착수 시점의 가설):
 
-| 주입 | 잡혀야 할 테스트 |
-|---|---|
-| 쿨다운 비교를 `>` → `>=` | 경계 테스트 |
-| 쿨다운 키를 큐별 → 전역 하나 | `TryPlay_DifferentCueWithinCooldown_ReturnsTrue` |
-| 만료 판정 제거 (한 번 차면 영영 안 빠짐) | `TryPlay_AfterOldestExpired_ReturnsTrue` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| 간격 비교 `now < allowedAt` → `<=` | 경계 1건 | **2건** — `TryPlay_ExactlyAtCooldownExpiry_ReturnsTrue` + `TryPlay_ZeroCooldown_AllowsAgainImmediately` |
+| 간격 키를 큐별 → 전역 하나 | 1건 | 예측대로 **1건** (`TryPlay_DifferentCueWithinCooldown_ReturnsTrue`) |
+| 슬롯 만료 판정 제거 (한 번 차면 영영 안 빠짐) | 1건 | **2건** — `TryPlay_AfterOldestExpired_ReturnsTrue` + `TryPlay_MaxConcurrentOne_AllowsOneAtATime` |
+| `Unlock` 의 재진입 차단 제거 | 1건 | 예측대로 **1건** (`Unlock_Twice_DoesNotRearmMoment`) |
 
-**어느 테스트가 잡을지는 돌려 보기 전까지 모른다** — M4 에서 세 번 빗나갔다. 위 표는 가설이고, **실측으로 정정해 이 파일에 남긴다.**
+> **첫 번째에서 배운 것**: **간격 `0` 은 경계 케이스의 특수형이다.** `cooldownSeconds == 0` 이면
+> `allowedAt == now` 가 되어 경계 비교와 같은 지점에 놓인다. 오프바이원 하나가 "간격을 끄는
+> 기능" 을 통째로 무력화하는데, 그 사실은 두 테스트를 나란히 두기 전까지 보이지 않았다.
+
+> **세 번째에서 배운 것**: 상한 `1` 짜리 예산이 만료 버그를 **더 민감하게** 잡는다. 상한이 2 면
+> 두 번째 슬롯이 남아 증상이 늦게 나타난다.
+
+**어느 테스트가 잡을지는 돌려 보기 전까지 모른다** — M4 에서 세 번, 여기서 두 번 빗나갔다.
+넷 중 둘이 예측보다 넓게 잡혔고, **둘 다 "하나만 잡히겠지" 라고 좁게 본 쪽이 틀렸다.**
 
 주입은 `sed`/`perl` 이 아니라 편집 도구로 넣는다 — `perl` 은 C# 보간 문자열의 `$"` 를 자기 변수로 해석해 파일을 조용히 망가뜨린다.
 
