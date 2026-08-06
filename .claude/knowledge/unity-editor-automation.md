@@ -116,6 +116,7 @@ Prefab.Close
 - **Domain Reload**: 이 프로젝트는 Domain Reload 비활성화. ClaudeBridge도 `[InitializeOnLoad]` 생성자에서 static 상태 초기화를 수동으로 하므로 안전하지만, 새 op 추가 시 static 필드가 들어가면 RULES.md RULE-01 따라 `[RuntimeInitializeOnLoadMethod]` 초기화 붙이기.
 - **파일 락 경합**: GUI 서버가 200ms 폴링하는 동안 배치 모드 진입은 불가. 모드 전환은 명시적으로(`Stop` → 배치 → 끝나면 `Start`).
 - **JsonUtility 한계**: Dictionary / polymorphic 타입 직렬화 약함. 새 op은 구조체(POCO)로 args/result 정의 필수.
+- **`ScriptableObject` 애셋을 만드는 op이 없다**: `Asset.CreatePrefab` 은 씬 GameObject 전용이다. `.asset` YAML 을 직접 쓰고 **Unity가 `.meta` 를 생성하게** 한다 — RULES.md RULE-03 위반이 아니다(금지는 `.meta` 를 손대는 것). `m_Script` 의 guid 는 그 타입의 `.cs.meta` 에서 베낀다. 다른 애셋을 참조해야 하면 **2-pass**: ① 참조 대상들을 먼저 쓰고 임포트 → ② 생성된 `.meta` 에서 guid 를 읽어 참조하는 애셋을 쓴다. 임포트는 `/run bridge` 든 테스트 실행이든 Unity 를 한 번 띄우면 된다.
 
 ## 확장 가이드
 

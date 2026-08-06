@@ -111,6 +111,7 @@ globs: ["Assets/Code/Scripts/**/*.cs", "Assets/Tests/**/*.cs", "Assets/Editor/**
 - 인스펙터 노출은 `[SerializeField] private` 이 기본. `public` 필드 금지.
 - `Runtime` / `Runtime.Data` 어셈블리의 public API 에는 `///` XML 문서 주석을 단다.
 - 주석은 "왜"만 남긴다. 코드가 이미 말하는 "무엇"은 쓰지 않는다.
+- **금지형을 주석에서 이름으로 부르지 않는다.** `grep -c "X" == 0` 형태의 가드는 코드와 주석을 구분하지 못해, *"X 를 쓰지 않는다"* 고 설명하는 주석까지 위반으로 잡는다. M4 에서 `OnValidate` · `_finished` · `CustomerKind` 로 세 번 걸렸다. → *"「끝났다」는 `bool` 필드를 두지 않는다"*, *"유형 enum 으로 분기하지 않는다"* 처럼 **가리키되 이름은 부르지 않는다.** 가드를 느슨하게 고치는 것은 마지막 수단이다 — 느슨해진 가드는 진짜 위반도 놓친다.
 
 ## 8. 테스트 동반 (TDD 기본값)
 

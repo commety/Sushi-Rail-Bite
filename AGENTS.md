@@ -263,6 +263,17 @@ It runs every item below, does **not** stop at the first failure, and reports a 
 
 > **Never invoke `Unity -batchmode -runTests` by hand.** `Unity` is not on `PATH` — the Hub path/version resolution lives in [`scripts/lib/unity-path.sh`](scripts/lib/unity-path.sh). Hand-rolling the command also tends to add `-quit`, which kills the editor *before* tests finish.
 
+### The one exception: a TDD Red commit inside `feat/*`
+
+Item 3 may fail **when the failure is the deliverable** — a step that writes the failing test before the implementation exists (§5). Committing that Red is allowed, under all four conditions:
+
+- It happens **inside a `feat/*` branch**, never on `dev`/`main`/`release/*`
+- The failure is **exactly** the expected one — a compile failure (exit code **2**) naming only the not-yet-written symbol, or named failing tests and nothing else. Verify this from the runner output, don't assume it
+- **The commit message says so**, and any PR carrying it says so at the top
+- The Green step follows **on the same branch**. A PR into `dev` is Green or it does not go in
+
+> **The cost is real, so weigh it.** While Red sits on the branch nothing else on it compiles — parallel steps cannot run their tests until Green lands. If the Red and Green steps are small, prefer one commit. Split them when the failing test is itself the artifact worth reviewing.
+
 > The feedback loop — runner, NUnit summarizer, linter — lives in the root-level [`tests/`](tests/README.md) directory (see §10), distinct from the gameplay unit tests under `Assets/Tests`. **There is no CI pipeline**; this local loop is the only automated signal (revisit at M8).
 
 ---
