@@ -29,6 +29,13 @@ namespace SushiDefense.Tests.EditMode.Data
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        public static void SetString(UnityEngine.Object target, string fieldName, string value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(fieldName).AssertFound(fieldName).stringValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         /// <summary>
         /// 오브젝트 참조 리스트 끝에 한 개를 붙인다.
         ///
