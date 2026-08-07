@@ -129,15 +129,39 @@ public void Unbind();
 
 > **코드로 세운 하네스는 씬 사고를 못 잡는다** (`tests.md` §1). 이 프로젝트의 PlayMode 테스트는 대부분 구성을 코드로 만들어 뷰 계층을 지나친다. **씬 애셋이 검증 대상인 것은 `Stage01SceneTests` 뿐**이므로, 인스펙터 참조에 기대는 변경은 step-11 에서 그쪽에도 테스트를 남긴다.
 
-### 주입으로 확인한다
+### 주입 실측
 
-| 주입 | 잡혀야 할 테스트 (가설) |
-|---|---|
-| 라벨 문자열 대입 제거 | 기존 뷰 테스트 다수 |
-| `Unbind` 에서 구독 해제 제거 | 기존 수명 테스트 |
-| `CanvasScaler` 모드를 `Constant Pixel Size` 로 | `Canvas_WindowResized_KeepsLabelsOnScreen` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `HudLabel.Write` 가 아무것도 안 씀 | "기존 뷰 테스트 다수" | **13건** — 세 뷰 전부에서 |
+| `HudLabel.Resolve` 가 항상 `null` | — | **처음엔 0건** — 아래 |
 
-**예측은 가설이다.** M4 에서 세 번 빗나갔고, 그중 하나는 *"자리 전부 비활성화 → 기존 PlayMode 다수"* 가 실제로는 **0건**이었다. 실측으로 정정한다.
+> **D2 의 전제가 실측으로 확인됐다.** 라벨 대입을 끊자 기존 뷰 테스트 **13건**이 죽었다.
+> 계약을 유지한 덕분에 그 13건이 전환 작업 내내 회귀 그물로 살아 있었다.
+
+> **하위 탐색 경로에는 테스트가 없었다.**
+> `Resolve` 가 항상 `null` 을 돌려줘도 전량 통과했다. 다른 테스트가 전부 라벨을 **직접
+> 주입**해서 `assigned != null` 에서 조기 반환하고, `parent.Find` 분기를 한 번도 밟지 않기
+> 때문이다.
+>
+> 이 경로는 **씬 조립이 인스펙터를 안 물렸을 때** 쓰라고 있는 것이라, 조용히 죽으면
+> 씬에서만 라벨이 비고 코드 하네스는 전부 초록이다 — `tests.md` §1 이 경고하는 바로 그
+> 형태다. `Awake_LabelNotAssigned_ResolvesChildByName` 을 추가하고 같은 주입으로 잡히는
+> 것을 확인했다.
+
+### 실측 — `Tests.PlayMode` 에도 같은 참조가 필요했다
+
+승인은 `Presentation` · `Tests.EditMode` 두 곳이었는데, PlayMode 뷰 테스트가 `TMP_Text` 를
+보게 되면서 `Tests.PlayMode.asmdef` 에도 같은 참조가 필요해졌다. 승인받은 것과 동일한
+변경(같은 어셈블리, 순환 없음, `autoReferenced` 무변경)이고 전환이 거기서 막혀 함께 넣었다.
+
+### 하지 않은 것 — Canvas 크기 변경 테스트
+
+`Canvas_WindowResized_KeepsLabelsOnScreen` 을 계획했지만 **넣지 않았다.** 코드로 세운
+Canvas 는 씬의 Canvas 가 아니므로, 그 테스트는 `tests.md` §1 이 말하는 *"뷰 계층을 지나치는
+하네스"* 가 된다 — 통과해도 씬이 무너지는 것을 못 잡는다.
+
+**step-11 의 `Stage01SceneTests`** 로 옮긴다. 씬 애셋 자체가 검증 대상인 곳은 거기뿐이다.
 
 ### 완료 판정
 

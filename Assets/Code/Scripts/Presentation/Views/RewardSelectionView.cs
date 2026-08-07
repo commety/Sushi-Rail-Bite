@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.UI
@@ -13,9 +14,10 @@ namespace SushiDefense.UI
     /// 있고 EditMode 로 검증할 수도 없다 (<c>CLAUDE.md</c> §3.2·§3.6).
     /// </para>
     /// <para>
-    /// 렌더링에 <see cref="TextMesh"/> 를 쓴다. 씬에 Canvas 가 없고 전부 월드 스페이스라
+    /// 렌더링에 <see cref="TMPro.TMP_Text"/> 를 쓰고 Canvas 위에 산다 —
     /// <c>StageHudView</c> 와 같은 방식이다.
-    /// <b>M6(메인화면·덱빌딩)에서 제대로 된 UI 로 교체될 placeholder 다.</b>
+    /// <b>스테이지 안에서 뜨는 화면은 M5 의 몫이다</b> — M6 은 메인화면·덱빌딩·설정이며,
+    /// 이 뷰는 그때 교체되는 placeholder 가 아니다.
     /// </para>
     /// </summary>
     public sealed class RewardSelectionView : MonoBehaviour, IRewardSelectionView
@@ -26,7 +28,7 @@ namespace SushiDefense.UI
         /// <summary>고를 수 있는 후보가 없을 때의 문구.</summary>
         private const string NoRewardNotice = "받을 보상 없음 (Esc)";
 
-        [SerializeField] private TextMesh _offersLabel;
+        [SerializeField] private TMP_Text _offersLabel;
 
         private readonly StringBuilder _builder = new();
 
@@ -49,7 +51,7 @@ namespace SushiDefense.UI
         {
             IsShowing = true;
             OffersText = Compose(offerNames);
-            PlaceholderLabel.Write(_offersLabel, OffersText);
+            HudLabel.Write(_offersLabel, OffersText);
             gameObject.SetActive(true);
         }
 
@@ -58,12 +60,12 @@ namespace SushiDefense.UI
         {
             IsShowing = false;
             OffersText = string.Empty;
-            PlaceholderLabel.Write(_offersLabel, OffersText);
+            HudLabel.Write(_offersLabel, OffersText);
         }
 
         private void Awake()
         {
-            _offersLabel = PlaceholderLabel.Resolve(transform, _offersLabel, OffersLabelName);
+            _offersLabel = HudLabel.Resolve(transform, _offersLabel, OffersLabelName);
         }
 
         /// <summary>

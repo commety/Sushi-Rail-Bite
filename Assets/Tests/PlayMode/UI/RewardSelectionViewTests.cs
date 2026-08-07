@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense.UI;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Tests.PlayMode.UI
@@ -20,12 +21,12 @@ namespace SushiDefense.Tests.PlayMode.UI
         private readonly List<GameObject> _objects = new();
 
         private RewardSelectionView _view;
-        private TextMesh _label;
+        private TMP_Text _label;
 
         [SetUp]
         public void SetUp()
         {
-            _label = NewObject("RewardOffersLabel").AddComponent<TextMesh>();
+            _label = NewObject("RewardOffersLabel").AddComponent<TextMeshPro>();
             _view = NewObject("RewardView").AddComponent<RewardSelectionView>();
             SetLabel(_view, "_offersLabel", _label);
         }
@@ -98,7 +99,7 @@ namespace SushiDefense.Tests.PlayMode.UI
             StringAssert.DoesNotContain("장어", _label.text);
         }
 
-        private static void SetLabel(RewardSelectionView view, string fieldName, TextMesh label)
+        private static void SetLabel(RewardSelectionView view, string fieldName, TMP_Text label)
         {
 #if UNITY_EDITOR
             var serialized = new UnityEditor.SerializedObject(view);

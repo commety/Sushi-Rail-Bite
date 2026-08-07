@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense.UI;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Tests.PlayMode.UI
@@ -20,12 +21,12 @@ namespace SushiDefense.Tests.PlayMode.UI
         private readonly List<GameObject> _objects = new();
 
         private StageTransitionView _view;
-        private TextMesh _label;
+        private TMP_Text _label;
 
         [SetUp]
         public void SetUp()
         {
-            _label = NewObject("StageTransitionLabel").AddComponent<TextMesh>();
+            _label = NewObject("StageTransitionLabel").AddComponent<TextMeshPro>();
             _view = NewObject("StageTransition").AddComponent<StageTransitionView>();
             SetLabel(_view, "_messageLabel", _label);
         }
@@ -123,7 +124,7 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.IsFalse(_view.IsShowing);
         }
 
-        private static void SetLabel(StageTransitionView view, string fieldName, TextMesh label)
+        private static void SetLabel(StageTransitionView view, string fieldName, TMP_Text label)
         {
 #if UNITY_EDITOR
             var serialized = new UnityEditor.SerializedObject(view);

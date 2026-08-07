@@ -1,5 +1,6 @@
 using SushiDefense.Data;
 using SushiDefense.UI;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Customers
@@ -25,7 +26,7 @@ namespace SushiDefense.Customers
         private const string BandLabelName = "BandLabel";
 
         [SerializeField] private SpriteRenderer _body;
-        [SerializeField] private TextMesh _bandLabel;
+        [SerializeField] private TMP_Text _bandLabel;
         [SerializeField] private Color _idleColor = Color.white;
         [SerializeField] private Color _eatingColor = new(1f, 0.85f, 0.3f);
         [SerializeField] private Color _digestingColor = new(0.5f, 0.55f, 0.65f);
@@ -70,7 +71,7 @@ namespace SushiDefense.Customers
             if (logic == null)
             {
                 BandText = string.Empty;
-                PlaceholderLabel.Write(_bandLabel, BandText);
+                HudLabel.Write(_bandLabel, BandText);
                 return;
             }
 
@@ -78,7 +79,7 @@ namespace SushiDefense.Customers
             // LateUpdate 에서 매 프레임 만들면 WebGL 에서 GC 스파이크가 그대로 히칭이 된다.
             var data = logic.State.Data;
             BandText = $"{NameOf(data)}\n{data.TargetingMin}~{data.TargetingMax}";
-            PlaceholderLabel.Write(_bandLabel, BandText);
+            HudLabel.Write(_bandLabel, BandText);
 
             ShowIcon(data);
             Apply(logic.State.State, false);
@@ -123,7 +124,7 @@ namespace SushiDefense.Customers
                 _body = GetComponent<SpriteRenderer>();
             }
 
-            _bandLabel = PlaceholderLabel.Resolve(transform, _bandLabel, BandLabelName);
+            _bandLabel = HudLabel.Resolve(transform, _bandLabel, BandLabelName);
         }
 
         /// <summary>
