@@ -132,7 +132,44 @@ KoreanFontCoverageTests
 
 **이 테스트는 예외적으로 디스크의 실제 애셋을 로드한다.** `tests.md` §4 는 밸런스 애셋 로드를 금지하지만, 그 이유는 *"수치가 바뀔 때마다 테스트가 깨진다"* 이다. 여기서 보는 것은 수치가 아니라 **글자 커버리지**이고, 이름이 바뀌면 폰트를 다시 구워야 하는 것이 맞다 — **깨져야 정상인 테스트다.** 이 예외를 테스트 파일 주석에 남긴다.
 
-### 미결 — 폰트가 없어 8건이 건너뛴 상태다
+### 해소됨 — 폰트가 들어와 8건이 통과한다
+
+`x10y12pxDenkiChipHangul` (SIL OFL 1.1, Reserved Font Name 없음). 사람이 고르고 구웠다.
+
+| 항목 | 실측 | |
+|---|---|---|
+| Character Table | **199자** — `charset-ko.txt` 와 정확히 일치 | ✓ |
+| Atlas | 256×256 · Alpha8 · 밉맵 없음 | ✓ |
+| Atlas Filter Mode | `0` = **Point** | ✓ |
+| Population Mode | `0` = **Static** (동적 폰트 아님) | ✓ |
+| Sampling Point Size | **12** = 폰트 네이티브 높이 | ✓ |
+| 셰이더 | **`TMP_Bitmap`** — SDF 가 아니라 래스터 | ✓ |
+
+**픽셀 폰트는 SDF 로 구우면 안 된다.** 모서리가 둥글려져 픽셀이 죽는다. 샘플링 크기도
+네이티브 높이의 정수배여야 한다 — 이 폰트는 12px 다.
+
+주입 검증: `클리어 실패` 에 서브셋 밖 글자 `뷁` 을 넣으니 즉시 실패하고 **없는 글자를
+이름으로 알려 준다** (`폰트에 없는 글자: 뷁`).
+
+### 실측 — TMP Essential Resources 가 10MB 를 들고 온다
+
+TMP 를 처음 쓰면 Unity 가 `Assets/TextMesh Pro/` 를 만든다.
+
+| 폴더 | 크기 | 빌드 |
+|---|---|---|
+| `Examples & Extras/` | 6.4M | 참조 없으면 안 실림. **저장소·LFS 에는 남는다** → 삭제함 |
+| `Resources/` | 2.2M | **전부 실린다** — Resources 폴더는 참조 여부와 무관 |
+| `Shaders/` | 1.4M | 쓰는 것만 |
+| `Fonts/` | 360K | |
+
+샘플 148개 GUID 가 씬·프리팹·애셋 어디에서도 참조되지 않음을 확인하고 지웠다 (10M → 4M).
+되돌리려면 `Window > TextMeshPro > Import Examples and Extras`.
+
+**`Resources/` 2.2M 은 남겨 뒀다.** 대부분이 `LiberationSans SDF` 기본 폰트인데, 우리 UI 는
+한글 픽셀 폰트를 쓰므로 화면에 나오지 않는다. 다만 TMP 가 폰트 없을 때 이것으로 폴백하므로
+함부로 지우면 안 된다 — **step-11 의 WebGL 초기 로드 실측 뒤에 판단할 항목이다.**
+
+### (지난 상태) 폰트가 없어 8건이 건너뛰었을 때
 
 폰트 애셋이 없으면 `Assert.Ignore` 로 넘어간다. `tests.md` §7 이 금지하는 것은 **깨진
 테스트를 덮는 것**이고 이쪽은 아직 없는 애셋을 기다리는 상태이지만, **위험은 같다** —
@@ -148,12 +185,13 @@ KoreanFontCoverageTests
 
 ### 완료 판정
 
-- [ ] `Assets/Art/Fonts/SushiRailBite-KR.asset` 이 존재하고 인스펙터에서 글리프가 보인다
-- [ ] `charset-ko.txt` 와 그 추출 절차가 저장소에 있다
-- [ ] `./tests/run-tests.sh` Green — 커버리지 테스트 전부 통과
-- [ ] **일부러 없는 글자**(예: `벽`)를 넣은 임시 테스트가 **실패하는지** 확인한 뒤 되돌린다 — 통과하면 `HasCharacters` 를 잘못 쓰고 있는 것이다
-- [ ] 폰트 애셋 + 아틀라스 텍스처의 총 용량을 보고한다 (step-11 실측 기준선)
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `Assets/Art/Fonts/SushiRailBite-KR.asset` 존재 · 199자 확인
+- [x] `charset-ko.txt` 와 추출 절차(`scripts/extract-charset.py`)가 저장소에 있다
+- [x] `./tests/run-tests.sh` Green — **558/558, 건너뜀 0**
+- [x] 없는 글자(`뷁`) 주입 시 실패하고 그 글자를 이름으로 보고함
+- [x] 용량 기준선: 폰트 애셋 **227K** (아틀라스 포함) + 원본 `.ttf` **548K**(LFS) +
+      TMP Resources **2.2M**(빌드에 실림)
+- [x] `./tests/preflight.sh` 전 항목 PASS
 
 ### 예상 커밋 메시지
 
