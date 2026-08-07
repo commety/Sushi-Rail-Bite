@@ -75,6 +75,44 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.AreEqual(CustomerState.Idle, _view.ShownState);
         }
 
+        [Test]
+        public void Bind_CustomerWithIcon_ShowsThatSprite()
+        {
+            var icon = NewSprite();
+
+            SetIcon(icon);
+            _view.Bind(_logic, null);
+
+            Assert.AreSame(icon, _view.ShownSprite);
+        }
+
+        [Test]
+        public void Bind_CustomerWithoutIcon_KeepsPrefabSprite()
+        {
+            var prefabSprite = NewSprite();
+            _body.sprite = prefabSprite;
+
+            _view.Bind(_logic, null);
+
+            // 손님이 화면에서 사라지면 자리가 비어 보인다 — 아이콘을 아직 안 채운
+            // 애셋에서도 그림은 남아야 한다.
+            Assert.AreSame(prefabSprite, _view.ShownSprite);
+        }
+
+        /// <summary>
+        /// 그림과 상태 색은 다른 채널이다. 유형을 색으로 구분하면 상태 색과 싸우므로
+        /// 유형은 <b>실루엣</b>이 맡고 색은 상태가 그대로 쓴다 (M5).
+        /// </summary>
+        [Test]
+        public void Bind_CustomerWithIcon_StillAppliesStateTint()
+        {
+            SetIcon(NewSprite());
+
+            _view.Bind(_logic, null);
+
+            Assert.AreEqual(Color.white, _body.color, "Idle 은 틴트 없이 흰색이다");
+        }
+
         /// <summary>
         /// 라벨은 <b>이름과 대역을 함께</b> 보여 준다. 유형이 셋으로 늘면 대역 숫자만으로는
         /// "이게 소식인가 먹보인가" 를 매번 역산해야 한다 (M4).
@@ -247,6 +285,29 @@ namespace SushiDefense.Tests.PlayMode.Customers
             serialized.FindProperty("_displayName").stringValue = displayName;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 #endif
+        }
+
+        private Sprite NewSprite()
+        {
+            var texture = new Texture2D(1, 1);
+            _assets.Add(texture);
+
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+            _assets.Add(sprite);
+            return sprite;
+        }
+
+        /// <summary>
+        /// 아이콘을 밀어 넣는다. <c>SerializedObject</c> 대신 리플렉션을 쓰는 이유는 그쪽이
+        /// <c>UnityEditor</c> 의존이라 플레이어에서 조용히 아무 일도 하지 않기 때문이다 —
+        /// 테스트가 통과한 채로 검증을 잃는 형태가 된다.
+        /// </summary>
+        private void SetIcon(Sprite icon)
+        {
+            var field = typeof(CustomerData).GetField(
+                "_icon", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "직렬화 필드 '_icon' 을 찾지 못했습니다 — 이름이 바뀌었는지 확인하세요.");
+            field.SetValue(_customerData, icon);
         }
 
         private void SetBand(int min, int max)

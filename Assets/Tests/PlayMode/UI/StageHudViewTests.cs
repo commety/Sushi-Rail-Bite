@@ -7,6 +7,7 @@ using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
 using SushiDefense.UI;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Tests.PlayMode.UI
@@ -34,7 +35,7 @@ namespace SushiDefense.Tests.PlayMode.UI
         private StageHudView _hud;
         private StageController _stage;
         private CustomerPlacementController _placementController;
-        private TextMesh _revenueLabel;
+        private TMP_Text _revenueLabel;
 
         [SetUp]
         public void SetUp()
@@ -70,7 +71,7 @@ namespace SushiDefense.Tests.PlayMode.UI
             _placementController.Initialize(System.Array.Empty<TableSlotView>(),
                                             new[] { _customerData });
 
-            _revenueLabel = NewObject("RevenueLabel").AddComponent<TextMesh>();
+            _revenueLabel = NewObject("RevenueLabel").AddComponent<TextMeshPro>();
             _hud = NewObject("Hud").AddComponent<StageHudView>();
             SetLabel(_hud, "_revenueLabel", _revenueLabel);
             _hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _placementController);
@@ -265,7 +266,33 @@ namespace SushiDefense.Tests.PlayMode.UI
 #endif
         }
 
-        private static void SetLabel(StageHudView hud, string fieldName, TextMesh label)
+
+        /// <summary>
+        /// 인스펙터에 라벨을 안 물린 채로도 <b>이름으로 찾아 채우는지</b> 본다.
+        ///
+        /// <para>
+        /// 이 경로는 씬 조립이 참조를 일일이 물리지 않아도 되게 하려고 있는데, 다른 테스트는
+        /// 전부 라벨을 직접 주입해서 <b>한 번도 밟지 않는다</b> — 주입으로 확인했다. 경로가
+        /// 조용히 죽으면 씬에서만 라벨이 비고, 코드 하네스는 전부 초록이다
+        /// (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Awake_LabelNotAssigned_ResolvesChildByName()
+        {
+            var host = NewObject("Hud");
+            var child = NewObject("RevenueLabel");
+            child.transform.SetParent(host.transform, false);
+            var label = child.AddComponent<TextMeshPro>();
+
+            // 자식이 먼저 있어야 한다 — AddComponent 가 곧바로 Awake 를 부른다.
+            var hud = host.AddComponent<StageHudView>();
+            hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _placementController);
+
+            Assert.AreEqual(hud.RevenueText, label.text);
+        }
+
+        private static void SetLabel(StageHudView hud, string fieldName, TMP_Text label)
         {
 #if UNITY_EDITOR
             var serialized = new UnityEditor.SerializedObject(hud);

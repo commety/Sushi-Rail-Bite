@@ -1,6 +1,8 @@
+using SushiDefense.Audio;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Effects;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
@@ -48,6 +50,9 @@ namespace SushiDefense
         [SerializeField] private RewardCatalog _rewardCatalog;
         [SerializeField] private RewardSelectionView _rewardView;
         [SerializeField] private StageTransitionView _transitionView;
+        [SerializeField] private AudioDirector _audioDirector;
+        [SerializeField] private EffectDirector _effectDirector;
+        [SerializeField] private CustomerPlacementInput _placementInput;
 
         /// <summary>
         /// 지금 돌고 있는 스테이지의 정의. 스테이지가 넘어가면 이 값이 바뀐다.
@@ -173,6 +178,26 @@ namespace SushiDefense
             if (_hud != null)
             {
                 _hud.Bind(Revenue, Wallet, Placement, Coordinator, Stage, _placementController);
+            }
+
+            // 디렉터 자체는 런 수명이다. 판이 바뀔 때마다 새 출처만 갈아 낀다 —
+            // 새로 만들면 배경음이 끊기고 자동재생 잠금이 다시 걸린다.
+            if (_audioDirector != null)
+            {
+                _audioDirector.Bind(Coordinator, Placement, Stage, Rewards, Transition);
+            }
+
+            if (_effectDirector != null)
+            {
+                _effectDirector.Bind(Coordinator, Stage, _slots);
+            }
+
+            // M5 의 최소 입력. 손님을 고르는 화면은 M6 이고, 여기서는 배치 껍데기가
+            // 들고 있는 다음 손님을 빈 자리에 앉히기만 한다 — 이것이 없으면 소리도
+            // 이펙트도 브라우저에서 관측할 수 없다.
+            if (_placementInput != null)
+            {
+                _placementInput.Initialize(_placementController, null, _slots);
             }
         }
 
@@ -428,6 +453,21 @@ namespace SushiDefense
                 _placementController = GetComponentInChildren<CustomerPlacementController>(true);
             }
 
+            if (_audioDirector == null)
+            {
+                _audioDirector = GetComponentInChildren<AudioDirector>(true);
+            }
+
+            if (_effectDirector == null)
+            {
+                _effectDirector = GetComponentInChildren<EffectDirector>(true);
+            }
+
+            if (_placementInput == null)
+            {
+                _placementInput = GetComponentInChildren<CustomerPlacementInput>(true);
+            }
+
             if (_slots == null || _slots.Length == 0)
             {
                 _slots = GetComponentsInChildren<TableSlotView>(true);
@@ -490,6 +530,16 @@ namespace SushiDefense
             {
                 Transition.StageAdvanced -= OnStageAdvanced;
                 Transition = null;
+            }
+
+            if (_audioDirector != null)
+            {
+                _audioDirector.Unbind();
+            }
+
+            if (_effectDirector != null)
+            {
+                _effectDirector.Unbind();
             }
         }
 

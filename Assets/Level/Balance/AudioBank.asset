@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56d8b3da9232146d0b60eaec12e567c2, type: 3}
+  m_Name: AudioBank
+  m_EditorClassIdentifier: 
+  _sushiEaten:
+    _clip: {fileID: 8300000, guid: d0b92dbe93b34427ba4fd7e1b9e3ac75, type: 3}
+    _volume: 0.5
+    _cooldownSeconds: 0.06
+  _customerPlaced:
+    _clip: {fileID: 8300000, guid: b4615ebc6ff04434a97ecf9c9baa3885, type: 3}
+    _volume: 0.7
+    _cooldownSeconds: 0.0
+  _rewardPicked:
+    _clip: {fileID: 8300000, guid: 501846d2baec7414dac61909e4297ab8, type: 3}
+    _volume: 0.7
+    _cooldownSeconds: 0.0
+  _stageAdvanced:
+    _clip: {fileID: 8300000, guid: 71b86c5044dca42d9a7a323ba80b6262, type: 3}
+    _volume: 0.7
+    _cooldownSeconds: 0.0
+  _stageCleared:
+    _clip: {fileID: 8300000, guid: f80a6302f25594505959f12b2c070dd4, type: 3}
+    _volume: 0.8
+    _cooldownSeconds: 0.0
+  _stageFailed:
+    _clip: {fileID: 8300000, guid: 1adb2bf085318451cb37631915a8b199, type: 3}
+    _volume: 0.8
+    _cooldownSeconds: 0.0
+  _bgm:
+    _clip: {fileID: 8300000, guid: fefbb04155c23423ab076a8699def71d, type: 3}
+    _volume: 0.35
+    _cooldownSeconds: 0.0
+  _maxConcurrentSfx: 6

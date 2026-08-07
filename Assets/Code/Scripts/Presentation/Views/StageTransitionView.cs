@@ -1,4 +1,6 @@
+using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SushiDefense.UI
 {
@@ -11,9 +13,10 @@ namespace SushiDefense.UI
     /// 있고 EditMode 로 검증할 수도 없다 (<c>CLAUDE.md</c> §3.2·§3.6).
     /// </para>
     /// <para>
-    /// 렌더링에 <see cref="TextMesh"/> 를 쓴다. 씬에 Canvas 가 없고 전부 월드 스페이스라
+    /// 렌더링에 <see cref="TMPro.TMP_Text"/> 를 쓰고 Canvas 위에 산다 —
     /// <c>StageHudView</c>·<c>RewardSelectionView</c> 와 같은 방식이다.
-    /// <b>M6(메인화면·덱빌딩)에서 제대로 된 UI 로 교체될 placeholder 다.</b>
+    /// <b>스테이지 안에서 뜨는 화면은 M5 의 몫이다</b> — M6 은 메인화면·덱빌딩·설정이며,
+    /// 이 뷰는 그때 교체되는 placeholder 가 아니다.
     /// </para>
     /// </summary>
     public sealed class StageTransitionView : MonoBehaviour, IStageTransitionView
@@ -21,7 +24,7 @@ namespace SushiDefense.UI
         /// <summary>인스펙터가 비었을 때 자기 하위에서 찾을 자식 이름. 씬 조립과의 약속이다.</summary>
         private const string MessageLabelName = "StageTransitionLabel";
 
-        [SerializeField] private TextMesh _messageLabel;
+        [SerializeField] private TMP_Text _messageLabel;
 
         private StageTransitionPresenter _presenter;
 
@@ -54,12 +57,12 @@ namespace SushiDefense.UI
         {
             IsShowing = false;
             MessageText = string.Empty;
-            PlaceholderLabel.Write(_messageLabel, MessageText);
+            HudLabel.Write(_messageLabel, MessageText);
         }
 
         private void Awake()
         {
-            _messageLabel = PlaceholderLabel.Resolve(transform, _messageLabel, MessageLabelName);
+            _messageLabel = HudLabel.Resolve(transform, _messageLabel, MessageLabelName);
         }
 
         /// <summary>
@@ -71,7 +74,7 @@ namespace SushiDefense.UI
         {
             IsShowing = true;
             MessageText = message;
-            PlaceholderLabel.Write(_messageLabel, MessageText);
+            HudLabel.Write(_messageLabel, MessageText);
             gameObject.SetActive(true);
         }
 
@@ -86,7 +89,17 @@ namespace SushiDefense.UI
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            // UnityEngine.Input 이 아니라 Input System 을 쓴다. 이 프로젝트는
+            // ENABLE_LEGACY_INPUT_MANAGER 가 정의되어 있지 않아 레거시 API 가 런타임에
+            // 예외를 던진다 — 화면이 열려 있을 때만 도는 자리라 테스트가 못 밟았고,
+            // M5 빌드 직전까지 Enter 로 스테이지를 넘길 수 없는 상태였다.
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
             {
                 _presenter.Proceed();
             }

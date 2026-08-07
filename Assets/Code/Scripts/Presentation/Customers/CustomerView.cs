@@ -1,5 +1,6 @@
 using SushiDefense.Data;
 using SushiDefense.UI;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Customers
@@ -25,7 +26,7 @@ namespace SushiDefense.Customers
         private const string BandLabelName = "BandLabel";
 
         [SerializeField] private SpriteRenderer _body;
-        [SerializeField] private TextMesh _bandLabel;
+        [SerializeField] private TMP_Text _bandLabel;
         [SerializeField] private Color _idleColor = Color.white;
         [SerializeField] private Color _eatingColor = new(1f, 0.85f, 0.3f);
         [SerializeField] private Color _digestingColor = new(0.5f, 0.55f, 0.65f);
@@ -49,6 +50,9 @@ namespace SushiDefense.Customers
         /// <summary>지금 표시 중인 대역 문구. 검증용이다.</summary>
         public string BandText { get; private set; }
 
+        /// <summary>지금 화면에 나가 있는 그림. 검증용이다.</summary>
+        public Sprite ShownSprite => _body != null ? _body.sprite : null;
+
         /// <summary>
         /// 배치 시점에 로직과 대기 프로브를 물린다. 뷰가 로직을 스스로 만들거나 찾지 않는다 —
         /// <c>FindObjectOfType</c> 은 금지이고(§4.3), 뷰가 의존을 조달하기 시작하면
@@ -67,7 +71,7 @@ namespace SushiDefense.Customers
             if (logic == null)
             {
                 BandText = string.Empty;
-                PlaceholderLabel.Write(_bandLabel, BandText);
+                HudLabel.Write(_bandLabel, BandText);
                 return;
             }
 
@@ -75,8 +79,9 @@ namespace SushiDefense.Customers
             // LateUpdate 에서 매 프레임 만들면 WebGL 에서 GC 스파이크가 그대로 히칭이 된다.
             var data = logic.State.Data;
             BandText = $"{NameOf(data)}\n{data.TargetingMin}~{data.TargetingMax}";
-            PlaceholderLabel.Write(_bandLabel, BandText);
+            HudLabel.Write(_bandLabel, BandText);
 
+            ShowIcon(data);
             Apply(logic.State.State, false);
         }
 
@@ -95,6 +100,23 @@ namespace SushiDefense.Customers
             return string.IsNullOrWhiteSpace(data.DisplayName) ? data.name : data.DisplayName;
         }
 
+        /// <summary>
+        /// 유형별 그림을 물린다. <b>아이콘이 비면 프리팹의 그림을 그대로 둔다</b> —
+        /// 손님이 화면에서 사라지면 자리가 비어 보인다 (<see cref="NameOf"/> 와 같은 처리다).
+        ///
+        /// <para>
+        /// 그림과 상태 색은 다른 채널이다. 유형을 색으로 구분하면 상태 색과 싸우므로
+        /// <b>유형은 실루엣이 맡고 색은 상태가 그대로 쓴다.</b>
+        /// </para>
+        /// </summary>
+        private void ShowIcon(CustomerData data)
+        {
+            if (_body != null && data.Icon != null)
+            {
+                _body.sprite = data.Icon;
+            }
+        }
+
         private void Awake()
         {
             if (_body == null)
@@ -102,7 +124,7 @@ namespace SushiDefense.Customers
                 _body = GetComponent<SpriteRenderer>();
             }
 
-            _bandLabel = PlaceholderLabel.Resolve(transform, _bandLabel, BandLabelName);
+            _bandLabel = HudLabel.Resolve(transform, _bandLabel, BandLabelName);
         }
 
         /// <summary>

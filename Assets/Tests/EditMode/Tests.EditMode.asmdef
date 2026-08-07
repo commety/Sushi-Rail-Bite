@@ -5,12 +5,20 @@
     "Runtime",
     "Runtime.Data",
     "Presentation",
+    "Editor",
+    "Unity.TextMeshPro",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],
-  "includePlatforms": ["Editor"],
-  "precompiledReferences": ["nunit.framework.dll"],
-  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
   "overrideReferences": true,
   "autoReferenced": false
 }

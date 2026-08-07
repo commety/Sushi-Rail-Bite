@@ -2,6 +2,7 @@ using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
+using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.UI
@@ -15,9 +16,14 @@ namespace SushiDefense.UI
     /// <c>CustomerPlacementService</c> 의 몫이다.
     /// </para>
     /// <para>
-    /// 렌더링에 <see cref="TextMesh"/> 를 쓴다. 씬에 Canvas 가 없고 전부 월드 스페이스라
-    /// 여기에 맞췄고, <c>UnityEngine.UI</c> 어셈블리 참조를 늘리지 않기 위해서이기도 하다.
-    /// <b>M6(메인화면·덱빌딩)에서 제대로 된 UI 로 교체될 placeholder 다.</b>
+    /// 렌더링에 <see cref="TMPro.TMP_Text"/> 를 쓰고 Canvas 위에 산다. 월드 스페이스
+    /// 라벨은 브라우저 창 크기가 바뀌면 잘리거나 화면 밖으로 나가는데, 배포 타깃이 웹이라
+    /// 창 크기는 사용자가 언제든 바꾸는 값이다.
+    ///
+    /// <para>
+    /// <b>스테이지 안에서 뜨는 화면은 M5 의 몫이다.</b> 메인화면·덱빌딩·설정·백과사전이
+    /// M6 이며, 이 뷰는 그때 교체되는 placeholder 가 아니다.
+    /// </para>
     /// </para>
     /// </summary>
     public sealed class StageHudView : MonoBehaviour
@@ -32,13 +38,13 @@ namespace SushiDefense.UI
         private const string OutcomeLabelName = "OutcomeLabel";
         private const string PendingCustomerLabelName = "PendingCustomerLabel";
 
-        [SerializeField] private TextMesh _revenueLabel;
-        [SerializeField] private TextMesh _walletLabel;
-        [SerializeField] private TextMesh _placementLabel;
-        [SerializeField] private TextMesh _waitingLabel;
-        [SerializeField] private TextMesh _timeLabel;
-        [SerializeField] private TextMesh _outcomeLabel;
-        [SerializeField] private TextMesh _pendingCustomerLabel;
+        [SerializeField] private TMP_Text _revenueLabel;
+        [SerializeField] private TMP_Text _walletLabel;
+        [SerializeField] private TMP_Text _placementLabel;
+        [SerializeField] private TMP_Text _waitingLabel;
+        [SerializeField] private TMP_Text _timeLabel;
+        [SerializeField] private TMP_Text _outcomeLabel;
+        [SerializeField] private TMP_Text _pendingCustomerLabel;
 
         private RevenueLedger _revenue;
         private RecruitWallet _wallet;
@@ -117,7 +123,7 @@ namespace SushiDefense.UI
             _shownOutcome = StageOutcome.InProgress;
             _shownPendingCustomer = null;
             OutcomeText = string.Empty;
-            PlaceholderLabel.Write(_outcomeLabel, OutcomeText);
+            HudLabel.Write(_outcomeLabel, OutcomeText);
 
             RefreshPlacement();
             RefreshWaiting();
@@ -163,13 +169,13 @@ namespace SushiDefense.UI
         /// </summary>
         private void Awake()
         {
-            _revenueLabel = PlaceholderLabel.Resolve(transform, _revenueLabel, RevenueLabelName);
-            _walletLabel = PlaceholderLabel.Resolve(transform, _walletLabel, WalletLabelName);
-            _placementLabel = PlaceholderLabel.Resolve(transform, _placementLabel, PlacementLabelName);
-            _waitingLabel = PlaceholderLabel.Resolve(transform, _waitingLabel, WaitingLabelName);
-            _timeLabel = PlaceholderLabel.Resolve(transform, _timeLabel, TimeLabelName);
-            _outcomeLabel = PlaceholderLabel.Resolve(transform, _outcomeLabel, OutcomeLabelName);
-            _pendingCustomerLabel = PlaceholderLabel.Resolve(transform, _pendingCustomerLabel,
+            _revenueLabel = HudLabel.Resolve(transform, _revenueLabel, RevenueLabelName);
+            _walletLabel = HudLabel.Resolve(transform, _walletLabel, WalletLabelName);
+            _placementLabel = HudLabel.Resolve(transform, _placementLabel, PlacementLabelName);
+            _waitingLabel = HudLabel.Resolve(transform, _waitingLabel, WaitingLabelName);
+            _timeLabel = HudLabel.Resolve(transform, _timeLabel, TimeLabelName);
+            _outcomeLabel = HudLabel.Resolve(transform, _outcomeLabel, OutcomeLabelName);
+            _pendingCustomerLabel = HudLabel.Resolve(transform, _pendingCustomerLabel,
                                                             PendingCustomerLabelName);
         }
 
@@ -211,7 +217,7 @@ namespace SushiDefense.UI
 
             _shownSeconds = seconds;
             TimeText = $"남은 시간 {seconds}";
-            PlaceholderLabel.Write(_timeLabel, TimeText);
+            HudLabel.Write(_timeLabel, TimeText);
         }
 
         /// <summary>
@@ -233,7 +239,7 @@ namespace SushiDefense.UI
                 _ => string.Empty
             };
 
-            PlaceholderLabel.Write(_outcomeLabel, OutcomeText);
+            HudLabel.Write(_outcomeLabel, OutcomeText);
         }
 
         /// <summary>
@@ -254,8 +260,10 @@ namespace SushiDefense.UI
             }
 
             _shownPendingCustomer = pending;
-            PendingCustomerText = pending != null ? $"배치 예정 {pending.name}" : "배치 예정 없음";
-            PlaceholderLabel.Write(_pendingCustomerLabel, PendingCustomerText);
+            PendingCustomerText = pending != null
+                ? $"배치 예정 {DisplayNameOf(pending)}"
+                : "배치 예정 없음";
+            HudLabel.Write(_pendingCustomerLabel, PendingCustomerText);
         }
 
         /// <summary>
@@ -286,7 +294,17 @@ namespace SushiDefense.UI
 
             _shownWaitingCount = waiting;
             WaitingText = $"대기 {waiting}";
-            PlaceholderLabel.Write(_waitingLabel, WaitingText);
+            HudLabel.Write(_waitingLabel, WaitingText);
+        }
+
+        /// <summary>
+        /// 표시 이름이 비면 애셋 이름으로 대신한다. <c>CustomerView.NameOf</c> ·
+        /// <c>RewardOffer.DisplayName</c> 과 같은 처리다 — 세 곳이 어긋나면 같은 손님이
+        /// 화면마다 다른 이름으로 불린다.
+        /// </summary>
+        private static string DisplayNameOf(CustomerData data)
+        {
+            return string.IsNullOrWhiteSpace(data.DisplayName) ? data.name : data.DisplayName;
         }
 
         private void RefreshPlacement()
@@ -304,20 +322,20 @@ namespace SushiDefense.UI
 
             _shownPlacedCount = placed;
             PlacementText = $"손님 {placed}/{_placement.MaxPlacedCustomers}";
-            PlaceholderLabel.Write(_placementLabel, PlacementText);
+            HudLabel.Write(_placementLabel, PlacementText);
         }
 
         private void OnRevenueChanged(int total)
         {
             var target = _stage != null ? _stage.TargetRevenue : 0;
             RevenueText = $"매출 {total}/{target}";
-            PlaceholderLabel.Write(_revenueLabel, RevenueText);
+            HudLabel.Write(_revenueLabel, RevenueText);
         }
 
         private void OnBalanceChanged(int balance)
         {
             WalletText = $"영입 재화 {balance}";
-            PlaceholderLabel.Write(_walletLabel, WalletText);
+            HudLabel.Write(_walletLabel, WalletText);
         }
 
     }

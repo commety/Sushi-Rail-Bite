@@ -17,4 +17,4 @@ MonoBehaviour:
   _price: 130
   _saturationAmount: 1
   _trait: 0
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 2fcf735a4ca5042a18308ca86103233d, type: 3}
