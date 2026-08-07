@@ -1,6 +1,10 @@
 {
   "name": "Presentation",
   "rootNamespace": "SushiDefense",
-  "references": ["Runtime", "Runtime.Data"],
+  "references": [
+    "Runtime",
+    "Runtime.Data",
+    "Unity.TextMeshPro"
+  ],
   "autoReferenced": false
 }
