@@ -94,6 +94,13 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **keywords:** 손님 유형, 유형, kind, CustomerKind, 기본, 소식, 먹보, BigEater, SmallEater, Normal, 대역 배치, 대역 폭, 전문가, 범용가, 겹침, 경계값, 영입 비용, RecruitCost, 처리량, 유예, 대기, 밸런스, 포화도
 - **when to read:** 손님 애셋 값을 만지기 직전, 새 손님 유형 추가, 새 초밥을 덱에 넣을 때(기본 대역과 함께 봐야 한다), "손님이 자꾸 논다" 증상
 
+#### [domain/presentation-and-audio.md](domain/presentation-and-audio.md)
+화면·소리 계층(M5). 아이콘은 데이터가 정한다, 오디오 3층(값/판정/재생), 자동재생 게이트,
+연출 수치 vs 밸런스 수치, 임포트 규칙 두 종, 한글 정적 서브셋, 입력은 Input System,
+씬 조립에서 반복해 걸린 것, WebGL 실측.
+- **keywords:** 아이콘, Icon, 스프라이트, sprite, 픽셀 아트, pixel art, 임포트, import, PPU, Point 필터, 아틀라스, atlas, 오디오, audio, 사운드, sound, BGM, 효과음, SFX, AudioBankSO, SoundBudget, AudioUnlockGate, AudioDirector, 겹침, 쿨다운, 동시 재생, 자동재생, playOnAwake, 이펙트, VFX, EffectDirector, PopEffect, 풀, 폰트, font, TMP, TextMeshPro, 한글, 두부, 서브셋, charset, Canvas, CanvasScaler, HUD, 입력, Input System, Keyboard, Mouse, 클릭 배치, SlotPicker, WebGL, 초기 로드, 빌드 크기, Build Settings
+- **when to read:** 화면 표시·소리·이펙트·폰트·입력을 만지기 직전, 새 스프라이트나 음원을 추가할 때, WebGL 빌드 크기를 볼 때
+
 #### [domain/spawn-composition.md](domain/spawn-composition.md)
 어떤 초밥이 얼마나 자주 벨트에 오르는가. **share 를 가격에서 유도**(`(덱 내 최저가/가격)^α`)하고 **credit 누적**으로 배출 순서를 만든다. 난수 없음, 가방(인스턴스 재고) 방식 아님.
 - **keywords:** 스폰, spawn, 등장 빈도, 출현율, share, 비중, 가중치, weight, 희소성, sparsity, 알파, α, SparsityExponent, 최저가, minPrice, credit, 배출, 수열, 덱, deck, SpawnTable, SushiSpawnEntry, SpawnShareTable, SpawnSequence, 뭉침, 분산, 결정적, 풀 크기, 프리웜, prewarm
