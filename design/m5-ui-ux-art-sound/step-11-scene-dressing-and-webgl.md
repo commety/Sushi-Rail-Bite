@@ -86,6 +86,19 @@ Play_Scene_BeltRailSpansStartToEnd         ← 레일이 벨트 구간을 덮는
 | **SFX 겹침** | 손님 4명이 동시에 먹어도 찢어지지 않는다 | 쿨다운·상한 조정 (step-06, §7 승인) |
 | **창 크기 변경** | HUD 가 유지된다 | `CanvasScaler` 설정 (step-10) |
 | **프레임** | 히칭이 없다 | `Update` 경로 할당 확인 |
+| **Enter 입력** | 전환·보상 화면이 Enter 로 넘어간다 | 아래 |
+
+> **미해결: 레거시 `Input` 이 이 프로젝트에서 동작하는가.**
+> `ProjectSettings` 의 `activeInputHandler` 가 `1` 인데 `RewardSelectionView` 와
+> `StageTransitionView` 는 `UnityEngine.Input.GetKeyDown` 을 쓴다. 브리지로 `Input.GetKeyDown`
+> 을 불러 봤을 때 `TargetInvocationException` 이 났지만 **내부 예외를 확인하지 못해 확정하지
+> 못했다** — 배치모드라서 났을 수도 있다.
+>
+> 두 뷰의 `Update` 는 `_presenter.IsOpen` 이 아니면 즉시 반환하므로, **PlayMode 테스트는 이
+> 경로를 아예 밟지 않는다.** 재생해야만 드러난다.
+>
+> step-07 의 `AudioDirector` 는 이 답에 의존하지 않게 설계했다(첫 배치 클릭으로 잠금 해제).
+> 하지만 **Enter 가 안 먹으면 스테이지 전환 자체가 막힌다** — 여기서 반드시 확인한다.
 
 > WebGL 은 **싱글 스레드**다. `Task.Run` 류는 동작하지 않는다. M5 가 그런 코드를 넣지 않았는지 함께 확인한다 — [`unity-webgl-performance.md`](../../.claude/knowledge/unity-webgl-performance.md) §0
 

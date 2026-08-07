@@ -133,15 +133,35 @@ Awake/Start        → 아무것도 재생하지 않는다
 
 `SushiEaten_FourInSameFrame_SuppressesSome` 은 **구체값을 박는다** — 쿨다운 `0.06`, 상한 `6` 에서 같은 프레임 4건이면 몇 건이 통과해야 하는지 계산해 그 수를 단언한다. *"일부가 막혔다"* 만 보면 전부 막는 구현에서도 통과한다 (`tests.md` §3).
 
-### 주입으로 확인한다
+### 주입 실측
 
-| 주입 | 잡혀야 할 테스트 (가설) |
-|---|---|
-| `Bind` 에서 선행 `Unbind` 제거 | `Bind_Twice_DoesNotDoublePlay` |
-| `Start()` 에서 BGM 즉시 재생 | `Bind_BeforeUserInput_DoesNotStartBgm` |
-| `SoundBudget` 판정 무시하고 항상 재생 | `SushiEaten_FourInSameFrame_SuppressesSome` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Bind` 에서 선행 `Unbind` 제거 | 1건 | **처음엔 0건** — 아래 |
+| 게이트를 무시하고 재생 | 1건 | 예측대로 **1건** (`SushiEaten_BeforeUserInput_DoesNotPlay`) |
+| 예산 판정 무시 | 1건 | 예측대로 **1건** (`SushiEaten_FourInSameFrame_SuppressesAllButFirst`) |
 
-**예측은 가설이다.** 실측으로 정정한다.
+> **간격이 구독 중복을 가린다.**
+> `Bind_Twice_DoesNotDoublePlay` 를 **먹힘 큐**로 썼는데, 그 큐엔 간격 `0.06`초가 걸려 있어
+> 이벤트가 두 번 와도 두 번째를 **간격이 대신 막는다.** 구독이 겹쳐도 `PlayedCount` 는 1 이라
+> 테스트가 통과한다.
+>
+> **간격이 `0` 인 큐(클리어)로 바꾸니 즉시 잡혔다** (`2 != 1`).
+>
+> `tests.md` §3 의 *"검증하려는 키가 다른 키와 나란히 놓이면 잘못된 구현으로도 정답이 나온다"*
+> 가 그대로 나타난 사례다. **겹침 제어가 있는 시스템에서 "한 번만 났다" 를 검증할 때는
+> 간격이 없는 큐를 골라야 한다.**
+
+### 실측 — `AudioSource.playOnAwake` 가 게이트를 무력화한다
+
+`Bind_BeforeUserInput_DoesNotStartBgm` 이 처음에 실패했다. `AudioSource` 의 `playOnAwake` 는
+**기본값이 켜져 있어서**, 컴포넌트가 붙는 순간 재생이 시작된다.
+
+이것은 테스트만의 문제가 아니다. **씬에서도 같은 일이 일어나며, 그쪽이 더 나쁘다** — 브라우저가
+잠긴 상태의 재생을 버리므로 배경음이 영영 들리지 않는다. 게이트를 만든 이유 자체가 무력화된다.
+
+`SilenceUntilUnlocked()` 를 `Awake` 와 `Bind` 양쪽에서 부른다. **이미 열린 뒤에는 멈추지
+않는다** — `Bind` 는 스테이지마다 불리는데 거기서 멈추면 판이 바뀔 때마다 배경음이 끊긴다.
 
 ### 완료 판정
 

@@ -1,0 +1,306 @@
+using SushiDefense.Belt;
+using SushiDefense.Customers;
+using SushiDefense.Data;
+using SushiDefense.Run;
+using SushiDefense.Stages;
+using SushiDefense.UI;
+using UnityEngine;
+
+namespace SushiDefense.Audio
+{
+    /// <summary>
+    /// 로직의 사건을 소리로 옮긴다. <b>판정하지 않는다</b> — 겹쳐도 되는지는
+    /// <see cref="SoundBudget"/> 이, 아예 소리를 내도 되는지는 <see cref="AudioUnlockGate"/> 가
+    /// 정한다.
+    ///
+    /// <para>
+    /// <b>런 수명이다.</b> 스테이지가 넘어가도 배경음이 이어지고 잠금이 다시 걸리지 않아야
+    /// 하므로, 스테이지마다 새로 만들지 않고 <see cref="Bind"/> 로 새 판의 객체만 갈아 낀다.
+    /// </para>
+    /// <para>
+    /// 재생 횟수를 노출하는 이유: 헤드리스 배치모드에는 오디오 장치가 없어 테스트가 실제
+    /// 소리를 들을 수 없다. 뷰가 <c>RevenueText</c> 를 노출하는 것과 같은 이유다.
+    /// </para>
+    /// </summary>
+    public sealed class AudioDirector : MonoBehaviour
+    {
+        // 큐를 구분하는 키. 값 자체는 의미가 없고 서로 다르기만 하면 된다.
+        private const int SushiEatenCue = 0;
+        private const int CustomerPlacedCue = 1;
+        private const int RewardPickedCue = 2;
+        private const int StageAdvancedCue = 3;
+        private const int StageClearedCue = 4;
+        private const int StageFailedCue = 5;
+
+        [SerializeField] private AudioBankSO _bank;
+
+        /// <summary>효과음 전용. 배경음과 나누지 않으면 배경음이 효과음마다 끊긴다.</summary>
+        [SerializeField] private AudioSource _sfxSource;
+
+        [SerializeField] private AudioSource _bgmSource;
+
+        private readonly AudioUnlockGate _gate = new();
+
+        private SoundBudget _budget;
+        private ClaimCoordinator _coordinator;
+        private CustomerPlacementService _placement;
+        private StageController _stage;
+        private RewardSelectionPresenter _rewards;
+        private StageTransitionPresenter _transition;
+
+        /// <summary>배치 수는 변경 이벤트가 없어 값 변화를 지켜본다.</summary>
+        private int _shownPlacedCount = -1;
+
+        /// <summary>실제로 재생한 횟수. 검증용이다.</summary>
+        public int PlayedCount { get; private set; }
+
+        /// <summary>예산·게이트·설정에 막혀 버려진 요청 수. 검증용이다.</summary>
+        public int SuppressedCount { get; private set; }
+
+        /// <summary>배경음을 시작한 횟수. 검증용이다.</summary>
+        public int BgmStartCount { get; private set; }
+
+        /// <summary>배경음이 지금 울리고 있는가.</summary>
+        public bool IsBgmPlaying => _bgmSource != null && _bgmSource.isPlaying;
+
+        /// <summary>첫 사용자 입력이 들어왔는가.</summary>
+        public bool IsUnlocked => _gate.IsUnlocked;
+
+        /// <summary>
+        /// 이 판의 사건 출처를 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 는
+        /// 스테이지가 넘어갈 때마다 다시 불리고, 구독이 겹치면 한 번의 먹힘이 두 번 난다.
+        /// </summary>
+        public void Bind(ClaimCoordinator coordinator, CustomerPlacementService placement,
+                         StageController stage, RewardSelectionPresenter rewards,
+                         StageTransitionPresenter transition)
+        {
+            Unbind();
+
+            _coordinator = coordinator;
+            _placement = placement;
+            _stage = stage;
+            _rewards = rewards;
+            _transition = transition;
+
+            if (_coordinator != null)
+            {
+                _coordinator.SushiEaten += OnSushiEaten;
+            }
+
+            if (_stage != null)
+            {
+                _stage.OutcomeDecided += OnOutcomeDecided;
+            }
+
+            if (_rewards != null)
+            {
+                _rewards.RewardChosen += OnRewardChosen;
+            }
+
+            if (_transition != null)
+            {
+                _transition.StageAdvanced += OnStageAdvanced;
+            }
+
+            // 잠금은 유지한다 — 스테이지가 넘어갔다고 다시 잠기면 배경음이 죽는다.
+            _budget?.Reset();
+            _shownPlacedCount = _placement != null ? _placement.PlacedCount : -1;
+            SilenceUntilUnlocked();
+        }
+
+        /// <summary>
+        /// 구독을 끊는다. 조율자·컨트롤러는 <see cref="MonoBehaviour"/> 가 아니라 씬이
+        /// 내려가도 살아 있을 수 있으므로, 떼지 않으면 파괴된 이 객체를 계속 부른다
+        /// (<c>.claude/rules/scripts.md</c> §6).
+        /// </summary>
+        public void Unbind()
+        {
+            if (_coordinator != null)
+            {
+                _coordinator.SushiEaten -= OnSushiEaten;
+                _coordinator = null;
+            }
+
+            if (_stage != null)
+            {
+                _stage.OutcomeDecided -= OnOutcomeDecided;
+                _stage = null;
+            }
+
+            if (_rewards != null)
+            {
+                _rewards.RewardChosen -= OnRewardChosen;
+                _rewards = null;
+            }
+
+            if (_transition != null)
+            {
+                _transition.StageAdvanced -= OnStageAdvanced;
+                _transition = null;
+            }
+
+            _placement = null;
+        }
+
+        /// <summary>
+        /// 첫 사용자 입력을 알린다. 브라우저는 제스처가 있기 전까지 오디오를 잠그고,
+        /// 그 상태에서 낸 소리는 <b>밀리지 않고 사라진다</b> — 씬 시작에 배경음을 재생하면
+        /// 무음으로 흘러가 영영 들리지 않는다.
+        ///
+        /// <para>
+        /// public 인 이유: 지금은 손님 배치가 첫 제스처지만, 화면이 늘면 다른 입력 지점도
+        /// 이걸 부르게 된다 (M6).
+        /// </para>
+        /// </summary>
+        public void NotifyUserInput()
+        {
+            _gate.Unlock();
+
+            if (_gate.TryConsumeUnlockMoment())
+            {
+                StartBgm();
+            }
+        }
+
+        private void Awake()
+        {
+            SilenceUntilUnlocked();
+        }
+
+        private void OnDestroy()
+        {
+            Unbind();
+        }
+
+        /// <summary>
+        /// <c>AudioSource</c> 의 자동 재생을 끈다. 기본값이 켜져 있어서 <b>그대로 두면
+        /// 게이트가 통째로 무력화된다</b> — 씬이 열리자마자 잠긴 채로 재생이 시작되고,
+        /// 브라우저가 그것을 버리므로 배경음이 영영 들리지 않는다.
+        ///
+        /// <para>
+        /// 이미 열린 뒤에는 멈추지 않는다. <see cref="Bind"/> 는 스테이지가 넘어갈 때마다
+        /// 불리는데, 거기서 멈추면 판이 바뀔 때마다 배경음이 끊긴다.
+        /// </para>
+        /// </summary>
+        private void SilenceUntilUnlocked()
+        {
+            if (_sfxSource != null)
+            {
+                _sfxSource.playOnAwake = false;
+            }
+
+            if (_bgmSource == null)
+            {
+                return;
+            }
+
+            _bgmSource.playOnAwake = false;
+
+            if (!_gate.IsUnlocked)
+            {
+                _bgmSource.Stop();
+            }
+        }
+
+        /// <summary>
+        /// 배치 수만 매 프레임 확인한다. 배치 서비스에 변경 이벤트가 없기 때문이며,
+        /// <b>값이 바뀐 프레임에만</b> 반응한다 (<c>StageHudView</c> 와 같은 방식이다).
+        /// </summary>
+        private void Update()
+        {
+            if (_placement == null)
+            {
+                return;
+            }
+
+            var placed = _placement.PlacedCount;
+            if (placed == _shownPlacedCount)
+            {
+                return;
+            }
+
+            var increased = placed > _shownPlacedCount;
+            _shownPlacedCount = placed;
+
+            if (!increased)
+            {
+                return;
+            }
+
+            // 자리에 앉히려면 클릭이 있어야 한다 — 배치가 곧 첫 제스처다.
+            NotifyUserInput();
+            Play(_bank != null ? _bank.CustomerPlaced : null, CustomerPlacedCue);
+        }
+
+        private void OnSushiEaten(CustomerLogic customer, SushiItem sushi)
+        {
+            Play(_bank != null ? _bank.SushiEaten : null, SushiEatenCue);
+        }
+
+        private void OnRewardChosen(RewardOffer offer)
+        {
+            Play(_bank != null ? _bank.RewardPicked : null, RewardPickedCue);
+        }
+
+        private void OnStageAdvanced(StageConfig next)
+        {
+            Play(_bank != null ? _bank.StageAdvanced : null, StageAdvancedCue);
+        }
+
+        /// <summary>
+        /// 결과는 컨트롤러가 이미 정했다. <b>여기서 판정하지 않는다</b> — 뷰가 매출과 시간을
+        /// 다시 비교하면 판정이 두 곳에 살게 된다.
+        /// </summary>
+        private void OnOutcomeDecided(StageOutcome outcome)
+        {
+            if (outcome == StageOutcome.Cleared)
+            {
+                Play(_bank != null ? _bank.StageCleared : null, StageClearedCue);
+            }
+            else if (outcome == StageOutcome.Failed)
+            {
+                Play(_bank != null ? _bank.StageFailed : null, StageFailedCue);
+            }
+        }
+
+        /// <summary>
+        /// 소리 하나를 낸다. 먹힘마다 불리는 경로라 <b>할당을 만들지 않는다</b>
+        /// (<c>scripts.md</c> §4).
+        /// </summary>
+        private void Play(AudioCue cue, int cueId)
+        {
+            if (!_gate.IsUnlocked || _sfxSource == null || cue == null || !cue.HasClip
+                || !EnsureBudget().TryPlay(cueId, Time.time, cue.CooldownSeconds, cue.Clip.length))
+            {
+                SuppressedCount++;
+                return;
+            }
+
+            _sfxSource.PlayOneShot(cue.Clip, cue.Volume);
+            PlayedCount++;
+        }
+
+        private void StartBgm()
+        {
+            if (_bgmSource == null || _bank == null || !_bank.Bgm.HasClip)
+            {
+                return;
+            }
+
+            _bgmSource.clip = _bank.Bgm.Clip;
+            _bgmSource.volume = _bank.Bgm.Volume;
+            _bgmSource.loop = true;
+            _bgmSource.Play();
+            BgmStartCount++;
+        }
+
+        /// <summary>
+        /// 예산은 상한을 알아야 열 수 있어 뱅크가 물린 뒤에 만든다. 뱅크가 없으면 아무것도
+        /// 통과시키지 않는 1칸짜리를 쓴다 — 소리는 로직의 전제 조건이 아니다.
+        /// </summary>
+        private SoundBudget EnsureBudget()
+        {
+            return _budget ??= new SoundBudget(_bank != null ? _bank.MaxConcurrentSfx : 1);
+        }
+    }
+}
