@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SushiDefense.UI
 {
@@ -79,15 +80,26 @@ namespace SushiDefense.UI
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // UnityEngine.Input 이 아니라 Input System 을 쓴다 — 이 프로젝트는
+            // ENABLE_LEGACY_INPUT_MANAGER 가 정의되어 있지 않아 레거시 API 가 런타임에
+            // 예외를 던진다 (StageTransitionView 와 같은 이유).
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 _presenter.Skip();
                 return;
             }
 
+            // digit1Key 부터 순서대로 놓여 있어 인덱스를 더해 집는다.
+            var digits = keyboard.digit1Key;
             for (var i = 0; i < _presenter.OfferCount && i < 9; i++)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                if (keyboard[(Key)((int)digits.keyCode + i)].wasPressedThisFrame)
                 {
                     _presenter.Choose(i);
                     return;

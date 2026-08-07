@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SushiDefense.UI
 {
@@ -88,7 +89,17 @@ namespace SushiDefense.UI
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            // UnityEngine.Input 이 아니라 Input System 을 쓴다. 이 프로젝트는
+            // ENABLE_LEGACY_INPUT_MANAGER 가 정의되어 있지 않아 레거시 API 가 런타임에
+            // 예외를 던진다 — 화면이 열려 있을 때만 도는 자리라 테스트가 못 밟았고,
+            // M5 빌드 직전까지 Enter 로 스테이지를 넘길 수 없는 상태였다.
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
             {
                 _presenter.Proceed();
             }
