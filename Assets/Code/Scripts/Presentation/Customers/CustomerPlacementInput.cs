@@ -38,8 +38,16 @@ namespace SushiDefense.Customers
                                TableSlotView[] slots)
         {
             _controller = controller;
-            _camera = camera;
             _slots = slots;
+
+            // 넘어온 카메라가 없으면 이미 찾아 둔 것을 지우지 않는다. 씬 진입점은 카메라를
+            // 들고 있지 않아 null 을 넘기는데, 그대로 대입하면 Awake 가 잡아 둔 참조가
+            // 날아가 클릭이 통째로 죽는다 — 테스트는 ClickAt 을 직접 불러 이 경로를
+            // 지나치므로 브라우저에서야 드러났다.
+            if (camera != null)
+            {
+                _camera = camera;
+            }
         }
 
         /// <summary>
@@ -65,6 +73,15 @@ namespace SushiDefense.Customers
 
         private void Awake()
         {
+            ResolveCamera();
+        }
+
+        /// <summary>
+        /// 카메라가 없으면 주 카메라로 대신한다. <c>Awake</c> 순서에 기대지 않도록
+        /// 클릭 시점에도 한 번 더 본다.
+        /// </summary>
+        private void ResolveCamera()
+        {
             if (_camera == null)
             {
                 _camera = Camera.main;
@@ -74,7 +91,13 @@ namespace SushiDefense.Customers
         private void Update()
         {
             var mouse = Mouse.current;
-            if (mouse == null || !mouse.leftButton.wasPressedThisFrame || _camera == null)
+            if (mouse == null || !mouse.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            ResolveCamera();
+            if (_camera == null)
             {
                 return;
             }

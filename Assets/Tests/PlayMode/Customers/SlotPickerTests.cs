@@ -89,6 +89,40 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsNull(SlotPicker.Pick(Vector2.zero, null, Radius));
         }
 
+        /// <summary>
+        /// <c>Initialize</c> 가 <b>이미 찾아 둔 카메라를 지우지 않는지</b> 본다.
+        ///
+        /// <para>
+        /// 씬 진입점은 카메라를 들고 있지 않아 <c>null</c> 을 넘긴다. 그대로 대입하면
+        /// <c>Awake</c> 가 잡아 둔 참조가 날아가 <b>클릭이 통째로 죽는데</b>, 다른 테스트는
+        /// <c>ClickAt</c> 을 직접 불러 카메라 경로를 지나치므로 브라우저에서야 드러났다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Initialize_WithNullCamera_KeepsResolvedCamera()
+        {
+            var cameraGo = new GameObject("Main Camera") { tag = "MainCamera" };
+            cameraGo.AddComponent<Camera>();
+            _created.Add(cameraGo);
+
+            var inputGo = new GameObject("PlacementInput");
+            _created.Add(inputGo);
+            var input = inputGo.AddComponent<CustomerPlacementInput>();
+
+            input.Initialize(null, null, new TableSlotView[0]);
+
+            Assert.IsNotNull(CameraOf(input), "씬 진입점이 넘긴 null 이 카메라를 지웠다");
+        }
+
+        private static Camera CameraOf(CustomerPlacementInput input)
+        {
+            var field = typeof(CustomerPlacementInput).GetField(
+                "_camera", System.Reflection.BindingFlags.Instance
+                           | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "직렬화 필드 '_camera' 를 찾지 못했습니다.");
+            return (Camera)field.GetValue(input);
+        }
+
         private TableSlotView Slot(Vector2 position)
         {
             var go = new GameObject("TableSlot");
