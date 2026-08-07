@@ -104,15 +104,27 @@ namespace SushiDefense.Belt
 
 **"둘이 같다" 만 확인하지 않는다** (`tests.md` §3). `Bind_DifferentSushiData_ShowsDifferentSprites` 는 *"서로 다르다"* 뿐 아니라 **어느 쪽이 어느 스프라이트인지**를 박는다 — 스프라이트를 뒤바꿔 대입하는 구현에서도 "다르다" 는 통과한다.
 
-### 주입으로 확인한다
+### 주입 실측
 
-| 주입 | 잡혀야 할 테스트 (가설) |
-|---|---|
-| `Release` 에서 스프라이트 복원 제거 | `Release_ThenBindAgain_ShowsNewSprite` |
-| `Icon` 이 null 일 때 `sprite = null` 대입 | `Bind_DataWithoutIcon_KeepsPrefabSprite` |
-| `Bind` 에서 스프라이트 대입 자체를 제거 | 초밥 2건 모두 |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Release` 에서 그림 복원 제거 | 1건 | 예측대로 **1건** (`Release_AfterBind_RestoresPrefabSprite`) |
+| 아이콘이 없을 때 `sprite = null` 대입 | 1건 | **2건** — 폴백 경로를 `Bind_DataWithoutIcon_KeepsPrefabSprite` 와 `Release_AfterBind_...` 가 공유한다 |
+| `Bind` 에서 그림 대입 제거 | 2건 | 예측대로 **2건** |
+| `CustomerView.ShowIcon` 호출 제거 | 1건 | 예측대로 **1건** |
+| 덱 안 두 초밥에 같은 그림 | 1건 | **처음엔 0건** — 아래 |
 
-**예측은 가설이다.** 실제로 넣어 보고 잡힌 이름으로 이 표를 정정한다 (`tests.md` §3 — M4 에서 세 번 빗나갔다).
+> **덱은 5종이다. 9종이 아니다.**
+> 중복 아이콘 주입이 처음에 전량 통과했다. 원인은 테스트가 아니라 **주입이 틀린 것**이었다 —
+> 달걀에 한치 그림을 물렸는데 `Stage01.Placeholder` 의 `_spawnTable` 에는 **장어·방어·연어·광어·한치
+> 다섯 종만** 들어 있어 달걀은 애초에 조회되지 않는다. 참치·달걀·성게·Placeholder 는 소유
+> 카드일 뿐 스테이지 1 벨트에는 오르지 않는다 (보상으로 덱에 들어온다).
+>
+> 덱 안의 연어에 광어 그림을 물리니 즉시 잡혔다.
+>
+> **전량 통과가 곧 공허한 테스트는 아니다.** 주입이 테스트의 관측 범위 밖에 떨어졌을 수도
+> 있다. step-03 에서는 테스트가 잘못이었고 여기서는 주입이 잘못이었다 — 둘을 구분하려면
+> **주입 지점이 테스트가 실제로 읽는 데이터인지** 먼저 확인해야 한다.
 
 ### 완료 판정
 

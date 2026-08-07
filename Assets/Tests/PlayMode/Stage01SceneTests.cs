@@ -137,6 +137,32 @@ namespace SushiDefense.Tests.PlayMode
             Assert.GreaterOrEqual(prices.Count, 3, "가격이 서로 다른 초밥이 최소 3종은 있어야 한다");
         }
 
+        /// <summary>
+        /// 덱의 초밥이 <b>서로 다른 그림</b>을 갖는지 본다. 가격 대역이 이 게임의 핵심
+        /// 규칙(M2.5)인데 벨트 위 초밥이 전부 같아 보이면 플레이어가 그 규칙을 배울 수 없다.
+        ///
+        /// <para>
+        /// 코드로 세운 하네스는 밸런스 애셋을 보지 않는다 — 초밥을 새로 추가하고 아이콘을
+        /// 안 물리면 여기서만 잡힌다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DeckSushiHaveDistinctIcons()
+        {
+            yield return null;
+
+            var icons = new System.Collections.Generic.HashSet<Sprite>();
+            foreach (var entry in _stage.StageConfig.SpawnTable)
+            {
+                Assert.IsNotNull(entry.Sushi.Icon,
+                                 $"{entry.Sushi.name} 에 아이콘이 물려 있지 않다");
+                Assert.IsTrue(icons.Add(entry.Sushi.Icon),
+                              $"{entry.Sushi.name} 이 다른 초밥과 같은 그림을 쓴다");
+            }
+
+            Assert.GreaterOrEqual(icons.Count, 3, "그림이 서로 다른 초밥이 최소 3종은 있어야 한다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_HudShowsStageProgress()
         {
