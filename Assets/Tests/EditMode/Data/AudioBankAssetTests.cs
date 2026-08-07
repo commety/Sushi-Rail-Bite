@@ -38,6 +38,11 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.IsNotNull(_bank, $"{AssetPath} 를 로드하지 못했다");
         }
 
+        /// <summary>
+        /// <b><c>UiClick</c> 은 아직 이 목록에 없다.</b> 클립을 M6 step-11 에서 만들기 때문이며,
+        /// 그 단계가 클립을 물리면서 이 테스트와 <see cref="EveryCue_UsesItsOwnClip"/> 의
+        /// 개수를 함께 늘린다. 그때까지 이 파일은 <b>큐 전부가 아니라 일곱</b>을 덮는다.
+        /// </summary>
         [Test]
         public void EveryCue_HasClip()
         {

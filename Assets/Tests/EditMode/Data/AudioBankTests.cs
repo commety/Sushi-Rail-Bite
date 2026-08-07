@@ -15,7 +15,7 @@ namespace SushiDefense.Tests.EditMode.Data
         private static readonly string[] CueFieldPaths =
         {
             "_sushiEaten", "_customerPlaced", "_rewardPicked",
-            "_stageAdvanced", "_stageCleared", "_stageFailed", "_bgm"
+            "_stageAdvanced", "_stageCleared", "_stageFailed", "_bgm", "_uiClick"
         };
 
         private AudioBankSO _bank;
@@ -72,6 +72,7 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.IsNotNull(_bank.StageCleared);
             Assert.IsNotNull(_bank.StageFailed);
             Assert.IsNotNull(_bank.Bgm);
+            Assert.IsNotNull(_bank.UiClick);
         }
 
         [Test]
@@ -100,6 +101,31 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.AreEqual(0f, _bank.StageCleared.Volume, Tolerance, nameof(_bank.StageCleared));
             Assert.AreEqual(0f, _bank.StageFailed.Volume, Tolerance, nameof(_bank.StageFailed));
             Assert.AreEqual(0f, _bank.Bgm.Volume, Tolerance, nameof(_bank.Bgm));
+            Assert.AreEqual(0f, _bank.UiClick.Volume, Tolerance, nameof(_bank.UiClick));
+        }
+
+        /// <summary>
+        /// 간격도 큐마다 조여진다. 볼륨만 흔드는 위 테스트는 <c>Clamp</c> 가 볼륨만 다루는
+        /// 구현도 통과시킨다 — 두 필드를 다른 테스트에서 흔들어 그 구현을 배제한다.
+        /// </summary>
+        [Test]
+        public void OnValidate_NegativeCooldownInEveryCue_ClampsAll()
+        {
+            foreach (var path in CueFieldPaths)
+            {
+                SerializedFieldSetter.SetFloat(_bank, $"{path}._cooldownSeconds", -2f);
+            }
+
+            _bank.OnValidate();
+
+            Assert.AreEqual(0f, _bank.SushiEaten.CooldownSeconds, Tolerance, nameof(_bank.SushiEaten));
+            Assert.AreEqual(0f, _bank.CustomerPlaced.CooldownSeconds, Tolerance, nameof(_bank.CustomerPlaced));
+            Assert.AreEqual(0f, _bank.RewardPicked.CooldownSeconds, Tolerance, nameof(_bank.RewardPicked));
+            Assert.AreEqual(0f, _bank.StageAdvanced.CooldownSeconds, Tolerance, nameof(_bank.StageAdvanced));
+            Assert.AreEqual(0f, _bank.StageCleared.CooldownSeconds, Tolerance, nameof(_bank.StageCleared));
+            Assert.AreEqual(0f, _bank.StageFailed.CooldownSeconds, Tolerance, nameof(_bank.StageFailed));
+            Assert.AreEqual(0f, _bank.Bgm.CooldownSeconds, Tolerance, nameof(_bank.Bgm));
+            Assert.AreEqual(0f, _bank.UiClick.CooldownSeconds, Tolerance, nameof(_bank.UiClick));
         }
     }
 }
