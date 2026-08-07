@@ -81,9 +81,37 @@ namespace SushiDefense.Effects
             _slots = null;
         }
 
+        /// <summary>인스펙터가 비었을 때 형제 중에서 찾을 이름. 씬 조립과의 약속이다.</summary>
+        private const string EffectPoolName = "EffectPool";
+
         private void Awake()
         {
             _returnToPool = ReturnToPool;
+            ResolvePool();
+        }
+
+        /// <summary>
+        /// 인스펙터에서 비어 있으면 <b>같은 부모 밑 형제</b>에서 이름으로 찾는다.
+        /// <c>FindObjectOfType</c> 같은 씬 전역 탐색이 아니다 (§4.3 금지 대상).
+        ///
+        /// <para>
+        /// 자식이 아니라 형제를 보는 이유: 풀은 인스턴스를 담아 두는 그릇이라 계층상
+        /// 디렉터 아래 있을 이유가 없고, 씬에는 초밥 풀도 따로 있어 <b>타입으로 찾으면
+        /// 둘 중 어느 것인지 알 수 없다.</b>
+        /// </para>
+        /// </summary>
+        private void ResolvePool()
+        {
+            if (_pool != null || transform.parent == null)
+            {
+                return;
+            }
+
+            var sibling = transform.parent.Find(EffectPoolName);
+            if (sibling != null)
+            {
+                sibling.TryGetComponent(out _pool);
+            }
         }
 
         private void OnDestroy()
