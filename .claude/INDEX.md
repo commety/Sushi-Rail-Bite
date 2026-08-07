@@ -28,9 +28,9 @@ Unity 성능 최적화. **§0 에 WebGL 타깃 보정표** (DXT 압축·싱글 �
 - **when to read:** 성능·메모리·프레임 이슈, WebGL 빌드 크기·초기 로드 시간, 스프라이트 임포트 설정, 렌더·UI·오디오 튜닝
 
 ### [knowledge/unity-scripting-gotchas.md](knowledge/unity-scripting-gotchas.md)
-모델이 자주 틀리는 Unity 스크립팅 함정 3선: 직렬화 (depth=7·null 부활·인라인 복제·SerializeReference·ISerializationCallbackReceiver), 코루틴 중단 조건 (enabled=false 안 멈춤·WaitForSecondsRealtime), IL2CPP Managed Code Stripping (link.xml·[Preserve]). **WebGL 은 IL2CPP 고정이라 §3 이 항상 해당된다.**
-- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit
-- **when to read:** `[Serializable]` 필드·ScriptableObject·MonoBehaviour 직렬화 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·콘솔·WebGL 빌드 실패 (MissingMethod/TypeLoad), 리플렉션·JsonUtility 쓰는 코드 빌드 대비
+모델이 자주 틀리는 Unity 스크립팅 함정: 직렬화 (depth=7·null 부활·인라인 복제·SerializeReference·ISerializationCallbackReceiver), 코루틴 중단 조건 (enabled=false 안 멈춤·WaitForSecondsRealtime), IL2CPP Managed Code Stripping (link.xml·[Preserve]), **§4 에디터에서만 멀쩡한 것들** (폰트 폴백 없음·입력 백엔드 불일치·playOnAwake·Streaming 미지원·Resources 통째 포함). **WebGL 은 IL2CPP 고정이라 §3 이 항상 해당되고, §4 는 전부 빌드해야 드러난다.**
+- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit, 두부, tofu, 폰트 폴백, font fallback, HasCharacters, TMP_FontAsset, ENABLE_LEGACY_INPUT_MANAGER, ENABLE_INPUT_SYSTEM, activeInputHandler, playOnAwake, AudioSource, 자동재생, autoplay, AudioClipLoadType, Streaming, CompressedInMemory, DecompressOnLoad, Resources 폴더, 빌드 크기
+- **when to read:** `[Serializable]` 필드·ScriptableObject·MonoBehaviour 직렬화 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·콘솔·WebGL 빌드 실패 (MissingMethod/TypeLoad), 리플렉션·JsonUtility 쓰는 코드 빌드 대비, **에디터에서는 되는데 빌드에서 안 되는 증상**
 
 ### [knowledge/csharp-dotnet.md](knowledge/csharp-dotnet.md)
 C#/.NET 언어 핵심.

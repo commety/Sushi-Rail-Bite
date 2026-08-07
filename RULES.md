@@ -46,7 +46,11 @@ grep -r  '"autoReferenced": true' Assets/
 **빌드는 이 폴더를 자동으로 더럽힌다.** Unity 가 `-buildTarget` 전환 중에 셰이더 스트리핑
 상태를 URP 애셋에 되쓰기 때문이다. `scripts/run.sh` 가 빌드 후(실패해도) 원복하고,
 `tests/preflight.sh` 검사 3 이 커밋 직전에 다시 확인한다 — 구현은
-`scripts/lib/shared-assets.sh`. **사람이 의도한 렌더 설정 변경은 에디터에서 하고 직접 커밋한다.**
+`scripts/lib/shared-assets.sh`.
+
+**원복은 의도한 변경도 함께 지운다.** `run.sh` 는 커밋되지 않은 차이를 되돌리므로, 이 목록의
+파일을 **의도적으로 바꿨다면 빌드 전에 커밋해야 남는다.** M5 에서 `EditorBuildSettings.asset` 에
+씬을 등록하고 빌드했더니 빌드 직후 등록이 사라졌다 — 다음 빌드는 다시 빈 씬을 실었다.
 
 위반 여부 확인:
 ```
