@@ -136,7 +136,7 @@ SushiDefense.Belt.SushiPool<GameObject> ─────────────�
 | 1 | `Tests.EditMode.asmdef` 에 `"Editor"` 참조 추가 | step-03 |
 | 2 | `Presentation.asmdef` 에 `"Unity.TextMeshPro"` 참조 추가 | step-10 |
 | 3 | 밸런스 `.asset` 12장에 `_icon` 물리기 | step-05 |
-| 4 | Sprite Atlas V2 설정 (`ProjectSettings/EditorSettings.asset`) | step-04 |
+| ~~4~~ | ~~Sprite Atlas V2 설정~~ — **해소됨**: 이미 `SpriteAtlasV2` (브리지로 확인). 대신 **아틀라스 애셋 자체를 사람이 만든다** (step-04 참조) | step-04 |
 | 5 | 새 오디오 파일 커밋 (§9 원본 보호) | step-06 |
 | 6 | 폰트 라이선스 확인 및 커밋 (§9) | step-09 |
 | 7 | `AudioBank.asset` 수치 확정 | step-06 |

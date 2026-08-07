@@ -77,20 +77,52 @@ unity_call("Sprite.ImportFromSvg", {
 
 손님 3종은 **실루엣**으로 구분한다 — 색은 `CustomerView` 가 상태 틴트(`Idle`/`Eating`/`Digesting`/대기)로 이미 쓰고 있다. 색까지 유형에 태우면 두 정보가 같은 채널에서 싸운다.
 
-### Sprite Atlas
+### Sprite Atlas — **에이전트가 만들 수 없다 (실측)**
 
 원문 계획: *"Sprite Atlas 는 이 게임에서 특히 중요하다 — 벨트 위에 여러 종류의 초밥이 동시에 돈다. 묶지 않으면 종류 수만큼 드로우콜이 늘어난다."*
 
-- `Sushi.spriteatlas` — 초밥 9종 + 손님 3종 (같은 씬에서 동시에 그려진다)
+- `Sushi.spriteatlas` — 초밥 폴더 + 손님 폴더 (같은 씬에서 동시에 그려진다)
 - `UI.spriteatlas` — UI 아이콘
 
-아틀라스에도 **Filter `Point` · Mip 끄기 · 압축 없음**을 맞춘다. 아틀라스 설정은 개별 텍스처 설정과 **따로** 살아 있어서, 여기서 흐릿하게 두면 step-03 의 규칙이 무의미해진다. 흔히 놓치는 지점이다.
+아틀라스에도 **Filter `Point` · Mip 끄기 · 압축 없음**을 맞춘다. 아틀라스 설정은 개별 텍스처 설정과 **따로** 살아 있어서, 여기서 흐릿하게 두면 step-03 의 규칙이 무의미해진다.
 
-### §7 승인 요청 — Sprite Atlas V2
+> **막힌다.** ClaudeBridge 에 아틀라스 생성 op 이 없고, `Reflection.Invoke` 는 **메서드 호출만**
+> 가능해 객체를 만들지 못한다 (`ReflectionOps.cs` — 정적 메서드이거나 `targetInstanceId` 로
+> 기존 인스턴스를 지목해야 한다).
+>
+> `.spriteatlas` YAML 을 직접 써 보는 것도 **실패했다.** Unity 는 파일을 받아들였지만 `.meta` 를
+> **`NativeFormatImporter` + `mainObjectFileID: 0`** 으로 만들었다 — 안에서 `SpriteAtlasAsset` 을
+> 찾지 못했다는 뜻이다. `ScriptableObject` 애셋과 달리 이쪽은 손으로 못 쓴다.
+>
+> **아키텍처 결정: 사람이 에디터에서 만든다** (R21 — 자동화 비용이 작업 비용보다 크면 그냥 한다).
+> 에이전트는 만들어진 뒤 설정을 검증하고 step-11 의 드로우콜 실측에 넣는다.
 
-Sprite Atlas 를 쓰려면 `ProjectSettings/EditorSettings.asset` 의 Sprite Packer 모드가 켜져 있어야 한다. **`ProjectSettings/` 수정은 사람 판단 영역이다** (`CLAUDE.md` §7, RULE-06).
+### §7 — Sprite Atlas V2 (변경 없이 해소됨)
 
-현재 값을 먼저 읽어 보고하고, 변경이 필요하면 diff 를 제시한 뒤 승인을 기다린다. 승인 전에는 아틀라스 애셋만 만들어 두고 설정은 건드리지 않는다.
+`ProjectSettings/EditorSettings.asset` 의 `m_SpritePackerMode` 가 **이미 `5` = `SpriteAtlasV2`** 다.
+브리지로 `EditorSettings.spritePackerMode` 를 실제로 읽어 확인했다 (`"SpriteAtlasV2"`).
+**`ProjectSettings/` 를 건드릴 일이 없다.**
+
+### 실측 — SVG 색이 통째로 밝게 뜬다 (도구 버그, 수정함)
+
+첫 렌더에서 지정한 `#4A90D9` 가 `#93C6EE` 로 나왔다. 네 색 모두 `linear→sRGB` 인코딩
+결과와 정확히 일치했다.
+
+원인: 이 프로젝트는 **Linear 컬러 스페이스**(`m_ActiveColorSpace: 1`)인데 `SvgOps` 가
+`RenderTexture.GetTemporary(..., RenderTextureReadWrite.sRGB, ...)` 로 잡고 있었다. SVG 의 색은
+이미 sRGB 표기이고 셰이더는 그대로 흘려보내므로 기록 시점에 인코딩이 한 번 더 걸린다.
+
+**SVG 쪽에서 색을 미리 보정하지 않고 원인을 고쳤다** — 보정은 *호출부가 버그에 적응하는*
+형태이고 `knowledge/RULES.md` R2 의 DON'T 다. `RenderTextureReadWrite.Linear` 한 단어이며,
+수정 후 저자가 쓴 색이 바이트 단위로 일치한다.
+
+> 이 버그는 **SVG 로 만드는 모든 스프라이트**에 걸렸다. M6 의 UI 아이콘도 마찬가지였을 것이다.
+
+### 실측 — 티어 색이 네타 색과 부딪힌다
+
+처음 잡은 3티어 접시 `#D94A5A` 가 참치 네타 `#D63B57` 과 거의 같은 색이라 구분이 안 됐다.
+**접시와 네타는 같은 스프라이트 안에서 경쟁한다** — 티어 색을 고를 때 네타 팔레트를 함께 봐야
+한다. 3티어를 `#A62638` 로 어둡게 내려 해결했다.
 
 ### 선행 산출물 의존성
 
