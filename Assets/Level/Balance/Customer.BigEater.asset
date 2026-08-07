@@ -23,4 +23,4 @@ MonoBehaviour:
   _maxSaturation: 8
   _digestSeconds: 3
   _recruitCost: 60
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 301e7bd61f4344eaca662e15c2816a76, type: 3}
