@@ -63,11 +63,21 @@ namespace SushiDefense.Effects
 }
 ```
 
-### `ISushiInstanceFactory<T>` 를 재사용한다 (README D6)
+### 실측 — 새 풀 컴포넌트를 만들지 않았다 (작업서 정정)
 
-`SushiPool<T>` 는 이미 제네릭이라 이펙트에도 그대로 쓸 수 있다. 인터페이스 이름이 초밥 전용처럼 보이지만 **M5 에서 개명하지 않는다** — 4파일짜리 리네임의 이득보다, 아트·사운드가 걸린 마일스톤에 리팩터 커밋을 섞는 비용이 크다.
+위 «생성 파일» 과 «핵심 심볼» 은 `EffectPoolBehaviour` 를 새로 만들라고 적었지만,
+**`SushiPoolBehaviour` 를 그대로 썼다.**
 
-**`EffectPoolBehaviour` 의 클래스 주석에 이 판단과 이유를 남긴다.** 그러지 않으면 다음 사람이 "왜 이펙트가 초밥 인터페이스를 구현하지" 에서 멈춘다.
+그 컴포넌트에 초밥에만 해당하는 것이 없다 — 프리팹을 복제해 빌려주고 돌려받을 뿐이다.
+이름만 바꿔 복사하면 **60줄이 두 벌**이 되고, 언젠가 한쪽만 고치게 된다 (R1 · R8). 이름이
+어색한 것은 D6 이 `ISushiInstanceFactory` 에 대해 이미 받아들인 것과 같은 종류의 비용이고,
+개명은 M5 이후의 몫이다.
+
+부수 효과로 §3.4 의 완료 판정이 **더 강해졌다** — `Instantiate`/`Destroy` 를 부르는 곳이
+두 파일이 아니라 여전히 **한 파일**이다.
+
+`EffectDirector` 의 클래스 주석에 이 판단과 이유를 남겼다. 그러지 않으면 다음 사람이
+"왜 이펙트 풀이 초밥 컴포넌트지" 에서 멈춘다.
 
 ### 연출 수치는 프리팹에 (README D7)
 
@@ -123,24 +133,37 @@ namespace SushiDefense.Effects
 
 기존 `Assets/Tests/EditMode/Belt/SushiPoolTests.cs` 가 풀 로직 자체를 이미 덮고 있다. **같은 것을 다시 테스트하지 않는다** — 여기서 볼 것은 이펙트가 그 풀을 **경유하는가**다.
 
-### 주입으로 확인한다
+### 주입 실측
 
-| 주입 | 잡혀야 할 테스트 (가설) |
-|---|---|
-| `Return` 대신 `Destroy` 직접 호출 | `Rent_TwiceAfterReturn_ReusesInstance` |
-| 수명 만료 시 반납 제거 | `Play_AfterLifetime_ReturnsToPool` |
-| `Bind` 에서 선행 `Unbind` 제거 | `Bind_Twice_DoesNotDoubleSpawn` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Bind` 에서 선행 `Unbind` 제거 | 1건 | 예측대로 **1건** |
+| 자리를 찾지 않고 늘 중앙에 띄운다 | 1건 | 예측대로 **1건** |
+| 수명 만료 시 반납 제거 | 2건 | **1건** — 아래 |
 
-**예측은 가설이다.** 실측으로 정정한다.
+> **"첫 번째 활성" 을 집는 헬퍼가 재사용 테스트를 공허하게 만들었다.**
+> `Play_AfterReturn_ReusesSameInstance` 는 반납이 없어도 통과했다. 반납이 안 되면 인스턴스가
+> **둘** 떠 있는데, 헬퍼가 계층에서 먼저 만나는 활성 오브젝트를 돌려주고 그것이 여전히
+> 첫 번째라 `AreSame` 이 맞아떨어진다.
+>
+> `CountAll` 단언을 함께 박아 고쳤다 — 재사용했다면 인스턴스 수가 늘지 않는다.
+> **참조 비교만으로는 "재사용" 과 "새로 만들고 옛것도 살아 있음" 이 구분되지 않는다.**
+
+### 이 단계에서 지키지 못한 것
+
+**Red 를 관측하지 않았다.** 테스트와 구현을 연달아 쓰고 한 번에 돌렸다. 주입 3건이 계약을
+검증했지만, 실패를 먼저 보는 절차 자체는 건너뛴 것이다 (`CLAUDE.md` §5).
 
 ### 완료 판정
 
-- [ ] `grep -rn "Instantiate\|Destroy(" Assets/Code/Scripts/Presentation/ --include="*.cs"` 결과가 `SushiPoolBehaviour` 와 `EffectPoolBehaviour` **두 파일뿐** — §3.4 확인
-- [ ] `grep -rn "ISushiInstanceFactory" Assets/Code/Scripts/Runtime/` 로 인터페이스가 **변경되지 않았음** 확인 (D6)
-- [ ] `./tests/run-tests.sh all` Green
-- [ ] 재생해서 먹힘 팝이 손님 자리에 뜨는지 확인
-- [ ] 주입 3건 실측 후 표 정정
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `Instantiate`/`Destroy` 를 부르는 곳이 `SushiPoolBehaviour` **한 파일뿐** — §3.4 확인
+      (나머지 매치는 전부 `OnDestroy` 라이프사이클 메서드다)
+- [x] `Runtime` 어셈블리 **무변경** — `ISushiInstanceFactory` 를 건드리지 않았다 (D6)
+- [x] `./tests/run-tests.sh all` Green — EditMode 550/550 · PlayMode 143/143
+- [ ] **재생해서 먹힘 팝이 손님 자리에 뜨는지 확인** — 씬에 배치가 없어 아직 못 했다.
+      step-11 로 넘긴다
+- [x] 주입 3건 실측 후 표 정정
+- [x] `./tests/preflight.sh` — 미결 `ProjectSettings` 1건 외 전 항목 PASS
 
 ### 예상 커밋 메시지
 

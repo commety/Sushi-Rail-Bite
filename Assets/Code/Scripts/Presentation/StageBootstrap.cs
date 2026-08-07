@@ -2,6 +2,7 @@ using SushiDefense.Audio;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
+using SushiDefense.Effects;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
@@ -50,6 +51,7 @@ namespace SushiDefense
         [SerializeField] private RewardSelectionView _rewardView;
         [SerializeField] private StageTransitionView _transitionView;
         [SerializeField] private AudioDirector _audioDirector;
+        [SerializeField] private EffectDirector _effectDirector;
 
         /// <summary>
         /// 지금 돌고 있는 스테이지의 정의. 스테이지가 넘어가면 이 값이 바뀐다.
@@ -182,6 +184,11 @@ namespace SushiDefense
             if (_audioDirector != null)
             {
                 _audioDirector.Bind(Coordinator, Placement, Stage, Rewards, Transition);
+            }
+
+            if (_effectDirector != null)
+            {
+                _effectDirector.Bind(Coordinator, Stage, _slots);
             }
         }
 
@@ -442,6 +449,11 @@ namespace SushiDefense
                 _audioDirector = GetComponentInChildren<AudioDirector>(true);
             }
 
+            if (_effectDirector == null)
+            {
+                _effectDirector = GetComponentInChildren<EffectDirector>(true);
+            }
+
             if (_slots == null || _slots.Length == 0)
             {
                 _slots = GetComponentsInChildren<TableSlotView>(true);
@@ -509,6 +521,11 @@ namespace SushiDefense
             if (_audioDirector != null)
             {
                 _audioDirector.Unbind();
+            }
+
+            if (_effectDirector != null)
+            {
+                _effectDirector.Unbind();
             }
         }
 
