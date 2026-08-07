@@ -1,4 +1,4 @@
-# Unity Scripting — 고위험 함정 3선
+# Unity Scripting — 고위험 함정
 
 다른 `knowledge/*.md`·`CLAUDE.md`·`RULES.md` 와 겹치지 않고, 모델이 **자주 틀리는** 항목만. Unity 2022.3 LTS 기준.
 
@@ -137,3 +137,36 @@ public class SaveDataV2 {
 2. 릴리스 직전 **High** 전환 → 주요 경로 플레이테스트
 3. `MissingMethodException` / `TypeLoadException` 뜨면 해당 타입을 `link.xml` 에 등록
 4. 플러그인은 기본적으로 `ignoreIfMissing="1" preserve="all"` 로 선방어
+
+---
+
+## 4. 에디터에서만 멀쩡한 것들
+
+**에디터가 대신 메워 주는 것**은 플레이어에서 사라진다. 아래는 전부 빌드해야 드러난다.
+
+### 4-1. 폰트 폴백이 없다
+
+에디터는 시스템 폰트로 없는 글자를 메운다. **WebGL 은 OS 폰트에 접근할 수 없어** 폰트 애셋에 없는 글자가 두부(□)로 나온다. 내장 `LegacyRuntime.ttf`(Arial)에는 한글·CJK 가 없다.
+
+→ 화면에 나갈 글자를 폰트에 굽고, `TMP_FontAsset.HasCharacters(text, out missing)` 로 커버리지를 테스트에 고정한다. **문구를 바꾸면 깨져야 정상인 테스트다.**
+
+### 4-2. 입력 백엔드가 코드와 어긋날 수 있다
+
+Player Settings 의 Active Input Handling 이 Input System 전용이면 `ENABLE_LEGACY_INPUT_MANAGER` 가 정의되지 않고, **`UnityEngine.Input` 은 런타임에 `InvalidOperationException` 을 던진다.** 컴파일은 통과한다.
+
+→ `#if ENABLE_LEGACY_INPUT_MANAGER` / `#if ENABLE_INPUT_SYSTEM` 로 전제를 테스트에 박는다. 컴파일 심볼이라 확정적이다.
+
+### 4-3. `AudioSource.playOnAwake` 는 기본값이 켜져 있다
+
+브라우저는 사용자 제스처 전까지 오디오를 잠그고, **잠긴 상태의 재생은 밀리지 않고 사라진다.** 자동 재생이 켜져 있으면 씬이 열리자마자 재생이 시작돼 버려지고, 나중에 제스처가 와도 이미 지나갔다 — 자동재생 게이트를 아무리 잘 만들어도 무력화된다.
+
+### 4-4. WebGL 은 `Streaming` 로드 타입을 지원하지 않는다
+
+지정해도 조용히 다른 모드로 떨어진다. 배경음은 `CompressedInMemory`, 짧은 효과음은 `DecompressOnLoad` 가 맞다.
+
+### 4-5. `Resources/` 는 참조 여부와 무관하게 전부 빌드에 실린다
+
+패키지가 만든 `Resources/` 폴더도 마찬가지다 (TMP Essential Resources 가 2MB 대). 화면에 안 나온다고 안 실리는 것이 아니다 — **폴백 경로로 쓰이는 애셋을 지우면 대신 깨진다.**
+
+> 위 다섯은 모두 `#if`·컴파일 심볼·애셋 검증 테스트로 **에디터에서 미리 고정할 수 있다.**
+> 빌드해서 발견하면 이미 비싸다.

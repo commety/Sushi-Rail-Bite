@@ -117,6 +117,8 @@ Prefab.Close
 - **파일 락 경합**: GUI 서버가 200ms 폴링하는 동안 배치 모드 진입은 불가. 모드 전환은 명시적으로(`Stop` → 배치 → 끝나면 `Start`).
 - **JsonUtility 한계**: Dictionary / polymorphic 타입 직렬화 약함. 새 op은 구조체(POCO)로 args/result 정의 필수.
 - **`ScriptableObject` 애셋을 만드는 op이 없다**: `Asset.CreatePrefab` 은 씬 GameObject 전용이다. `.asset` YAML 을 직접 쓰고 **Unity가 `.meta` 를 생성하게** 한다 — RULES.md RULE-03 위반이 아니다(금지는 `.meta` 를 손대는 것). `m_Script` 의 guid 는 그 타입의 `.cs.meta` 에서 베낀다. 다른 애셋을 참조해야 하면 **2-pass**: ① 참조 대상들을 먼저 쓰고 임포트 → ② 생성된 `.meta` 에서 guid 를 읽어 참조하는 애셋을 쓴다. 임포트는 `/run bridge` 든 테스트 실행이든 Unity 를 한 번 띄우면 된다.
+- **Sprite Atlas 는 확장자가 `.spriteatlasv2` 다** (Unity 6). `.spriteatlas` 로 쓰면 Unity 가 받아들이긴 하지만 `.meta` 가 `NativeFormatImporter` + `mainObjectFileID: 0` 이 되어 **아틀라스가 아닌 파일**이 된다. 본문 YAML 은 손으로 쓸 수 있으나 설정(필터·밉맵·압축·회전·타이트 패킹)이 `.meta` 의 `SpriteAtlasImporter` 안에 있어 RULE-03 상 에이전트가 못 바꾼다 — **사람이 인스펙터에서 만드는 편이 낫다.**
+- **Linear 컬러 스페이스에서 `RenderTextureReadWrite.sRGB` 는 색을 한 번 더 인코딩한다.** SVG 의 색은 이미 sRGB 표기이고 셰이더는 그대로 흘려보내므로, 결과 PNG 가 통째로 밝게 뜬다 (`#4A90D9` → `#93C6EE`). `SvgOps` 는 `Linear` 로 잡아 저자가 쓴 색이 그대로 남게 한다. **생성한 스프라이트는 눈으로 보지 말고 픽셀 값을 대조한다** — "좀 밝은가?" 로는 구분되지 않는다.
 
 ## 확장 가이드
 
