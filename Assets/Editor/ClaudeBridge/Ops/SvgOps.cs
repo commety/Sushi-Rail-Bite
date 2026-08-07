@@ -78,7 +78,12 @@ namespace Editor.ClaudeBridge.Ops
             if (shader == null) throw new Exception("Vector graphics shader not found. Is com.unity.vectorgraphics installed?");
             var mat = new Material(shader) { hideFlags = HideFlags.DontSave };
 
-            var rt = RenderTexture.GetTemporary(outSize, outSize, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, aa);
+            // ReadWrite 는 Linear 여야 한다. 이 프로젝트는 Linear 컬러 스페이스인데, sRGB 로
+            // 잡으면 GPU 가 기록 시점에 linear→sRGB 인코딩을 한 번 더 건다. SVG 의 색은 이미
+            // sRGB 표기(#4A90D9)이고 셰이더는 그대로 흘려보내므로, 결과 PNG 가 통째로 밝게
+            // 뜬다 (#4A90D9 → #93C6EE). Linear 로 잡으면 기록 값이 그대로 남아 저자가 쓴
+            // 색이 PNG 에 들어가고, 임포트 후 sRGB 텍스처로 읽혀 의도한 색이 화면에 나온다.
+            var rt = RenderTexture.GetTemporary(outSize, outSize, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, aa);
             Texture2D tex;
             var prevActive = RenderTexture.active;
             try
