@@ -163,6 +163,125 @@ namespace SushiDefense.Tests.PlayMode
             Assert.GreaterOrEqual(icons.Count, 3, "그림이 서로 다른 초밥이 최소 3종은 있어야 한다");
         }
 
+
+        /// <summary>
+        /// HUD 라벨이 <b>Canvas 위에</b> 있는지 본다. 월드스페이스로 되돌아가면 브라우저 창
+        /// 크기가 바뀔 때 잘리는데, 코드로 세운 하네스는 그것을 못 잡는다 (§1).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HudLabelsLiveOnCanvas()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            Assert.IsNotEmpty(labels, "씬에 TMP 라벨이 하나도 없다");
+
+            foreach (var label in labels)
+            {
+                Assert.IsNotNull(label.GetComponentInParent<Canvas>(),
+                                 $"{label.name} 이 Canvas 밖에 있다");
+            }
+        }
+
+        /// <summary>
+        /// 라벨이 <b>한글 폰트를 물고 있는지</b> 본다. 비어 있으면 TMP 가 기본 폰트로
+        /// 대신하는데 거기엔 한글이 없어 화면이 두부가 된다 — 빌드해야만 드러나는 실패다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_LabelsUseKoreanFont()
+        {
+            yield return WaitSeconds(0.2f);
+
+            foreach (var label in _stage.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                Assert.IsNotNull(label.font, $"{label.name} 에 폰트가 없다");
+                Assert.IsTrue(label.font.HasCharacters("매출 클리어"),
+                              $"{label.name} 의 폰트에 한글이 없다: {label.font.name}");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HasAudioDirectorWired()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var director = _stage.GetComponentInChildren<SushiDefense.Audio.AudioDirector>(true);
+            Assert.IsNotNull(director, "씬에 AudioDirector 가 없다");
+            Assert.IsFalse(director.IsBgmPlaying, "첫 입력 전에 배경음이 울리면 안 된다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HasEffectDirectorWired()
+        {
+            yield return WaitSeconds(0.2f);
+
+            Assert.IsNotNull(_stage.GetComponentInChildren<SushiDefense.Effects.EffectDirector>(true),
+                             "씬에 EffectDirector 가 없다");
+        }
+
+        /// <summary>
+        /// 먹힘이 실제로 소리와 이펙트로 이어지는지 본다. 배선이 끊겨도 다른 테스트는
+        /// 전부 초록이라, 씬에서만 조용해진다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_EatenSushi_ReachesAudioAndEffects()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var audio = _stage.GetComponentInChildren<SushiDefense.Audio.AudioDirector>(true);
+            var effects = _stage.GetComponentInChildren<SushiDefense.Effects.EffectDirector>(true);
+            audio.NotifyUserInput();
+
+            var slot = Object.FindAnyObjectByType<TableSlotView>();
+            _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+
+            yield return WaitSeconds(15f);
+
+            Assert.Greater(_stage.Revenue.Total, 0, "손님이 아무것도 먹지 않았다");
+            Assert.Greater(audio.PlayedCount + audio.SuppressedCount, 0, "먹힘이 오디오에 닿지 않았다");
+            Assert.Greater(effects.SpawnedCount, 0, "먹힘이 이펙트에 닿지 않았다");
+        }
+
+
+        /// <summary>
+        /// <b>클릭으로 손님을 앉힐 수 있는지</b> 본다. M5 이전에는 입력 경로가 아예 없어서
+        /// 재생해도 손님을 놓을 수 없었고, 그러면 먹힘도 소리도 이펙트도 일어나지 않는다 —
+        /// M5 의 결과물 대부분이 관측 불가능했다.
+        ///
+        /// <para>
+        /// 마우스를 흉내 내지 않고 <c>ClickAt</c> 을 직접 부른다. 좌표 변환은 카메라의
+        /// 몫이고, 여기서 볼 것은 <b>클릭이 배치로 이어지는가</b>다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_ClickOnSlot_PlacesCustomer()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
+            Assert.IsNotNull(input, "씬에 배치 입력이 없다 — 손님을 앉힐 방법이 없다");
+
+            var slot = Object.FindAnyObjectByType<TableSlotView>();
+            var placed = input.ClickAt(slot.transform.position);
+
+            Assert.IsTrue(placed, "빈 자리를 눌렀는데 앉지 않았다");
+            Assert.AreEqual(1, _stage.Placement.PlacedCount);
+        }
+
+        /// <summary>
+        /// 빈 곳을 눌렀을 때 <b>엉뚱한 자리에 앉지 않는지</b> 본다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_ClickOnEmptySpace_PlacesNothing()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
+
+            Assert.IsFalse(input.ClickAt(new Vector2(100f, 100f)));
+            Assert.AreEqual(0, _stage.Placement.PlacedCount);
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_HudShowsStageProgress()
         {
