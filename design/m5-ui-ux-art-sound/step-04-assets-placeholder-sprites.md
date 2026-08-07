@@ -91,8 +91,17 @@ unity_call("Sprite.ImportFromSvg", {
 > 기존 인스턴스를 지목해야 한다).
 >
 > `.spriteatlas` YAML 을 직접 써 보는 것도 **실패했다.** Unity 는 파일을 받아들였지만 `.meta` 를
-> **`NativeFormatImporter` + `mainObjectFileID: 0`** 으로 만들었다 — 안에서 `SpriteAtlasAsset` 을
-> 찾지 못했다는 뜻이다. `ScriptableObject` 애셋과 달리 이쪽은 손으로 못 쓴다.
+> **`NativeFormatImporter` + `mainObjectFileID: 0`** 으로 만들었다.
+>
+> **원인은 확장자였다.** Unity 6 의 Sprite Atlas V2 는 `.spriteatlas` 가 아니라
+> **`.spriteatlasv2`** 를 쓴다 — 사람이 만든 결과물을 보고 알았다. 본문 YAML 은 손으로 쓸 수
+> 있는 수준이며(`SpriteAtlasAsset` + `m_ImporterData.packables` 만 있으면 된다), 설정은
+> `.meta` 의 `SpriteAtlasImporter` 가 따로 들고 있다. 즉 **YAML 이 아니라 확장자를 몰라서
+> 막혔던 것**이고, 다시 시도한다면 `.spriteatlasv2` 로 쓰면 된다.
+>
+> 다만 설정(Point 필터·밉맵·압축·회전·타이트 패킹)이 `.meta` 안에 있어 **에이전트가 바꿀 수
+> 없다** (RULE-03). 애셋 본문만 만들 수 있고 설정은 사람이 인스펙터에서 정해야 하므로,
+> 사람이 만드는 편이 여전히 낫다.
 >
 > **아키텍처 결정: 사람이 에디터에서 만든다** (R21 — 자동화 비용이 작업 비용보다 크면 그냥 한다).
 > 에이전트는 만들어진 뒤 설정을 검증하고 step-11 의 드로우콜 실측에 넣는다.
