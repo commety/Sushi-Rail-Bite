@@ -246,6 +246,56 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.AreEqual(1, _store.SaveCount);
         }
 
+        /// <summary>
+        /// <b>닫힘을 알리지 않으면 빈 화면에 갇힌다.</b> 메인 메뉴는 설정을 열 때 내려가고,
+        /// 다시 여는 유일한 신호가 이것이다.
+        /// </summary>
+        [Test]
+        public void Close_RaisesClosedOnce()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+            _presenter.Open();
+
+            _presenter.Close();
+
+            Assert.AreEqual(1, closed);
+        }
+
+        [Test]
+        public void Close_Twice_RaisesClosedOnce()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+            _presenter.Open();
+
+            _presenter.Close();
+            _presenter.Close();
+
+            Assert.AreEqual(1, closed);
+        }
+
+        [Test]
+        public void Close_WhenNeverOpened_RaisesNothing()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+
+            _presenter.Close();
+
+            Assert.AreEqual(0, closed);
+        }
+
+        /// <summary>구독자가 없어도 닫힘 자체는 정상이다 — 저장은 이미 끝나 있어야 한다.</summary>
+        [Test]
+        public void Close_NoSubscriber_StillSaves()
+        {
+            _presenter.Open();
+
+            Assert.DoesNotThrow(() => _presenter.Close());
+            Assert.AreEqual(1, _store.SaveCount);
+        }
+
         [Test]
         public void Close_WhenNeverOpened_DoesNotSave()
         {

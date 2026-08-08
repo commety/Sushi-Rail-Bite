@@ -31,6 +31,12 @@ namespace SushiDefense.UI
         /// </summary>
         public int EntryCount { get; private set; }
 
+        /// <summary>
+        /// 화면이 닫혔다. <b>이걸 듣는 쪽이 메인 메뉴를 다시 연다</b> —
+        /// <see cref="SettingsPresenter.Closed"/> 와 같은 이유다.
+        /// </summary>
+        public event Action Closed;
+
         public CodexPresenter(ICodexView view, CardCatalog catalog)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
@@ -62,6 +68,7 @@ namespace SushiDefense.UI
             IsOpen = false;
             EntryCount = 0;
             _view.Hide();
+            Closed?.Invoke();
         }
     }
 }

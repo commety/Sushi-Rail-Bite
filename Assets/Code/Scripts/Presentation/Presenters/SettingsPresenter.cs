@@ -28,6 +28,18 @@ namespace SushiDefense.UI
         /// <summary>화면이 떠 있나.</summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary>
+        /// 화면이 닫혔다. <b>이걸 듣는 쪽이 메인 메뉴를 다시 연다.</b>
+        ///
+        /// <para>
+        /// <c>MainMenuPresenter.OpenSettings</c> 가 메뉴를 내리므로, 닫힘을 알리지 않으면
+        /// 메뉴가 영영 돌아오지 않고 <b>빈 화면에 갇힌다.</b> 프레젠터가 서로를 직접 알면
+        /// 둘 다 EditMode 로 세우기 어려워지므로 이벤트로 뒤집는다
+        /// (<c>RewardSelectionPresenter.Closed</c> 와 같은 형태다).
+        /// </para>
+        /// </summary>
+        public event Action Closed;
+
         public SettingsPresenter(ISettingsView view, GameSettings settings,
                                  ISettingsStore store, ISettingsApplier applier)
         {
@@ -69,6 +81,7 @@ namespace SushiDefense.UI
             IsOpen = false;
             _store.Save(_settings);
             _view.Hide();
+            Closed?.Invoke();
         }
 
         /// <summary>

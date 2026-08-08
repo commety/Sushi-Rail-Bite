@@ -147,6 +147,46 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.AreEqual(0, _view.HideCount);
         }
 
+        /// <summary>
+        /// <b>닫힘을 알리지 않으면 빈 화면에 갇힌다</b> — 메인 메뉴는 사전을 열 때 내려가고,
+        /// 다시 여는 유일한 신호가 이것이다.
+        /// </summary>
+        [Test]
+        public void Close_RaisesClosedOnce()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+            _presenter.Open();
+
+            _presenter.Close();
+
+            Assert.AreEqual(1, closed);
+        }
+
+        [Test]
+        public void Close_Twice_RaisesClosedOnce()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+            _presenter.Open();
+
+            _presenter.Close();
+            _presenter.Close();
+
+            Assert.AreEqual(1, closed);
+        }
+
+        [Test]
+        public void Close_WhenNeverOpened_RaisesNothing()
+        {
+            var closed = 0;
+            _presenter.Closed += () => closed++;
+
+            _presenter.Close();
+
+            Assert.AreEqual(0, closed);
+        }
+
         [Test]
         public void Open_AfterClose_ShowsAgain()
         {
