@@ -110,22 +110,45 @@ PlayMode  ShowDeck_MoreCardsThanSlots_DrawsWhatFits
 
 > **`ShowDeck_Twice_DoesNotLeaveStaleCards` 를 줄어드는 방향으로 쓴다.** 5장 → 3장 순서여야 남는 카드가 드러난다. 늘어나는 방향은 덮어써지므로 잘못된 구현도 통과한다.
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| `Open` 이 `StageConfig.SpawnTable` 을 읽는다 | `Open_AfterRewardAdded_IncludesNewCard` |
-| 빈 덱이면 `Open` 이 조용히 반환 | `Open_EmptyDeck_StillOpens` |
-| `ShowDeck` 에서 남는 카드 끄기 제거 | `ShowDeck_Twice_DoesNotLeaveStaleCards` |
-| 카드 수가 자리보다 많을 때 예외를 던진다 | `ShowDeck_MoreCardsThanSlots_DrawsWhatFits` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Close` 가 열림 여부를 보지 않는다 | 1건 | 예측대로 **1건** |
+| `ShowDeck` 에서 남는 카드 비우기 제거 | 1건 | 예측대로 **1건** |
+| 덱 출처를 첫 두 장으로 자른다 (스폰 구성을 읽는 것과 같은 효과) | 1건 | **2건** — 보상 테스트와 **빈 덱 테스트**가 함께 |
+
+> **빈 덱 테스트가 출처 주입을 함께 잡았다.** 덱이 비었는데 앞 두 장을 읽으면 범위 밖
+> 접근으로 터진다 — «빈 덱도 연다» 를 지키려고 넣은 테스트가 «덱을 어디서 읽는가» 까지
+> 덮은 셈이다.
 
 ### 완료 판정
 
-- [ ] `grep -c "UnityEngine" Assets/Code/Scripts/Presentation/Presenters/DeckPanelPresenter.cs` = **0**
-- [ ] `grep -c "PauseState" Assets/Code/Scripts/Presentation/Presenters/DeckPanelPresenter.cs` = **0** (D8)
-- [ ] `grep -rn "SpawnTable" Assets/Code/Scripts/Presentation/Views/DeckPanelView.cs Assets/Code/Scripts/Presentation/Presenters/DeckPanelPresenter.cs` = **0건**
-- [ ] EditMode · PlayMode Green — `./tests/run-tests.sh all`
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `DeckPanelPresenter` 에 `UnityEngine` **0건**
+- [x] `DeckPanelPresenter` 에 `PauseState` **0건** (D8 — 덱은 시간을 멈추지 않는다)
+- [x] 뷰·프레젠터 어디에도 `SpawnTable` **0건** (덱의 진실은 런에 있다)
+- [x] EditMode **641/641** · PlayMode **199/199**
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### 계약을 작업서와 다르게 갔다 — 런을 생성자에서 받는다
+
+작업서는 `Open(RunState run)` 이었지만 **`DeckPanelPresenter(IDeckPanelView, RunState)` +
+`Open()`/`Close()`/`Toggle()`** 로 바꿨다.
+
+덱 버튼이 인자를 넘길 방법이 없다. 뷰에 런을 들려 주면 **화면이 런 상태를 알게 되어**
+인터페이스가 Unity 밖 타입까지 끌고 오고, 그러면 «뷰는 규칙을 갖지 않는다» 가 흐려진다.
+프레젠터의 수명은 런과 같으므로 `EnsureRunScope` 에서 `Rewards`·`Transition` 옆에 선다.
+
+### 뷰 컴포넌트가 패널 바깥에 산다
+
+덱 버튼은 **패널이 닫혀 있을 때도 눌려야** 한다. 컴포넌트가 패널 안에 있으면 닫는 순간
+버튼까지 함께 꺼져 다시 열 수 없다. `DeckPanelView` 는 늘 켜져 있는 오브젝트에 붙고
+`_panelRoot` 만 켜고 끈다 — `DigestingBadgeView._visual` 과 같은 형태다.
+
+### 씬 배치는 아직이다
+
+`StageBootstrap` 이 없으면 조용히 건너뛰므로(보상·전환과 같은 판단) 씬을 건드리지 않아도
+아무것도 깨지지 않는다. 카드 자리·버튼 배치는 **step-12** 다.
 
 ### 예상 커밋 메시지
 

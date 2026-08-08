@@ -50,6 +50,7 @@ namespace SushiDefense
         [SerializeField] private RewardCatalog _rewardCatalog;
         [SerializeField] private RewardSelectionView _rewardView;
         [SerializeField] private StageTransitionView _transitionView;
+        [SerializeField] private DeckPanelView _deckPanelView;
         [SerializeField] private AudioDirector _audioDirector;
         [SerializeField] private EffectDirector _effectDirector;
         [SerializeField] private CustomerHandView _hand;
@@ -112,6 +113,16 @@ namespace SushiDefense
 
         /// <summary>전환 화면의 로직. 화면이 씬에 없으면 <c>null</c> 이다. 런 수명이다.</summary>
         public StageTransitionPresenter Transition { get; private set; }
+
+        /// <summary>
+        /// 덱 보기의 로직. 화면이 씬에 없으면 <c>null</c> 이다.
+        ///
+        /// <para>
+        /// <b>런 수명이다.</b> 덱은 보상으로 자라고 스테이지를 넘어 유지되므로, 판마다
+        /// 새로 만들면 열어 둔 화면이 조용히 옛 덱을 가리키게 된다.
+        /// </para>
+        /// </summary>
+        public DeckPanelPresenter Deck { get; private set; }
 
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
@@ -230,6 +241,7 @@ namespace SushiDefense
 
             BuildRewards();
             BuildTransition();
+            BuildDeckPanel();
         }
 
         /// <summary>
@@ -341,6 +353,21 @@ namespace SushiDefense
             _transitionView.Bind(Transition);
         }
 
+        /// <summary>
+        /// 덱 보기를 세운다. 화면이 없으면 조용히 건너뛴다 — 보상·전환과 같은 판단이며,
+        /// 덱 보기는 판이 돌아가는 데 필요한 것이 아니라 그 위에 얹히는 것이다.
+        /// </summary>
+        private void BuildDeckPanel()
+        {
+            if (_deckPanelView == null)
+            {
+                return;
+            }
+
+            Deck = new DeckPanelPresenter(_deckPanelView, Run);
+            _deckPanelView.Bind(Deck);
+        }
+
         /// <summary>보상 화면이 닫혔다. 이제 다음 판으로 넘어갈지 묻는다.</summary>
         private void OnRewardsClosed()
         {
@@ -449,6 +476,11 @@ namespace SushiDefense
                 _transitionView = GetComponentInChildren<StageTransitionView>(true);
             }
 
+            if (_deckPanelView == null)
+            {
+                _deckPanelView = GetComponentInChildren<DeckPanelView>(true);
+            }
+
             if (_placementController == null)
             {
                 _placementController = GetComponentInChildren<CustomerPlacementController>(true);
@@ -532,6 +564,8 @@ namespace SushiDefense
                 Transition.StageAdvanced -= OnStageAdvanced;
                 Transition = null;
             }
+
+            Deck = null;
 
             if (_audioDirector != null)
             {
