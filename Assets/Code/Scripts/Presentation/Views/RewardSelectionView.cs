@@ -114,7 +114,16 @@ namespace SushiDefense.UI
             gameObject.SetActive(true);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 화면을 내린다.
+        ///
+        /// <para>
+        /// <b><see cref="ShowOffers"/> 가 켠 것을 그대로 끈다.</b> 카드와 건너뛰기만 끄고
+        /// 오브젝트를 남기면, 이 화면에 배경이나 테두리가 하나라도 붙는 순간 그것이 판 위에
+        /// 영구히 떠 있게 된다 — M6 에서 패널 배경을 깔자마자 스테이지 시작부터 보상 화면이
+        /// 덮여 있었다. 켜는 쪽과 끄는 쪽이 같은 것을 다뤄야 한다.
+        /// </para>
+        /// </summary>
         public void Hide()
         {
             IsShowing = false;
@@ -131,6 +140,7 @@ namespace SushiDefense.UI
 
             HudLabel.Write(_titleLabel, OffersText);
             SetSkipActive(false);
+            gameObject.SetActive(false);
         }
 
         private void Awake()
@@ -154,6 +164,10 @@ namespace SushiDefense.UI
             }
 
             Subscribe();
+
+            // 처음에는 내려가 있어야 한다 — 덱·메뉴 화면과 같은 형태다. 이것이 없으면
+            // 씬에 놓인 그대로(카드도 배경도 켜진 채로) 판이 시작된다.
+            Hide();
         }
 
         private void OnDestroy()

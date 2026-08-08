@@ -39,6 +39,9 @@ namespace SushiDefense.UI
         /// </summary>
         private Sprite _fallbackSprite;
 
+        /// <summary>참조를 이미 챙겼나. 중복 구독을 막는다.</summary>
+        private bool _resolved;
+
         /// <summary>지금 표시 중인 이름. 검증용이다.</summary>
         public string NameText { get; private set; } = string.Empty;
 
@@ -85,6 +88,8 @@ namespace SushiDefense.UI
         /// </summary>
         public void Clear()
         {
+            Resolve();
+
             IsShowing = false;
             NameText = string.Empty;
             DetailText = string.Empty;
@@ -98,6 +103,36 @@ namespace SushiDefense.UI
 
         private void Awake()
         {
+            Resolve();
+        }
+
+        /// <summary>
+        /// 자기 참조를 <b>한 번만</b> 챙긴다. <see cref="Awake"/> 뿐 아니라 그리는 경로에서도
+        /// 부르므로 <b>활성화 순서에 기대지 않는다.</b>
+        ///
+        /// <para>
+        /// 카드를 늘어놓는 화면들은 <c>Awake</c> 에서 곧바로 <c>Hide</c> 를 불러 카드를 끈다.
+        /// 그때 이 카드의 <see cref="Awake"/> 가 아직 돌지 않았다면 Unity 는 그것을 <b>영영
+        /// 건너뛴다</b> — 꺼진 오브젝트는 다시 켜질 때까지 <c>Awake</c> 를 받지 못한다. 그러면
+        /// 나중에 <c>Show</c> 가 글자를 <c>null</c> 라벨에 써서 <b>빈 카드</b>가 뜬다. 예외도
+        /// 경고도 없고, 카드 틀은 멀쩡히 보이므로 눈으로만 드러난다.
+        /// </para>
+        /// <para>
+        /// <b>그리는 경로 둘에 모두 걸어 둔다.</b> 먼저 불린 쪽이 해석을 끝내므로 한쪽만 있어도
+        /// 지금은 동작한다 — 실측으로 확인했다. 그래서 <b>한쪽을 지워도 테스트가 죽지 않고,
+        /// 둘을 다 지우면 죽는다.</b> 어느 쪽이 먼저 불리는지는 화면마다 다르므로(보상은
+        /// <c>Clear</c>, 손패는 <c>Show</c>) 둘 다 두는 것이 계약이다.
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
             _nameLabel = HudLabel.Resolve(transform, _nameLabel, NameLabelName);
             _detailLabel = HudLabel.Resolve(transform, _detailLabel, DetailLabelName);
             _icon = ResolveIcon();
@@ -148,6 +183,8 @@ namespace SushiDefense.UI
         /// </summary>
         private void Show(string name, string detail, Sprite icon)
         {
+            Resolve();
+
             IsShowing = true;
             NameText = name;
             DetailText = detail;

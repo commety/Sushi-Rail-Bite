@@ -117,6 +117,121 @@ namespace SushiDefense.Tests.PlayMode
             _stage.Rewards.Skip();
         }
 
+        /// <summary>
+        /// 보상 화면이 <b>처음에는 내려가 있는지</b> 본다.
+        ///
+        /// <para>
+        /// <c>ShowOffers</c> 는 오브젝트를 켜는데 <c>Hide</c> 는 카드와 건너뛰기만 끄고 있었다.
+        /// 화면에 배경이 없던 동안에는 그 비대칭이 보이지 않았지만, M6 에서 패널을 깔자마자
+        /// <b>스테이지 시작부터 보상 화면이 판을 덮었다.</b>
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardScreenStartsHidden()
+        {
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<RewardSelectionView>(FindObjectsInactive.Include);
+
+            Assert.IsNotNull(view, "씬에 보상 화면이 없다");
+            Assert.IsFalse(view.gameObject.activeInHierarchy,
+                           "판이 시작부터 보상 화면에 덮여 있다");
+            Assert.IsFalse(view.IsShowing);
+        }
+
+        /// <summary>
+        /// 보상 카드를 열었을 때 <b>글자가 실제로 라벨에 닿는지</b> 본다.
+        ///
+        /// <para>
+        /// <c>CardView.NameText</c> 는 라벨이 없어도 채워지는 프로퍼티라 그것만 보면 공허하다
+        /// (<c>.claude/rules/tests.md</c> §3). 카드는 껐다 켜는 구조여서 <c>CardView.Awake</c> 가
+        /// 아직 안 돈 상태로 <c>Show</c> 가 불릴 수 있는 자리이며, 그러면 글자가 <c>null</c>
+        /// 라벨로 흘러가 <b>빈 카드</b>가 뜬다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardCardsRenderText()
+        {
+            yield return null;
+
+            _stage.Rewards.Open(_stage.Run);
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<RewardSelectionView>(FindObjectsInactive.Include);
+            Assert.Greater(view.ShownCardCount, 0, "전제: 제시할 보상이 있다");
+
+            var drawnCards = 0;
+            foreach (var card in view.GetComponentsInChildren<CardView>(true))
+            {
+                if (!card.IsShowing)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+                Assert.IsNotEmpty(card.NameText, $"{card.name} 이 이름을 들고 있지 않다");
+
+                var reachedALabel = false;
+                foreach (var label in card.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{card.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(view.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
+
+            _stage.Rewards.Skip();
+        }
+
+        /// <summary>
+        /// 덱 화면의 카드도 글자가 라벨에 닿는지 본다 — 배선이 끊기면 빈 카드가 뜬다.
+        ///
+        /// <para>
+        /// <b>이 테스트는 활성화 순서 문제를 잡지 못한다.</b> 참조 해석을 <c>Awake</c> 하나로
+        /// 되돌려 실측했더니 보상 카드만 빈 카드가 되고 <b>덱 카드는 멀쩡했다</b> — 계층 순서상
+        /// 덱 카드의 <c>Awake</c> 는 제때 돈다. 같은 모양이라고 같이 깨지지는 않으므로,
+        /// 그 계약을 지키는 것은 <c>Play_Scene_RewardCardsRenderText</c> 쪽이다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DeckCardsRenderText()
+        {
+            yield return null;
+
+            _stage.Deck.Open();
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<DeckPanelView>(FindObjectsInactive.Include);
+            Assert.Greater(view.ShownCardCount, 0, "전제: 덱에 초밥이 있다");
+
+            var drawnCards = 0;
+            foreach (var card in view.GetComponentsInChildren<CardView>(true))
+            {
+                if (!card.IsShowing)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+
+                var reachedALabel = false;
+                foreach (var label in card.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{card.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(view.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
+
+            _stage.Deck.Close();
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_SpawnsSushiOntoBelt()
         {
