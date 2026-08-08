@@ -63,7 +63,8 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// <b>씬의 명부가 비어 있으면 아무도 앉힐 수 없다.</b> 다른 씬 테스트는 자기가 들고 온
         /// <c>CustomerData</c> 로 직접 배치하므로 이 구멍을 지나친다 — 실제 플레이 경로는
-        /// 배치 껍데기의 명부를 타므로 그쪽을 본다.
+        /// 명부를 손패 카드로 늘어놓고 그 카드를 자리에 끌어다 놓으므로, 손패까지 값이
+        /// 닿았는지를 본다.
         ///
         /// <para>
         /// 직렬화 필드 이름이 바뀌면 Unity 가 옛 값을 조용히 버린다. 그때 코드도 테스트도
@@ -78,10 +79,12 @@ namespace SushiDefense.Tests.PlayMode
             Assert.Greater(_stage.Run.Customers.Count, 0,
                            "씬의 손님 명부가 비었다 — StageBootstrap 의 시작 손님 참조를 확인하라");
 
-            var controller = Object.FindAnyObjectByType<CustomerPlacementController>();
-            Assert.IsNotNull(controller, "씬에 배치 껍데기가 없다");
-            Assert.IsNotNull(controller.PendingCustomer,
-                             "배치 예정 손님이 없다 — 명부가 껍데기에 물리지 않았다");
+            var hand = Object.FindAnyObjectByType<CustomerHandView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(hand, "씬에 손패가 없다");
+            Assert.IsNotNull(hand.CustomerAt(0),
+                             "손패 첫 카드가 비었다 — 명부가 손패에 물리지 않았다");
+            Assert.IsTrue(hand.IsAvailableAt(0),
+                          "시작 손님을 아무 자리에도 놓을 수 없다 — 시작 예산 또는 자리 배치를 확인하라");
         }
 
         /// <summary>

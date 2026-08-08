@@ -60,7 +60,6 @@ namespace SushiDefense.Tests.PlayMode.Customers
                                                       new SequenceNumberIssuer(), _wallet);
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
-            _controller.Initialize(_slots, new[] { _cheap, _pricey });
             _controller.Bind(_placement, _coordinator);
 
             _hand = NewHand(cardCount: 3);

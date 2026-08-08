@@ -14,26 +14,8 @@ namespace SushiDefense.Customers
     /// </summary>
     public sealed class CustomerPlacementController : MonoBehaviour
     {
-        [SerializeField] private TableSlotView[] _slots;
-        [SerializeField] private CustomerData[] _roster;
-
         private CustomerPlacementService _service;
         private ClaimCoordinator _coordinator;
-        private int _pendingIndex;
-
-        /// <summary>
-        /// 지금 앉히려는 손님. 명부가 비었으면 <c>null</c>.
-        ///
-        /// <para>
-        /// 명부는 런이 들고 있고 보상으로 자란다. <b>고르는 UI 는 여기 없다</b> —
-        /// <see cref="SelectPending"/> 이 공개 진입점이며, 실제 선택 화면은 M6(메인화면·
-        /// 덱빌딩)에서 만든다. 지금 만들면 그때 버린다.
-        /// </para>
-        /// </summary>
-        public CustomerData PendingCustomer =>
-            _roster != null && _pendingIndex >= 0 && _pendingIndex < _roster.Length
-                ? _roster[_pendingIndex]
-                : null;
 
         /// <summary>
         /// 씬 진입점이 배치 서비스를 물려 준다. 조율자는 <b>여기서 쓰지 않고</b> 앉히는
@@ -45,41 +27,10 @@ namespace SushiDefense.Customers
             _coordinator = coordinator;
         }
 
-        /// <summary>인스펙터 없이 자리 목록과 명부를 물린다. 테스트·부트스트랩용이다.</summary>
-        public void Initialize(TableSlotView[] slots, CustomerData[] roster)
-        {
-            _slots = slots;
-            _roster = roster;
-            _pendingIndex = 0;
-        }
-
-        /// <summary>
-        /// 다음에 앉힐 손님을 고른다. 범위를 벗어나면 <c>false</c> 를 돌려주고
-        /// <b>선택을 그대로 둔다</b>.
-        /// </summary>
-        public bool SelectPending(int index)
-        {
-            if (_roster == null || index < 0 || index >= _roster.Length)
-            {
-                return false;
-            }
-
-            _pendingIndex = index;
-            return true;
-        }
-
-        /// <summary>
-        /// 이 자리에 배치를 시도한다. 클릭·터치 핸들러가 부른다.
-        /// 놓을 수 없으면 서비스가 <c>null</c> 을 돌려주고, 여기서는 아무 일도 하지 않는다.
-        /// </summary>
-        public bool TryPlaceAt(TableSlotView slot)
-        {
-            return TryPlace(PendingCustomer, slot);
-        }
-
         /// <summary>
         /// <b>어느 손님을</b> 놓을지 함께 받는다. 손패에서 카드를 끌어다 놓는 경로가 쓰며,
         /// 고르는 것과 놓는 것이 한 동작이라 선택 상태를 거칠 이유가 없다.
+        /// 놓을 수 없으면 서비스가 <c>null</c> 을 돌려주고, 여기서는 아무 일도 하지 않는다.
         /// </summary>
         public bool TryPlace(CustomerData customer, TableSlotView slot)
         {

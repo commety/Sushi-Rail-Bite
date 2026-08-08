@@ -212,7 +212,6 @@ namespace SushiDefense
 
             BindSlots();
 
-            _placementController.Initialize(_slots, RosterArray());
             _placementController.Bind(Placement, Coordinator);
 
             if (_hud != null)
@@ -516,22 +515,6 @@ namespace SushiDefense
         {
             Run?.RecordFailedAttempt();
             Build();
-        }
-
-        /// <summary>
-        /// 명부를 배열로 옮긴다. 배치 껍데기가 인스펙터 배열을 그대로 쓰던 형태를 유지하되,
-        /// 내용은 런에서 온다 — 보상으로 영입한 손님이 다음 판부터 앉힐 수 있게 된다.
-        /// </summary>
-        private CustomerData[] RosterArray()
-        {
-            var members = Run.Customers.Members;
-            var roster = new CustomerData[members.Count];
-            for (var i = 0; i < members.Count; i++)
-            {
-                roster[i] = members[i];
-            }
-
-            return roster;
         }
 
         /// <summary>

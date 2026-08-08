@@ -52,7 +52,6 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _slot.Initialize(slotIndex: 0, beltPosition: 5f, _seatVisual);
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
-            _controller.Initialize(new[] { _slot }, new[] { _customerData });
             _controller.Bind(_service, _coordinator);
         }
 
@@ -80,9 +79,9 @@ namespace SushiDefense.Tests.PlayMode.Customers
         }
 
         [Test]
-        public void TryPlaceAt_EmptySlot_OccupiesAndShowsVisual()
+        public void TryPlace_EmptySlot_OccupiesAndShowsVisual()
         {
-            var placed = _controller.TryPlaceAt(_slot);
+            var placed = _controller.TryPlace(_customerData, _slot);
 
             Assert.IsTrue(placed);
             Assert.IsTrue(_slot.IsOccupied);
@@ -91,26 +90,26 @@ namespace SushiDefense.Tests.PlayMode.Customers
         }
 
         [Test]
-        public void TryPlaceAt_UsesSlotBeltPosition()
+        public void TryPlace_UsesSlotBeltPosition()
         {
-            _controller.TryPlaceAt(_slot);
+            _controller.TryPlace(_customerData, _slot);
 
             Assert.AreEqual(_slot.BeltPosition, _seatVisual.Logic.BeltPosition);
         }
 
         [Test]
-        public void TryPlaceAt_OccupiedSlot_ReturnsFalse()
+        public void TryPlace_OccupiedSlot_ReturnsFalse()
         {
-            _controller.TryPlaceAt(_slot);
+            _controller.TryPlace(_customerData, _slot);
 
-            Assert.IsFalse(_controller.TryPlaceAt(_slot));
+            Assert.IsFalse(_controller.TryPlace(_customerData, _slot));
             Assert.AreEqual(1, _service.PlacedCount);
         }
 
         [Test]
-        public void TryPlaceAt_RegistersWithCoordinator()
+        public void TryPlace_RegistersWithCoordinator()
         {
-            _controller.TryPlaceAt(_slot);
+            _controller.TryPlace(_customerData, _slot);
 
             Assert.AreEqual(1, _coordinator.Customers.Count);
         }
@@ -118,7 +117,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
         [Test]
         public void RemoveAt_PlacedSlot_VacatesAndHidesVisual()
         {
-            _controller.TryPlaceAt(_slot);
+            _controller.TryPlace(_customerData, _slot);
 
             var removed = _controller.RemoveAt(_slot);
 
@@ -135,12 +134,12 @@ namespace SushiDefense.Tests.PlayMode.Customers
         }
 
         [Test]
-        public void TryPlaceAt_AfterRemove_PlacesAgain()
+        public void TryPlace_AfterRemove_PlacesAgain()
         {
-            _controller.TryPlaceAt(_slot);
+            _controller.TryPlace(_customerData, _slot);
             _controller.RemoveAt(_slot);
 
-            Assert.IsTrue(_controller.TryPlaceAt(_slot));
+            Assert.IsTrue(_controller.TryPlace(_customerData, _slot));
         }
 
         private GameObject NewObject(string name)
