@@ -47,6 +47,15 @@ namespace SushiDefense.Customers
         private CustomerState _shownState = CustomerState.Idle;
         private bool _shownWaiting;
 
+        /// <summary>참조를 이미 챙겼나.</summary>
+        private bool _resolved;
+
+        /// <summary>
+        /// 프리팹이 들고 있던 그림. 자리를 비울 때 여기로 되돌린다 — 되돌리지 않으면
+        /// 직전 손님의 모습이 그대로 남는다.
+        /// </summary>
+        private Sprite _defaultSprite;
+
         /// <summary>이 뷰가 그리고 있는 손님 로직.</summary>
         public CustomerLogic Logic { get; private set; }
 
@@ -73,6 +82,8 @@ namespace SushiDefense.Customers
         /// </param>
         public void Bind(CustomerLogic logic, ClaimCoordinator coordinator)
         {
+            Resolve();
+
             Logic = logic;
             _coordinator = coordinator;
             _shownWaiting = false;
@@ -93,6 +104,7 @@ namespace SushiDefense.Customers
             {
                 BandText = string.Empty;
                 HudLabel.Write(_bandLabel, BandText);
+                RestoreDefaultIcon();
                 return;
             }
 
@@ -123,18 +135,60 @@ namespace SushiDefense.Customers
             }
         }
 
+        /// <summary>
+        /// 자리가 비었을 때 프리팹의 그림으로 되돌린다. 이것이 없으면 <b>다시 시작한 판의
+        /// 빈 자리에 직전 손님이 그대로 남는다</b> — 자리를 끄더라도, 그 자리에 다른 유형이
+        /// 앉고 그 손님의 아이콘이 비어 있으면 옛 그림이 이어진다.
+        /// </summary>
+        private void RestoreDefaultIcon()
+        {
+            if (_body != null)
+            {
+                _body.sprite = _defaultSprite;
+            }
+        }
+
         private void Awake()
         {
+            Resolve();
+        }
+
+        /// <summary>
+        /// 자기 참조를 <b>한 번만</b> 챙긴다. <see cref="Awake"/> 뿐 아니라
+        /// <see cref="Bind"/> 에서도 부르므로 <b>실행 순서에 기대지 않는다.</b>
+        ///
+        /// <para>
+        /// 자리는 손님이 앉을 때까지 <b>꺼져 있고</b>, <c>TableSlotView.Occupy</c> 는
+        /// <see cref="Bind"/> 를 부른 <b>뒤에</b> 자리를 켠다. 꺼진 오브젝트의
+        /// <see cref="Awake"/> 는 켜질 때까지 돌지 않으므로, 챙기는 일을 거기에만 두면
+        /// <b>첫 배치에서 <c>_body</c>·포화도 칸·배지가 전부 <c>null</c></b> 이다 —
+        /// 아이콘이 안 바뀌어 placeholder 블록이 그대로 남고 포화도는 통째로 빠진다.
+        /// 두 번째 판부터는 <see cref="Awake"/> 가 이미 돌아 정상으로 보이는데,
+        /// <b>«가끔 된다» 가 정확히 그 증상</b>이다 (<c>CustomerCardDrag.Resolve</c> 와
+        /// 같은 사고이며 그쪽은 이미 이 방식으로 막아 두었다).
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
             if (_body == null)
             {
                 _body = GetComponent<SpriteRenderer>();
             }
 
+            _defaultSprite = _body != null ? _body.sprite : null;
+
             _bandLabel = HudLabel.Resolve(transform, _bandLabel, BandLabelName);
 
             // 인스펙터가 비면 자기 하위에서 이름으로 찾는다. 씬 전역 탐색이 아니다 (§4.3).
-            _saturationBar = Resolve(_saturationBar, SaturationBarName);
-            _digestingBadge = Resolve(_digestingBadge, DigestingBadgeName);
+            _saturationBar = ResolveChild(_saturationBar, SaturationBarName);
+            _digestingBadge = ResolveChild(_digestingBadge, DigestingBadgeName);
         }
 
         /// <summary>
@@ -142,7 +196,7 @@ namespace SushiDefense.Customers
         /// <see cref="HudLabel.Resolve"/> 와 같은 방식이며, 타입 둘 때문에 그 조각을
         /// 일반화하지는 않았다.
         /// </summary>
-        private T Resolve<T>(T assigned, string childName) where T : Component
+        private T ResolveChild<T>(T assigned, string childName) where T : Component
         {
             if (assigned != null)
             {

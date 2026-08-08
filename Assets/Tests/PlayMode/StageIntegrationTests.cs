@@ -438,17 +438,48 @@ namespace SushiDefense.Tests.PlayMode
             Assert.AreEqual(3, run.Progression.StageCount);
         }
 
-        /// <summary>보상 화면이 닫히면 전환 화면이 열린다 — 구독이 실제로 걸려 있는지 본다.</summary>
+        /// <summary>
+        /// <b>보상을 고르면 곧바로 다음 판이다.</b> 확인 입력(Enter)을 한 번 더 받던 자리로,
+        /// 고르고 나서 아무 일도 일어나지 않는 화면이 «멈춘 것» 으로 읽혔다.
+        ///
+        /// <para>
+        /// 스테이지 번호가 실제로 올랐는지를 함께 본다 — 화면이 닫혔는지만 보면
+        /// «그냥 안 연다» 는 구현도 통과한다.
+        /// </para>
+        /// </summary>
         [Test]
-        public void Clear_MidRunStage_OpensTransitionAfterRewardsClosed()
+        public void Clear_MidRunStage_AdvancesImmediatelyAfterRewardsClosed()
         {
             var run = BuildRun(3);
-            Assert.IsFalse(run.Transition.IsOpen, "전제가 깨졌다 — 아직 열려 있으면 안 된다");
+            Assert.AreEqual(1, run.Progression.CurrentStageNumber, "전제가 깨졌다");
 
             run.Rewards.Open(run.Run);
             run.Rewards.Skip();
 
-            Assert.IsTrue(run.Transition.IsOpen);
+            Assert.AreEqual(2, run.Progression.CurrentStageNumber);
+            Assert.AreSame(_runStages[1], run.ActiveStage);
+            Assert.IsFalse(run.Transition.IsOpen, "다음 판 위에 전환 화면이 남았다");
+        }
+
+        /// <summary>
+        /// 마지막 판만 화면이 남는다. 3판을 다 깼다는 것을 알릴 곳이 여기뿐이고, 그때는
+        /// 넘어갈 다음 판도 없어 «바로 넘어간다» 가 성립하지 않는다.
+        ///
+        /// <para>
+        /// 위 테스트와 <b>짝</b>이다. 하나만 두면 «항상 통과» 또는 «항상 멈춤» 중 하나가
+        /// 통과한다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Clear_FinalStage_KeepsTransitionOpen()
+        {
+            var run = BuildRun(1);
+
+            run.Rewards.Open(run.Run);
+            run.Rewards.Skip();
+
+            Assert.IsTrue(run.Transition.IsOpen, "런이 끝났다는 것을 알릴 화면이 사라졌다");
+            Assert.IsTrue(run.Transition.IsRunFinale);
         }
 
         /// <summary>

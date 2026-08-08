@@ -262,7 +262,8 @@ namespace SushiDefense.Tests.EditMode.UI
 
         private void Build()
         {
-            _presenter = new RewardSelectionPresenter(_view, new RewardGenerator(_catalog));
+            _presenter = new RewardSelectionPresenter(_view, new RewardGenerator(_catalog),
+                                                     new StageWindowArbiter());
             _presenter.RewardChosen += offer => _chosen.Add(offer);
             _presenter.Closed += () => _closedCount++;
         }

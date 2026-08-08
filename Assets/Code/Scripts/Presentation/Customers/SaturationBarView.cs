@@ -32,6 +32,9 @@ namespace SushiDefense.Customers
 
         private CustomerRuntimeState _state;
 
+        /// <summary>칸을 이미 챙겼나.</summary>
+        private bool _resolved;
+
         /// <summary>지금 켜져 있는 칸 수. 검증용이다.</summary>
         public int ShownVisibleCells { get; private set; }
 
@@ -41,6 +44,7 @@ namespace SushiDefense.Customers
         /// <summary>인스펙터 없이 칸을 물린다. 테스트용 진입점이다.</summary>
         public void InitializeCells(SpriteRenderer[] cells)
         {
+            _resolved = true;
             _cells = cells;
         }
 
@@ -50,6 +54,8 @@ namespace SushiDefense.Customers
         /// </summary>
         public void Bind(CustomerRuntimeState state)
         {
+            Resolve();
+
             _state = state;
 
             var capacity = _cells != null ? _cells.Length : 0;
@@ -107,6 +113,29 @@ namespace SushiDefense.Customers
 
         private void Awake()
         {
+            Resolve();
+        }
+
+        /// <summary>
+        /// 칸을 <b>한 번만</b> 모은다. <see cref="Awake"/> 뿐 아니라 <see cref="Bind"/> 에서도
+        /// 부르므로 <b>실행 순서에 기대지 않는다.</b>
+        ///
+        /// <para>
+        /// 손님 오브젝트는 앉기 전까지 꺼져 있고, 자리를 켜는 것은 <see cref="Bind"/> 보다
+        /// <b>뒤</b>다. 꺼진 오브젝트의 <see cref="Awake"/> 는 그때까지 돌지 않으므로,
+        /// 모으는 일을 거기에만 두면 첫 배치에서 칸이 <c>null</c> 이라 <b>포화도가 통째로
+        /// 안 그려진다</b> (<c>CustomerView.Resolve</c> 와 같은 사고다).
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
             if (_cells == null || _cells.Length == 0)
             {
                 // 씬 전역 탐색이 아니다 — 자기 하위의 칸만 모은다 (§4.3).

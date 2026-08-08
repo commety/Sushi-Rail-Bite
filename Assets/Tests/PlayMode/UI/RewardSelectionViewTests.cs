@@ -247,7 +247,8 @@ namespace SushiDefense.Tests.PlayMode.UI
 #endif
 
             var run = new RunState(new SushiDeck(), new CustomerDeck(), seed: 7);
-            var presenter = new RewardSelectionPresenter(_view, new RewardGenerator(catalog));
+            var presenter = new RewardSelectionPresenter(_view, new RewardGenerator(catalog),
+                                                        new StageWindowArbiter());
             presenter.RewardChosen += offer => _chosen = offer;
             presenter.Closed += () => _closed = true;
 

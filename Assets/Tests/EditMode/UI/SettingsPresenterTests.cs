@@ -75,7 +75,7 @@ namespace SushiDefense.Tests.EditMode.UI
         public void Open_ShowsCurrentValues()
         {
             _presenter.SetMasterVolume(0.4f);
-            _applier.Fullscreen = true;
+            _presenter.SetFullscreen(true);
             _view.Reset();
 
             _presenter.Open();
@@ -193,22 +193,87 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.AreEqual(0f, _view.LastVolume, 0.0001f);
         }
 
+        // ── 전체화면은 비동기다 ──────────────────────────────────────────────
+
         /// <summary>
-        /// <b>고른 값이 아니라 실제로 그렇게 됐는지</b>를 보여 준다. 브라우저가 전체화면을
-        /// 거부했는데 토글만 켜져 있으면 플레이어가 무엇이 참인지 알 수 없다.
+        /// <b>리포트에 적힌 «두 번 눌러야 바뀐다» 를 재현한다.</b> 브라우저의 전체화면
+        /// 전환은 비동기라, 누른 그 프레임에는 엔진 값이 아직 옛 값이다. 그 값을 되읽어
+        /// 그리면 방금 켠 토글이 곧바로 꺼진 모습으로 되돌아간다.
         /// </summary>
         [Test]
-        public void SetFullscreen_WhenApplierRefuses_ShowsRefusedState()
+        public void SetFullscreen_ApplierLagsOneFrame_ShowsTheChosenValue()
         {
             _presenter.Open();
             _applier.RefuseFullscreen = true;
 
             _presenter.SetFullscreen(true);
 
-            Assert.IsFalse(_view.LastFullscreen, "거부됐는데 켜진 것으로 보인다");
+            Assert.IsTrue(_view.LastFullscreen, "고른 값이 화면에서 되돌아가면 두 번 눌러야 한다");
         }
 
-        /// <summary>거부된 것은 화면 표시일 뿐, <b>선호는 남는다</b> — 저장되는 값은 고른 쪽이다.</summary>
+        /// <summary>
+        /// 뒤늦게 엔진이 따라잡아도 <b>토글이 다시 흔들리지 않는다.</b> 위 테스트와 짝이며,
+        /// 하나만 두면 «엔진 값을 아예 안 본다» 는 구현도 통과한다.
+        /// </summary>
+        [Test]
+        public void SyncFullscreen_ApplierCatchesUp_DoesNotFlipBack()
+        {
+            _presenter.Open();
+            _applier.RefuseFullscreen = true;
+            _presenter.SetFullscreen(true);
+            _view.Reset();
+
+            _applier.Fullscreen = true;
+
+            Assert.IsFalse(_presenter.SyncFullscreen(), "우리가 시킨 변화는 다시 그릴 것이 없다");
+            Assert.AreEqual(0, _view.ShowCount);
+        }
+
+        /// <summary>
+        /// <c>Esc</c> 로 브라우저가 스스로 창 모드로 돌아간 경우. 그 경로는 콜백이 없어
+        /// <b>물어보는 수밖에 없고</b>, 안 물어보면 토글이 켜진 채로 거짓을 말한다.
+        /// </summary>
+        [Test]
+        public void SyncFullscreen_ExitedOutsideTheApp_TurnsToggleOff()
+        {
+            _presenter.SetFullscreen(true);
+            _presenter.Open();
+            _view.Reset();
+
+            _applier.Fullscreen = false;
+
+            Assert.IsTrue(_presenter.SyncFullscreen());
+            Assert.AreEqual(1, _view.ShowCount);
+            Assert.IsFalse(_view.LastFullscreen);
+        }
+
+        /// <summary>
+        /// 되돌린 것을 <b>다시 먹이지 않는다.</b> 여기서 적용하면 브라우저가 방금 나온
+        /// 전체화면으로 도로 밀어 넣는다.
+        /// </summary>
+        [Test]
+        public void SyncFullscreen_ExitedOutsideTheApp_DoesNotReapply()
+        {
+            _presenter.SetFullscreen(true);
+            var before = _applier.ApplyCount;
+
+            _applier.Fullscreen = false;
+            _presenter.SyncFullscreen();
+
+            Assert.AreEqual(before, _applier.ApplyCount);
+        }
+
+        [Test]
+        public void SyncFullscreen_NothingChanged_ReportsNoChange()
+        {
+            _presenter.Open();
+            _view.Reset();
+
+            Assert.IsFalse(_presenter.SyncFullscreen());
+            Assert.AreEqual(0, _view.ShowCount, "매 프레임 다시 그리면 슬라이더가 제자리로 튄다");
+        }
+
+        /// <summary>거부된 것은 표시일 뿐, <b>선호는 남는다</b> — 저장되는 값은 고른 쪽이다.</summary>
         [Test]
         public void SetFullscreen_WhenApplierRefuses_StillSavesThePreference()
         {

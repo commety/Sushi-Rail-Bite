@@ -34,7 +34,8 @@ namespace SushiDefense.Tests.PlayMode.UI
         private CustomerPlacementService _placement;
         private StageHudView _hud;
         private StageController _stage;
-        private CustomerPlacementController _placementController;
+        private RunProgression _progression;
+        private PauseState _pause;
         private TMP_Text _revenueLabel;
 
         [SetUp]
@@ -67,14 +68,17 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             _stage = new StageController(_coordinator, _revenue, _config);
 
-            _placementController = NewObject("Placement").AddComponent<CustomerPlacementController>();
-            _placementController.Initialize(System.Array.Empty<TableSlotView>(),
-                                            new[] { _customerData });
+            // 스테이지 한 장짜리 런. 단계 표시가 목록에서 나오는지 보려면 진행이 필요하다.
+            _progression = new RunProgression(new[] { _config },
+                                              new RunState(SushiDeck.FromSpawnTable(_config),
+                                                           new CustomerDeck(new[] { _customerData }),
+                                                           seed: 1));
+            _pause = new PauseState();
 
             _revenueLabel = NewObject("RevenueLabel").AddComponent<TextMeshPro>();
             _hud = NewObject("Hud").AddComponent<StageHudView>();
             SetLabel(_hud, "_revenueLabel", _revenueLabel);
-            _hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _placementController);
+            _hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _progression, _pause);
         }
 
         [TearDown]
@@ -246,15 +250,71 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.AreEqual("실패", _hud.OutcomeText);
         }
 
+        /// <summary>
+        /// 멈춤도 같은 배너를 쓴다. 실패·클리어와 한 자리를 나눠 쓰므로 라벨을 셋으로
+        /// 두면 동시에 뜰 때 겹친다.
+        /// </summary>
         [Test]
-        public void PendingCustomerText_RosterSelected_ShowsThatCustomer()
+        public void OutcomeText_Paused_ShowsPaused()
+        {
+            _pause.Pause();
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("일시정지", _hud.OutcomeText);
+        }
+
+        [Test]
+        public void OutcomeText_ResumedAfterPause_ClearsBanner()
+        {
+            _pause.Pause();
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            _pause.Resume();
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual(string.Empty, _hud.OutcomeText);
+        }
+
+        /// <summary>
+        /// 실패한 판은 멈춘 판이기도 하다. 그때 알려야 하는 것은 «멈췄다» 가 아니라
+        /// «졌다» 이므로 <b>결과가 멈춤을 이긴다.</b>
+        /// </summary>
+        [Test]
+        public void OutcomeText_FailedWhilePaused_ShowsFail()
+        {
+            _stage.Tick(TimeLimit);
+            _pause.Pause();
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("실패", _hud.OutcomeText);
+        }
+
+        /// <summary>
+        /// 단계는 <b>런의 진행 순서</b>에서 온다 — 스테이지 설정의 표시 번호가 아니다.
+        /// 순서의 진실은 목록이다 (<c>RunProgression</c>).
+        /// </summary>
+        [Test]
+        public void StageText_FreshRun_ShowsFirstStage()
         {
             _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
 
-            // 이름을 명시적으로 준다. CreateInstance 기본 이름이 빈 문자열이면
-            // StringAssert.Contains 가 무엇이든 통과해 공허해진다.
-            Assert.AreSame(_customerData, _placementController.PendingCustomer);
-            StringAssert.Contains("Customer.ForHudTest", _hud.PendingCustomerText);
+            Assert.AreEqual("스테이지 1", _hud.StageText);
+        }
+
+        /// <summary>
+        /// 런이 끝나면 진행 번호가 총수를 넘는다. 그대로 쓰면 «스테이지 2» 인 한 장짜리
+        /// 런이 나온다 — 총수에서 자른다.
+        /// </summary>
+        [Test]
+        public void StageText_RunComplete_DoesNotExceedStageCount()
+        {
+            _progression.AdvanceAfterClear();
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual("스테이지 1", _hud.StageText);
         }
 
         private static void SetReach(CustomerData data, float reach)
@@ -287,7 +347,7 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             // 자식이 먼저 있어야 한다 — AddComponent 가 곧바로 Awake 를 부른다.
             var hud = host.AddComponent<StageHudView>();
-            hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _placementController);
+            hud.Bind(_revenue, _wallet, _placement, _coordinator, _stage, _progression, _pause);
 
             Assert.AreEqual(hud.RevenueText, label.text);
         }

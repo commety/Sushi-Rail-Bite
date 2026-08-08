@@ -25,6 +25,23 @@ namespace SushiDefense.UI
         private readonly ISettingsStore _store;
         private readonly ISettingsApplier _applier;
 
+        /// <summary>
+        /// 엔진 쪽 전체화면 값을 <b>마지막으로 봤을 때의 상태</b>.
+        ///
+        /// <para>
+        /// 이것을 두지 않고 매번 엔진 값을 그대로 화면에 쓰면 <b>토글을 두 번 눌러야
+        /// 한 번 바뀐다.</b> 브라우저의 전체화면 전환은 비동기라, 누른 그 프레임에는
+        /// <c>Screen.fullScreen</c> 이 아직 옛 값이다 — 그 값을 되읽어 그리면 방금 켠
+        /// 토글이 곧바로 꺼진 모습으로 되돌아간다.
+        /// </para>
+        /// <para>
+        /// 그래서 <b>엔진 값이 달라진 순간에만</b> 반영한다. 우리가 시킨 변화는 이미
+        /// 모델에 있으므로 아무 일도 일어나지 않고, <c>Esc</c> 로 빠져나오는 것처럼
+        /// <b>우리가 시키지 않은</b> 변화만 화면으로 올라온다.
+        /// </para>
+        /// </summary>
+        private bool _observedFullscreen;
+
         /// <summary>화면이 떠 있나.</summary>
         public bool IsOpen { get; private set; }
 
@@ -50,6 +67,7 @@ namespace SushiDefense.UI
 
             _store.Load(_settings);
             _applier.Apply(_settings);
+            _observedFullscreen = _applier.IsFullscreen;
         }
 
         /// <summary>
@@ -95,8 +113,8 @@ namespace SushiDefense.UI
         }
 
         /// <summary>
-        /// 전체화면을 정한다. <b>화면에는 실제로 그렇게 됐는지를 표시한다</b> — 브라우저가
-        /// 거부해도 토글만 켜지면 플레이어가 무엇이 참인지 알 수 없다.
+        /// 전체화면을 정한다. <b>화면에는 고른 값을 그대로 표시한다</b> — 엔진 값을 되읽으면
+        /// 비동기 전환 때문에 토글이 제자리로 튄다 (<see cref="_observedFullscreen"/>).
         /// </summary>
         public void SetFullscreen(bool value)
         {
@@ -104,9 +122,50 @@ namespace SushiDefense.UI
             ApplyAndShow();
         }
 
+        /// <summary>
+        /// 엔진 쪽에서 <b>우리가 시키지 않은</b> 전체화면 변화가 있었는지 확인한다.
+        /// 브라우저에서 <c>Esc</c> 로 빠져나오는 경로가 그것이며, 이걸 보지 않으면
+        /// 창으로 돌아온 뒤에도 토글이 켜진 채로 남는다.
+        ///
+        /// <para>
+        /// <b>매 프레임 불러도 된다.</b> <c>bool</c> 하나를 읽어 비교할 뿐이고, 값이 실제로
+        /// 달라진 프레임에만 화면을 다시 그린다 (§4.3).
+        /// </para>
+        /// </summary>
+        /// <returns>화면에 반영할 변화가 있었으면 <c>true</c>.</returns>
+        public bool SyncFullscreen()
+        {
+            var actual = _applier.IsFullscreen;
+            if (actual == _observedFullscreen)
+            {
+                return false;
+            }
+
+            _observedFullscreen = actual;
+
+            if (actual == _settings.Fullscreen)
+            {
+                return false;
+            }
+
+            // 모델만 맞춘다. 여기서 Apply 를 부르면 방금 브라우저가 바꾼 것을 되돌리게 된다.
+            _settings.SetFullscreen(actual);
+
+            if (IsOpen)
+            {
+                Show();
+            }
+
+            return true;
+        }
+
         private void ApplyAndShow()
         {
             _applier.Apply(_settings);
+
+            // 방금 우리가 시킨 결과를 «본 것» 으로 기록한다. 이걸 빠뜨리면 다음
+            // SyncFullscreen 이 우리 자신의 변화를 «바깥에서 일어난 일» 로 착각한다.
+            _observedFullscreen = _applier.IsFullscreen;
 
             if (IsOpen)
             {
@@ -116,7 +175,7 @@ namespace SushiDefense.UI
 
         private void Show()
         {
-            _view.ShowSettings(_settings.MasterVolume, _applier.IsFullscreen);
+            _view.ShowSettings(_settings.MasterVolume, _settings.Fullscreen);
         }
     }
 }

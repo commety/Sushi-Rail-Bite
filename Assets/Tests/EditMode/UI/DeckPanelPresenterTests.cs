@@ -24,6 +24,7 @@ namespace SushiDefense.Tests.EditMode.UI
 
         private FakeDeckPanelView _view;
         private RunState _run;
+        private StageWindowArbiter _windows;
         private DeckPanelPresenter _presenter;
 
         [SetUp]
@@ -32,7 +33,8 @@ namespace SushiDefense.Tests.EditMode.UI
             _view = new FakeDeckPanelView();
             _run = new RunState(new SushiDeck(new[] { NewSushi("장어"), NewSushi("연어") }),
                                 new CustomerDeck(), seed: 1);
-            _presenter = new DeckPanelPresenter(_view, _run);
+            _windows = new StageWindowArbiter();
+            _presenter = new DeckPanelPresenter(_view, _run, _windows);
         }
 
         [TearDown]
@@ -72,13 +74,54 @@ namespace SushiDefense.Tests.EditMode.UI
         public void Open_EmptyDeck_StillOpens()
         {
             var empty = new DeckPanelPresenter(_view, new RunState(new SushiDeck(),
-                                                                   new CustomerDeck(), seed: 1));
+                                                                   new CustomerDeck(), seed: 1),
+                                               new StageWindowArbiter());
 
             empty.Open();
 
             Assert.IsTrue(empty.IsOpen);
             Assert.AreEqual(1, _view.ShowCount);
             Assert.IsEmpty(_view.LastShown);
+        }
+
+        /// <summary>
+        /// 덱 화면을 열어 둔 채 메뉴 버튼을 누르면 두 패널이 겹쳐 글자가 서로를 뚫고
+        /// 나왔다. 더 높은 창이 떠 있으면 <b>열지 않는다.</b>
+        /// </summary>
+        [Test]
+        public void Open_WhileMenuOpen_DoesNotShow()
+        {
+            _windows.TryOpen(StageWindow.Menu);
+
+            _presenter.Open();
+
+            Assert.IsFalse(_presenter.IsOpen);
+            Assert.AreEqual(0, _view.ShowCount);
+        }
+
+        /// <summary>
+        /// 보상 위에는 겹칠 수 있다 — 그것이 유일한 예외다. 이 테스트가 없으면
+        /// «아무것도 안 떠 있을 때만 연다» 는 구현도 위 테스트를 통과한다.
+        /// </summary>
+        [Test]
+        public void Open_WhileRewardOpen_StillShows()
+        {
+            _windows.TryOpen(StageWindow.Reward);
+
+            _presenter.Open();
+
+            Assert.IsTrue(_presenter.IsOpen);
+            Assert.AreEqual(1, _view.ShowCount);
+        }
+
+        [Test]
+        public void Close_ReleasesArbiterSlot()
+        {
+            _presenter.Open();
+
+            _presenter.Close();
+
+            Assert.IsFalse(_windows.IsOpen(StageWindow.Deck));
         }
 
         [Test]
@@ -153,13 +196,13 @@ namespace SushiDefense.Tests.EditMode.UI
         [Test]
         public void Constructor_NullView_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new DeckPanelPresenter(null, _run));
+            Assert.Throws<ArgumentNullException>(() => new DeckPanelPresenter(null, _run, _windows));
         }
 
         [Test]
         public void Constructor_NullRun_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new DeckPanelPresenter(_view, null));
+            Assert.Throws<ArgumentNullException>(() => new DeckPanelPresenter(_view, null, _windows));
         }
 
         private SushiData NewSushi(string displayName)

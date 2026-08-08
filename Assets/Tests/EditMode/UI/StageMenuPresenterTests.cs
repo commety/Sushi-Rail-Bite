@@ -21,6 +21,7 @@ namespace SushiDefense.Tests.EditMode.UI
         private PauseState _pause;
         private FakeStageRestarter _restarter;
         private FakeSceneRouter _router;
+        private StageWindowArbiter _windows;
         private StageMenuPresenter _presenter;
 
         [SetUp]
@@ -30,7 +31,8 @@ namespace SushiDefense.Tests.EditMode.UI
             _pause = new PauseState();
             _restarter = new FakeStageRestarter();
             _router = new FakeSceneRouter();
-            _presenter = new StageMenuPresenter(_view, _pause, _restarter, _router);
+            _windows = new StageWindowArbiter();
+            _presenter = new StageMenuPresenter(_view, _pause, _restarter, _router, _windows);
             _restarter.Watching = _presenter;
         }
 
@@ -42,8 +44,7 @@ namespace SushiDefense.Tests.EditMode.UI
         }
 
         /// <summary>
-        /// <b>여는 순간 멈춘다.</b> 메뉴를 보는 동안 벨트가 흐르면 메뉴가 곧 페널티가 된다 —
-        /// <c>Pause</c>/<c>Play</c> 버튼은 메뉴를 연 채로 다시 흘려 보고 싶을 때의 것이다.
+        /// <b>여는 순간 멈춘다.</b> 메뉴를 보는 동안 벨트가 흐르면 메뉴가 곧 페널티가 된다.
         /// </summary>
         [Test]
         public void Open_WhenRunning_PausesAndShows()
@@ -53,7 +54,7 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.IsTrue(_presenter.IsOpen);
             Assert.IsTrue(_pause.IsPaused);
             Assert.AreEqual(1, _view.ShowCount);
-            Assert.IsTrue(_view.LastShownPaused);
+            Assert.IsTrue(_view.LastCanResume);
         }
 
         [Test]
@@ -68,30 +69,113 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.AreEqual(1, _view.HideCount);
         }
 
+        /// <summary>
+        /// 메뉴 아이콘으로 <b>닫을 수도 있어야</b> 한다. 덱 버튼이 이미 토글이라, 같은
+        /// 자리의 두 아이콘이 다르게 동작하면 어느 쪽이 규칙인지 알 수 없다.
+        /// </summary>
         [Test]
-        public void Pause_Twice_StaysPausedAndShowsOnce()
+        public void Toggle_WhenClosed_Opens()
+        {
+            _presenter.Toggle();
+
+            Assert.IsTrue(_presenter.IsOpen);
+            Assert.IsTrue(_pause.IsPaused);
+        }
+
+        [Test]
+        public void Toggle_WhenOpen_ClosesAndResumes()
         {
             _presenter.Open();
-            _view.Reset();
 
-            _presenter.Pause();
+            _presenter.Toggle();
 
-            Assert.IsTrue(_pause.IsPaused);
-            Assert.AreEqual(0, _view.ShowCount, "이미 멈춰 있으면 화면을 다시 그리지 않는다");
+            Assert.IsFalse(_presenter.IsOpen);
+            Assert.IsFalse(_pause.IsPaused);
+            Assert.AreEqual(1, _view.HideCount);
         }
 
         /// <summary>
-        /// 메뉴를 연 채로 다시 흘려 볼 수 있어야 한다 — 그것이 <c>Play</c> 버튼의 쓰임새다.
+        /// 두 번 토글하면 제자리다. 한쪽 방향만 보는 테스트는 «항상 연다» 는 구현도
+        /// 통과시킨다.
         /// </summary>
         [Test]
-        public void Resume_WhileMenuOpen_KeepsMenuOpen()
+        public void Toggle_Twice_ReturnsToClosed()
+        {
+            _presenter.Toggle();
+            _presenter.Toggle();
+
+            Assert.IsFalse(_presenter.IsOpen);
+            Assert.AreEqual(1, _view.ShowCount);
+            Assert.AreEqual(1, _view.HideCount);
+        }
+
+        /// <summary>
+        /// <b>재개는 메뉴를 닫는다.</b> 메뉴가 곧 멈춤이므로, 열어 둔 채 시간만 흘리는
+        /// 네 번째 상태를 만들지 않는다.
+        /// </summary>
+        [Test]
+        public void Resume_ClosesMenuAndResumes()
         {
             _presenter.Open();
 
             _presenter.Resume();
 
             Assert.IsFalse(_pause.IsPaused);
-            Assert.IsTrue(_presenter.IsOpen, "재개가 메뉴를 닫아 버리면 다시 멈출 수가 없다");
+            Assert.IsFalse(_presenter.IsOpen, "재개했는데 메뉴가 그대로면 판이 가려진다");
+            Assert.AreEqual(1, _view.HideCount);
+        }
+
+        /// <summary>실패해서 열린 메뉴에는 돌아갈 판이 없다 — 재개 버튼이 빠진다.</summary>
+        [Test]
+        public void OpenAfterFailure_HidesResume()
+        {
+            _presenter.OpenAfterFailure();
+
+            Assert.IsTrue(_presenter.IsOpen);
+            Assert.IsFalse(_presenter.CanResume);
+            Assert.IsFalse(_view.LastCanResume);
+        }
+
+        /// <summary>
+        /// 실패 창에서도 다시 시작과 나가기는 그대로 동작한다 — 그것이 이 창을 재사용하는
+        /// 이유다.
+        /// </summary>
+        [Test]
+        public void OpenAfterFailure_StillRestarts()
+        {
+            _presenter.OpenAfterFailure();
+
+            _presenter.Restart();
+
+            Assert.AreEqual(1, _restarter.RestartCount);
+            Assert.IsFalse(_presenter.IsOpen);
+        }
+
+        /// <summary>
+        /// 더 높은 창은 없지만, 조정자가 거절하면 열리지 않아야 한다. 조정자를 아예
+        /// 무시하는 구현을 배제한다.
+        /// </summary>
+        [Test]
+        public void Open_WhileArbiterHoldsMenu_DoesNotReopen()
+        {
+            _windows.TryOpen(StageWindow.Menu);
+
+            _presenter.Open();
+
+            Assert.AreEqual(1, _windows.OpenCount);
+            Assert.AreEqual(1, _view.ShowCount);
+        }
+
+        /// <summary>메뉴가 닫히면 조정자도 그 자리를 비워야 다음 창이 열린다.</summary>
+        [Test]
+        public void Close_ReleasesArbiterSlot()
+        {
+            _presenter.Open();
+
+            _presenter.Close();
+
+            Assert.IsFalse(_windows.IsOpen(StageWindow.Menu));
+            Assert.IsTrue(_windows.TryOpen(StageWindow.Deck));
         }
 
         [Test]
@@ -170,13 +254,15 @@ namespace SushiDefense.Tests.EditMode.UI
         public void Constructor_NullDependency_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new StageMenuPresenter(null, _pause, _restarter, _router));
+                () => new StageMenuPresenter(null, _pause, _restarter, _router, _windows));
             Assert.Throws<ArgumentNullException>(
-                () => new StageMenuPresenter(_view, null, _restarter, _router));
+                () => new StageMenuPresenter(_view, null, _restarter, _router, _windows));
             Assert.Throws<ArgumentNullException>(
-                () => new StageMenuPresenter(_view, _pause, null, _router));
+                () => new StageMenuPresenter(_view, _pause, null, _router, _windows));
             Assert.Throws<ArgumentNullException>(
-                () => new StageMenuPresenter(_view, _pause, _restarter, null));
+                () => new StageMenuPresenter(_view, _pause, _restarter, null, _windows));
+            Assert.Throws<ArgumentNullException>(
+                () => new StageMenuPresenter(_view, _pause, _restarter, _router, null));
         }
 
         private sealed class FakeStageMenuView : IStageMenuView
@@ -185,12 +271,12 @@ namespace SushiDefense.Tests.EditMode.UI
 
             public int HideCount { get; private set; }
 
-            public bool LastShownPaused { get; private set; }
+            public bool LastCanResume { get; private set; }
 
-            public void ShowMenu(bool paused)
+            public void ShowMenu(bool canResume)
             {
                 ShowCount++;
-                LastShownPaused = paused;
+                LastCanResume = canResume;
             }
 
             public void Hide()
@@ -198,11 +284,6 @@ namespace SushiDefense.Tests.EditMode.UI
                 HideCount++;
             }
 
-            public void Reset()
-            {
-                ShowCount = 0;
-                HideCount = 0;
-            }
         }
 
         /// <summary>

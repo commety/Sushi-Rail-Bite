@@ -78,8 +78,12 @@ namespace SushiDefense.Customers
                 return;
             }
 
-            _seatVisual.Bind(logic, coordinator);
+            // 켜는 것이 먼저다. 꺼진 오브젝트의 Awake 는 아직 돌지 않았으므로, 물리는 것을
+            // 앞에 두면 뷰가 자기 렌더러·포화도 칸을 아직 못 챙긴 채로 값을 받는다.
+            // 뷰 쪽에도 같은 사고를 막는 장치가 있지만(CustomerView.Resolve), 순서를 바로
+            // 잡아 두면 그것이 두 번째 그물로 남는다.
             _seatVisual.gameObject.SetActive(true);
+            _seatVisual.Bind(logic, coordinator);
         }
 
         /// <summary>자리를 비운다.</summary>

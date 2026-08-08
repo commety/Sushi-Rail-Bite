@@ -213,6 +213,68 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsFalse(_hand.IsAvailableAt(1));
         }
 
+        // ── 잔액이 늘면 스스로 다시 평가한다 ──────────────────────────────
+
+        /// <summary>
+        /// <b>실플레이에서 «영입 비용이 충분해도 특수 손님을 더 못 놓는다» 던 증상이다.</b>
+        ///
+        /// <para>
+        /// 카드가 다시 평가되는 시점이 «명부를 물릴 때» 와 «배치에 성공했을 때» 둘뿐이라,
+        /// 영입 재화가 쌓여도 비싼 카드는 흐린 채로 남았다 — 다른 손님을 먼저 앉히면
+        /// 풀리는 것이 그 증거였다.
+        /// </para>
+        /// <para>
+        /// <b><c>Refresh</c> 를 부르지 않는다.</b> 부르면 이 테스트가 검증하려는 «스스로
+        /// 다시 평가하는가» 를 테스트가 대신해 주게 되어, 고쳐지지 않은 코드도 통과한다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Watch_BalanceGrows_ExpensiveCardBecomesAvailableWithoutRefresh()
+        {
+            _wallet.TrySpend(_wallet.Balance - 30);
+            _hand.Watch(_wallet);
+            _hand.Bind(new[] { _cheap, _pricey });
+            Assert.IsFalse(_hand.IsAvailableAt(1), "잔액 30 이면 60 짜리는 못 놓는다");
+
+            // 재화는 소비된 초밥 가격에서 적립된다 — 400 이 곧 40 이다.
+            _wallet.AccrueFrom(400);
+
+            Assert.IsTrue(_hand.IsAvailableAt(1), "잔액이 70 이 됐는데도 카드가 흐린 채로 남는다");
+        }
+
+        /// <summary>
+        /// 반대 방향도 본다. 한쪽만 보면 «잔액이 바뀌면 무조건 켠다» 는 구현이 통과한다.
+        /// </summary>
+        [Test]
+        public void Watch_BalanceSpent_ExpensiveCardGoesUnavailable()
+        {
+            _wallet.AccrueFrom(500);
+            _hand.Watch(_wallet);
+            _hand.Bind(new[] { _cheap, _pricey });
+            Assert.IsTrue(_hand.IsAvailableAt(1));
+
+            _wallet.TrySpend(_wallet.Balance - 10);
+
+            Assert.IsFalse(_hand.IsAvailableAt(1));
+        }
+
+        /// <summary>
+        /// 판이 바뀌면 지갑도 새로 열린다. 끊지 않으면 <b>죽은 지갑</b>이 손패를 계속
+        /// 흔들어, 새 판의 잔액과 무관한 표시가 나온다.
+        /// </summary>
+        [Test]
+        public void Unwatch_ThenOldWalletChanges_DoesNotTouchTheHand()
+        {
+            _wallet.TrySpend(_wallet.Balance - 30);
+            _hand.Watch(_wallet);
+            _hand.Bind(new[] { _cheap, _pricey });
+
+            _hand.Unwatch();
+            _wallet.AccrueFrom(1000);
+
+            Assert.IsFalse(_hand.IsAvailableAt(1), "끊었는데도 옛 지갑이 카드를 켰다");
+        }
+
         // ── 우회로를 타지 않는 테스트 ────────────────────────────────────
 
         /// <summary>

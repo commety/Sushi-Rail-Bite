@@ -131,6 +131,20 @@ namespace SushiDefense.UI
             Unsubscribe();
         }
 
+        /// <summary>
+        /// 브라우저가 스스로 전체화면을 빠져나오는 경우(<c>Esc</c>)를 잡는다. 그 경로는
+        /// 콜백이 없어 <b>물어보는 수밖에 없다.</b>
+        ///
+        /// <para>
+        /// 패널이 닫혀 있어도 돈다. 닫힌 동안 창으로 돌아왔는데 모델이 «전체화면» 인 채로
+        /// 남으면, 다음에 설정을 열었을 때 토글이 거짓을 말한다.
+        /// </para>
+        /// </summary>
+        private void Update()
+        {
+            _presenter?.SyncFullscreen();
+        }
+
         private void Subscribe()
         {
             if (_volumeSlider != null)

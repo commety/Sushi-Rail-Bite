@@ -17,6 +17,7 @@ namespace SushiDefense.UI
     {
         private readonly IRewardSelectionView _view;
         private readonly RewardGenerator _generator;
+        private readonly StageWindowArbiter _windows;
 
         /// <summary>지금 제시 중인 후보. 틱마다 도는 경로가 아니라 재사용은 편의다.</summary>
         private readonly List<RewardOffer> _offers = new();
@@ -45,10 +46,12 @@ namespace SushiDefense.UI
         /// </summary>
         public event Action Closed;
 
-        public RewardSelectionPresenter(IRewardSelectionView view, RewardGenerator generator)
+        public RewardSelectionPresenter(IRewardSelectionView view, RewardGenerator generator,
+                                       StageWindowArbiter windows)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _generator = generator ?? throw new ArgumentNullException(nameof(generator));
+            _windows = windows ?? throw new ArgumentNullException(nameof(windows));
         }
 
         /// <summary>
@@ -65,6 +68,10 @@ namespace SushiDefense.UI
             {
                 throw new ArgumentNullException(nameof(run));
             }
+
+            // 조정자는 보상을 거절하지 않는다 — 닫으면 다음 판이라 나중에 다시 열 방법이
+            // 없다. 위에 창이 떠 있으면 그 밑으로 깔린다.
+            _windows.TryOpen(StageWindow.Reward);
 
             _generator.Generate(run, _offers);
             _current = run;
@@ -113,6 +120,7 @@ namespace SushiDefense.UI
         {
             IsOpen = false;
             _current = null;
+            _windows.Close(StageWindow.Reward);
             _view.Hide();
             Closed?.Invoke();
         }

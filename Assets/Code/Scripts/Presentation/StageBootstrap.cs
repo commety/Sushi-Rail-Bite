@@ -143,6 +143,12 @@ namespace SushiDefense
         /// </summary>
         public PauseState Pause { get; private set; }
 
+        /// <summary>
+        /// 스테이지 위의 창이 겹쳐 뜨지 않게 하는 조정자. <b>런 수명이다</b> — 창들 자신이
+        /// 런 수명이므로 조정자만 판마다 새로 만들면 열려 있던 창을 잊는다.
+        /// </summary>
+        public StageWindowArbiter Windows { get; private set; }
+
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
                                SushiBeltView beltView, Transform beltStart, Transform beltEnd,
@@ -211,7 +217,7 @@ namespace SushiDefense
 
             if (_hud != null)
             {
-                _hud.Bind(Revenue, Wallet, Placement, Coordinator, Stage, _placementController);
+                _hud.Bind(Revenue, Wallet, Placement, Coordinator, Stage, Progression, Pause);
             }
 
             // 디렉터 자체는 런 수명이다. 판이 바뀔 때마다 새 출처만 갈아 낀다 —
@@ -232,6 +238,10 @@ namespace SushiDefense
             if (_hand != null)
             {
                 _hand.Initialize(_placementController, null, _slots);
+
+                // 지갑을 물리는 것이 명부보다 먼저다. Bind 가 끝나며 카드를 한 번 평가하고,
+                // 그 뒤로는 잔액이 바뀔 때마다 지갑이 다시 평가시킨다.
+                _hand.Watch(Wallet);
                 _hand.Bind(Run.Customers.Members);
             }
         }
@@ -262,6 +272,9 @@ namespace SushiDefense
                                new CustomerDeck(_startingCustomers), NewSeed());
             Progression = new RunProgression(stages, Run);
             Pause = new PauseState();
+
+            Windows = new StageWindowArbiter();
+            Windows.CloseRequested += OnWindowCloseRequested;
 
             BuildRewards();
             BuildTransition();
@@ -315,6 +328,17 @@ namespace SushiDefense
                 return;
             }
 
+            // 자리를 먼저 전부 비운다. 배치 서비스는 판마다 새로 열려 «아무도 안 앉은»
+            // 상태로 시작하는데, 자리는 씬 오브젝트라 직전 판의 손님을 그대로 들고 있다 —
+            // 다시 시작한 판의 테이블에 이전 손님이 남아 있던 것이 이 때문이다.
+            for (var i = 0; i < _slots.Length; i++)
+            {
+                if (_slots[i] != null)
+                {
+                    _slots[i].Vacate();
+                }
+            }
+
             var definitions = ActiveStage.TableSlots;
             if (definitions.Count == 0)
             {
@@ -351,7 +375,8 @@ namespace SushiDefense
                 return;
             }
 
-            Rewards = new RewardSelectionPresenter(_rewardView, new RewardGenerator(_rewardCatalog));
+            Rewards = new RewardSelectionPresenter(_rewardView, new RewardGenerator(_rewardCatalog),
+                                                   Windows);
             Rewards.Closed += OnRewardsClosed;
             _rewardView.Bind(Rewards);
         }
@@ -389,7 +414,7 @@ namespace SushiDefense
                 return;
             }
 
-            Deck = new DeckPanelPresenter(_deckPanelView, Run);
+            Deck = new DeckPanelPresenter(_deckPanelView, Run, Windows);
             _deckPanelView.Bind(Deck);
         }
 
@@ -404,8 +429,30 @@ namespace SushiDefense
                 return;
             }
 
-            Menu = new StageMenuPresenter(_stageMenuView, Pause, this, _sceneRouter);
+            Menu = new StageMenuPresenter(_stageMenuView, Pause, this, _sceneRouter, Windows);
             _stageMenuView.Bind(Menu);
+        }
+
+        /// <summary>
+        /// 조정자가 밀어낸 창을 실제로 내린다. <b>조정자는 뷰를 모른다</b> — 창마다 닫기
+        /// 절차가 다르고(저장·이벤트 발행), 그것을 조정자가 알면 창이 늘 때마다 거기를 고친다.
+        ///
+        /// <para>
+        /// 보상은 여기에 없다. 보상은 밀려나는 창이 아니라 <b>밑에 깔리는 창</b>이고,
+        /// 닫히는 순간이 곧 다음 판이라 임의로 내릴 수 없다.
+        /// </para>
+        /// </summary>
+        private void OnWindowCloseRequested(StageWindow window)
+        {
+            switch (window)
+            {
+                case StageWindow.Menu:
+                    Menu?.Close();
+                    break;
+                case StageWindow.Deck:
+                    Deck?.Close();
+                    break;
+            }
         }
 
         /// <summary>
@@ -417,10 +464,33 @@ namespace SushiDefense
             Retry();
         }
 
-        /// <summary>보상 화면이 닫혔다. 이제 다음 판으로 넘어갈지 묻는다.</summary>
+        /// <summary>
+        /// 보상 화면이 닫혔다. <b>다음 판으로 바로 넘어간다.</b>
+        ///
+        /// <para>
+        /// 확인 입력(Enter)을 한 번 더 받던 자리다. 보상을 고르는 것 자체가 이미 «다음으로
+        /// 가겠다» 는 입력이라, 한 박자를 더 두면 <b>고르고 나서 아무 일도 일어나지 않는</b>
+        /// 화면이 된다 — 안내 문구가 키를 알려 주어도 그 화면을 처음 보는 사람에게는 멈춘
+        /// 것으로 읽힌다.
+        /// </para>
+        /// <para>
+        /// <b>런 완료만 화면으로 남긴다.</b> 3판을 다 깼다는 것을 알릴 곳이 여기뿐이고,
+        /// 그때는 넘어갈 다음 판도 없어 «바로 넘어간다» 가 성립하지 않는다.
+        /// </para>
+        /// </summary>
         private void OnRewardsClosed()
         {
-            Transition?.Open();
+            if (Transition == null)
+            {
+                return;
+            }
+
+            Transition.Open();
+
+            if (!Transition.IsRunFinale)
+            {
+                Transition.Proceed();
+            }
         }
 
         /// <summary>
@@ -474,11 +544,13 @@ namespace SushiDefense
         }
 
         /// <summary>
-        /// 판정이 났다. <b>클리어에만 보상 화면을 연다</b> — 실패는 재시도 경로다.
+        /// 판정이 났다. <b>클리어는 보상 화면, 실패는 메뉴</b>로 간다.
         ///
         /// <para>
-        /// 다음 스테이지로 넘어가는 것은 여기서 하지 않는다. 보상 화면이 닫히면
-        /// 전환 화면이 열리고, 확인 입력에서 비로소 런이 움직인다.
+        /// 실패했을 때 아무 화면도 뜨지 않으면 플레이어가 메뉴 아이콘을 스스로 찾아야
+        /// 하는데, 그 시점의 화면은 <b>멈춘 판과 구분되지 않는다.</b> 필요한 것은 다시
+        /// 시작과 나가기 둘이고 그 둘은 이미 메뉴에 있으므로, 전용 화면을 새로 만들지 않고
+        /// 재개 버튼만 빠진 형태로 연다.
         /// </para>
         /// </summary>
         private void OnOutcomeDecided(StageOutcome outcome)
@@ -486,6 +558,12 @@ namespace SushiDefense
             if (outcome == StageOutcome.Cleared)
             {
                 Rewards?.Open(Run);
+                return;
+            }
+
+            if (outcome == StageOutcome.Failed)
+            {
+                Menu?.OpenAfterFailure();
             }
         }
 
@@ -635,6 +713,12 @@ namespace SushiDefense
             Menu = null;
             Pause = null;
 
+            if (Windows != null)
+            {
+                Windows.CloseRequested -= OnWindowCloseRequested;
+                Windows = null;
+            }
+
             if (_audioDirector != null)
             {
                 _audioDirector.Unbind();
@@ -656,6 +740,12 @@ namespace SushiDefense
             if (_hud != null)
             {
                 _hud.Unbind();
+            }
+
+            // 지갑은 판마다 새로 열린다. 끊지 않으면 손패가 죽은 지갑을 계속 듣는다.
+            if (_hand != null)
+            {
+                _hand.Unwatch();
             }
 
             if (Stage != null)

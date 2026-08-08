@@ -1,5 +1,5 @@
 using SushiDefense.Customers;
-using SushiDefense.Data;
+using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
 using TMPro;
@@ -36,7 +36,10 @@ namespace SushiDefense.UI
         private const string WaitingLabelName = "WaitingLabel";
         private const string TimeLabelName = "TimeLabel";
         private const string OutcomeLabelName = "OutcomeLabel";
-        private const string PendingCustomerLabelName = "PendingCustomerLabel";
+        private const string StageLabelName = "StageLabel";
+
+        /// <summary>멈춰 있을 때의 배너 문구.</summary>
+        private const string PausedText = "일시정지";
 
         [SerializeField] private TMP_Text _revenueLabel;
         [SerializeField] private TMP_Text _walletLabel;
@@ -44,20 +47,22 @@ namespace SushiDefense.UI
         [SerializeField] private TMP_Text _waitingLabel;
         [SerializeField] private TMP_Text _timeLabel;
         [SerializeField] private TMP_Text _outcomeLabel;
-        [SerializeField] private TMP_Text _pendingCustomerLabel;
+        [SerializeField] private TMP_Text _stageLabel;
 
         private RevenueLedger _revenue;
         private RecruitWallet _wallet;
         private CustomerPlacementService _placement;
         private ClaimCoordinator _coordinator;
         private StageController _stage;
-        private CustomerPlacementController _roster;
+        private RunProgression _progression;
+        private PauseState _pause;
 
         private int _shownPlacedCount = -1;
         private int _shownWaitingCount = -1;
         private int _shownSeconds = -1;
+        private int _shownStageNumber = -1;
         private StageOutcome _shownOutcome = StageOutcome.InProgress;
-        private CustomerData _shownPendingCustomer;
+        private bool _shownPaused;
 
         /// <summary>지금 표시 중인 매출 문구. 검증용이다.</summary>
         public string RevenueText { get; private set; }
@@ -82,19 +87,31 @@ namespace SushiDefense.UI
         /// <summary>지금 표시 중인 남은 시간 문구.</summary>
         public string TimeText { get; private set; }
 
-        /// <summary>지금 표시 중인 결과 문구. 진행 중이면 빈 문자열이다.</summary>
+        /// <summary>
+        /// 지금 표시 중인 배너 문구 — 클리어 · 실패 · 일시정지. 아무것도 아니면 빈 문자열이다.
+        ///
+        /// <para>
+        /// 셋을 한 라벨이 진다. 화면 최상단 가운데 한 자리를 셋이 나눠 쓰는 것이라
+        /// 라벨을 셋으로 두면 위치를 세 번 맞춰야 하고, <b>동시에 뜨면 겹친다.</b>
+        /// </para>
+        /// </summary>
         public string OutcomeText { get; private set; } = string.Empty;
 
-        /// <summary>지금 표시 중인 배치 예정 손님 문구.</summary>
-        public string PendingCustomerText { get; private set; }
+        /// <summary>지금 표시 중인 스테이지 단계 문구.</summary>
+        public string StageText { get; private set; } = string.Empty;
 
         /// <summary>
         /// 표시 대상을 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 를 두 번 부르면
         /// 구독이 겹쳐 한 번의 변화가 두 번 반영된다.
         /// </summary>
+        /// <param name="progression">
+        /// 몇 판째인지의 출처. <c>null</c> 이면 단계 표시만 빠진다 — 씬을 조금씩 조립하는
+        /// 동안 흔한 상태다.
+        /// </param>
+        /// <param name="pause">멈춤 배너의 출처. <c>null</c> 이면 배너에 클리어·실패만 뜬다.</param>
         public void Bind(RevenueLedger revenue, RecruitWallet wallet,
                          CustomerPlacementService placement, ClaimCoordinator coordinator,
-                         StageController stage, CustomerPlacementController roster)
+                         StageController stage, RunProgression progression, PauseState pause)
         {
             Unbind();
 
@@ -103,7 +120,8 @@ namespace SushiDefense.UI
             _placement = placement;
             _coordinator = coordinator;
             _stage = stage;
-            _roster = roster;
+            _progression = progression;
+            _pause = pause;
 
             if (_revenue != null)
             {
@@ -120,15 +138,16 @@ namespace SushiDefense.UI
             _shownPlacedCount = -1;
             _shownWaitingCount = -1;
             _shownSeconds = -1;
+            _shownStageNumber = -1;
             _shownOutcome = StageOutcome.InProgress;
-            _shownPendingCustomer = null;
+            _shownPaused = false;
             OutcomeText = string.Empty;
             HudLabel.Write(_outcomeLabel, OutcomeText);
 
             RefreshPlacement();
             RefreshWaiting();
             RefreshTime();
-            RefreshPendingCustomer();
+            RefreshStageNumber();
         }
 
         /// <summary>
@@ -153,7 +172,8 @@ namespace SushiDefense.UI
             _placement = null;
             _coordinator = null;
             _stage = null;
-            _roster = null;
+            _progression = null;
+            _pause = null;
         }
 
         private void OnDestroy()
@@ -175,8 +195,7 @@ namespace SushiDefense.UI
             _waitingLabel = HudLabel.Resolve(transform, _waitingLabel, WaitingLabelName);
             _timeLabel = HudLabel.Resolve(transform, _timeLabel, TimeLabelName);
             _outcomeLabel = HudLabel.Resolve(transform, _outcomeLabel, OutcomeLabelName);
-            _pendingCustomerLabel = HudLabel.Resolve(transform, _pendingCustomerLabel,
-                                                            PendingCustomerLabelName);
+            _stageLabel = HudLabel.Resolve(transform, _stageLabel, StageLabelName);
         }
 
         /// <summary>
@@ -189,8 +208,8 @@ namespace SushiDefense.UI
             RefreshPlacement();
             RefreshWaiting();
             RefreshTime();
-            RefreshOutcome();
-            RefreshPendingCustomer();
+            RefreshBanner();
+            RefreshStageNumber();
         }
 
         /// <summary>
@@ -221,49 +240,66 @@ namespace SushiDefense.UI
         }
 
         /// <summary>
-        /// 결과는 컨트롤러가 이미 정했다. <b>여기서 판정하지 않는다</b> — 뷰가 매출과
-        /// 시간을 다시 비교하면 판정이 두 곳에 살게 된다 (<c>CLAUDE.md</c> §3.2).
+        /// 화면 최상단 가운데의 한 줄 — 클리어 · 실패 · 일시정지.
+        ///
+        /// <para>
+        /// <b>여기서 판정하지 않는다.</b> 결과는 컨트롤러가, 멈춤은 게이트가 이미 정했다 —
+        /// 뷰가 매출과 시간을 다시 비교하면 판정이 두 곳에 살게 된다 (<c>CLAUDE.md</c> §3.2).
+        /// </para>
+        /// <para>
+        /// <b>결과가 멈춤을 이긴다.</b> 실패한 판은 멈춘 판이기도 한데, 그때 알려야 하는
+        /// 것은 «멈췄다» 가 아니라 «졌다» 이다.
+        /// </para>
         /// </summary>
-        private void RefreshOutcome()
+        private void RefreshBanner()
         {
-            if (_stage == null || _stage.Outcome == _shownOutcome)
+            var outcome = _stage != null ? _stage.Outcome : StageOutcome.InProgress;
+            var paused = _pause != null && _pause.IsPaused;
+
+            if (outcome == _shownOutcome && paused == _shownPaused)
             {
                 return;
             }
 
-            _shownOutcome = _stage.Outcome;
-            OutcomeText = _shownOutcome switch
+            _shownOutcome = outcome;
+            _shownPaused = paused;
+
+            OutcomeText = outcome switch
             {
                 StageOutcome.Cleared => "클리어",
                 StageOutcome.Failed => "실패",
-                _ => string.Empty
+                _ => paused ? PausedText : string.Empty
             };
 
             HudLabel.Write(_outcomeLabel, OutcomeText);
         }
 
         /// <summary>
-        /// 배치 예정 손님. 보상으로 영입한 손님이 실제로 앉힐 수 있는 상태임을 보여 준다 —
-        /// 이 한 줄이 없으면 손님 보상이 화면에서 아무 일도 하지 않는 것처럼 보인다.
+        /// 몇 판째인가. <b>스테이지 설정의 표시 번호가 아니라 런의 진행 순서</b>다 —
+        /// 순서의 진실은 목록이므로 번호도 거기서 나와야 한다
+        /// (<c>RunProgression.CurrentStageNumber</c>).
+        ///
+        /// <para>
+        /// 런이 끝나면 번호가 총수를 넘는다. 그대로 쓰면 «스테이지 4/3» 이 되므로
+        /// <b>총수에서 자른다.</b>
+        /// </para>
         /// </summary>
-        private void RefreshPendingCustomer()
+        private void RefreshStageNumber()
         {
-            if (_roster == null)
+            if (_progression == null)
             {
                 return;
             }
 
-            var pending = _roster.PendingCustomer;
-            if (pending == _shownPendingCustomer)
+            var number = Mathf.Min(_progression.CurrentStageNumber, _progression.StageCount);
+            if (number == _shownStageNumber)
             {
                 return;
             }
 
-            _shownPendingCustomer = pending;
-            PendingCustomerText = pending != null
-                ? $"배치 예정 {CardCaption.NameOf(pending)}"
-                : "배치 예정 없음";
-            HudLabel.Write(_pendingCustomerLabel, PendingCustomerText);
+            _shownStageNumber = number;
+            StageText = $"스테이지 {number}";
+            HudLabel.Write(_stageLabel, StageText);
         }
 
         /// <summary>

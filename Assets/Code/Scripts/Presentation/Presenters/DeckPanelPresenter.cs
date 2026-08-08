@@ -30,6 +30,7 @@ namespace SushiDefense.UI
         /// 카드가 영영 안 보인다. 덱의 진실은 런에 있다 (M3).
         /// </summary>
         private readonly RunState _run;
+        private readonly StageWindowArbiter _windows;
 
         /// <summary>화면이 떠 있나.</summary>
         public bool IsOpen { get; private set; }
@@ -42,15 +43,24 @@ namespace SushiDefense.UI
         /// <b>화면이 런 상태를 알게 되어</b> 인터페이스가 Unity 밖 타입까지 끌고 온다.
         /// 프레젠터의 수명은 런과 같다 — <c>Rewards</c>·<c>Transition</c> 과 같은 자리다.
         /// </summary>
-        public DeckPanelPresenter(IDeckPanelView view, RunState run)
+        public DeckPanelPresenter(IDeckPanelView view, RunState run, StageWindowArbiter windows)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _run = run ?? throw new ArgumentNullException(nameof(run));
+            _windows = windows ?? throw new ArgumentNullException(nameof(windows));
         }
 
-        /// <summary>덱을 연다. <b>빈 덱이어도 연다.</b></summary>
+        /// <summary>
+        /// 덱을 연다. <b>빈 덱이어도 연다.</b> 다만 더 높은 창이 떠 있으면 열지 않는다 —
+        /// 두 패널이 겹치면 글자가 서로를 뚫는다.
+        /// </summary>
         public void Open()
         {
+            if (!_windows.TryOpen(StageWindow.Deck))
+            {
+                return;
+            }
+
             var cards = _run.Sushi.Cards;
 
             IsOpen = true;
@@ -71,6 +81,7 @@ namespace SushiDefense.UI
 
             IsOpen = false;
             CardCount = 0;
+            _windows.Close(StageWindow.Deck);
             _view.Hide();
         }
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using SushiDefense.Data;
+using SushiDefense.Scoring;
 using UnityEngine;
 
 namespace SushiDefense.Customers
@@ -31,6 +32,18 @@ namespace SushiDefense.Customers
         /// 집어간다. 연출 수치이므로 SO 가 아니라 여기 있다 (M5 D7).
         /// </summary>
         [SerializeField, Min(0f)] private float _dropRadius = 1.2f;
+
+        /// <summary>
+        /// 지금 보고 있는 지갑. 잔액이 바뀌면 카드를 다시 평가한다.
+        ///
+        /// <para>
+        /// 이것이 없으면 <b>영입 재화가 쌓여도 카드가 계속 흐린 채로 남는다.</b> 카드가
+        /// 다시 평가되는 시점이 «명부를 물릴 때» 와 «배치에 성공했을 때» 둘뿐이라, 비싼
+        /// 손님은 <i>다른 손님을 먼저 앉혀야</i> 풀렸다 — 리포트의 «기본 손님 배치 후 다시
+        /// 배치 가능해진다» 가 정확히 그 증상이다.
+        /// </para>
+        /// </summary>
+        private RecruitWallet _wallet;
 
         /// <summary>지금 손님이 물려 있는 카드 수. 검증용이다.</summary>
         public int ShownCardCount { get; private set; }
@@ -66,6 +79,34 @@ namespace SushiDefense.Customers
         public void InitializeCards(CustomerCardDrag[] cards)
         {
             _cards = cards;
+        }
+
+        /// <summary>
+        /// 잔액을 지켜볼 지갑을 물린다. <b>이미 보고 있으면 먼저 끊는다</b> — 판이 바뀌면
+        /// 지갑도 새로 열리므로, 끊지 않으면 죽은 지갑의 구독이 그대로 쌓인다
+        /// (<c>.claude/rules/scripts.md</c> §6).
+        /// </summary>
+        /// <param name="wallet"><c>null</c> 이면 보던 것을 놓기만 한다.</param>
+        public void Watch(RecruitWallet wallet)
+        {
+            Unwatch();
+
+            _wallet = wallet;
+
+            if (_wallet != null)
+            {
+                _wallet.BalanceChanged += OnBalanceChanged;
+            }
+        }
+
+        /// <summary>지갑 구독을 끊는다.</summary>
+        public void Unwatch()
+        {
+            if (_wallet != null)
+            {
+                _wallet.BalanceChanged -= OnBalanceChanged;
+                _wallet = null;
+            }
         }
 
         /// <summary>
@@ -171,6 +212,20 @@ namespace SushiDefense.Customers
             {
                 _cards = GetComponentsInChildren<CustomerCardDrag>(true);
             }
+        }
+
+        private void OnDestroy()
+        {
+            Unwatch();
+        }
+
+        /// <summary>
+        /// 잔액이 <b>바뀐 순간에만</b> 돈다 — 지갑이 값이 실제로 달라질 때만 알린다.
+        /// 매 프레임 다시 평가하면 손님 수 × 자리 수 검사가 프레임 예산을 먹는다 (§4.3).
+        /// </summary>
+        private void OnBalanceChanged(int balance)
+        {
+            Refresh();
         }
 
         /// <summary>
