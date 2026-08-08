@@ -78,6 +78,38 @@ git diff --stat Assets/Art/Fonts/charset-ko.txt
 - 임포트 설정은 `AudioImportSettings` 가 자동 적용한다 (`Sound/` → `DecompressOnLoad` · Vorbis · Preload)
 - `AudioBank.asset` 의 `_uiClick` 에 물린다 (**§7 승인** — step-01 이 제안한 볼륨 0.4 · 간격 0.05 를 함께 확정)
 
+#### 실측 — **재생 경로가 M6 어디에도 없다**
+
+```
+grep -rn "UiClick" Assets/Code/ --include=*.cs
+→ AudioBankSO.cs 의 프로퍼티 선언 1건뿐. AudioDirector 는 이 큐를 모른다.
+```
+
+step-01 이 SO 에 큐를 더했고 이 단계가 클립을 만들지만, **버튼을 눌렀을 때 그것을 울리는
+코드가 어느 단계에도 배정되어 있지 않다.** step-11 은 *"코드는 고치지 않는다"* 이고,
+step-12 는 씬 조립이라 새 컴포넌트를 만들지 않는다.
+
+지금 상태는 **소리가 데이터로만 존재하고 영영 나지 않는** 형태다 — 애셋도 테스트도
+초록이라 눈으로 구분되지 않는다. `AudioBankAssetTests` 가 «클립이 물렸나» 만 보고
+«울리나» 는 아무도 보지 않는다.
+
+**별건으로 처리해야 한다.** 필요한 것은 `AudioDirector` 에 UI 클릭 진입점 하나와,
+`Button.onClick` 에서 그것을 부르는 얇은 컴포넌트다. 범위·검증 방법이 정해지지 않았으므로
+이 단계에서 임의로 넣지 않는다.
+
+#### 기존 테스트 두 개의 이름이 거짓이 됐다
+
+`_uiClick`(볼륨 0.4 · 간격 0.05)을 물리는 것만으로 다음이 사실이 아니게 됐다. **단언은
+그대로 통과한다** — `UiClick` 을 비교 대상에 넣지 않았기 때문이다.
+
+| 옛 이름 | 왜 거짓인가 | 고친 이름 |
+|---|---|---|
+| `SushiEaten_IsTheQuietestCue` | `UiClick`(0.4) < `SushiEaten`(0.5) | `RepeatingCues_AreQuieterThanOneShotResults` |
+| `SushiEaten_IsTheOnlyCueWithCooldown` | `UiClick` 도 0.05 를 갖는다 | `OnlyRepeatingCues_HaveCooldown` |
+
+불변식 자체가 «가장 조용한 큐» 에서 **«자주 나는 큐가 결과음보다 조용하다»** 로 옮겨 갔다.
+이름만 두고 지나갔으면 다음 사람이 그 이름을 근거로 잘못된 판단을 한다.
+
 ### 4) 배선 확인
 
 step-03~10 이 만든 프리팹의 비어 있는 스프라이트 자리를 채운다. **코드는 고치지 않는다** — 스프라이트가 비어도 동작하도록 이미 만들어져 있고, 그것이 M5 가 세운 규칙이다 (*"아이콘이 비면 프리팹의 그림을 그대로 둔다"*).

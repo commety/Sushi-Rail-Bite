@@ -39,9 +39,8 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         /// <summary>
-        /// <b><c>UiClick</c> 은 아직 이 목록에 없다.</b> 클립을 M6 step-11 에서 만들기 때문이며,
-        /// 그 단계가 클립을 물리면서 이 테스트와 <see cref="EveryCue_UsesItsOwnClip"/> 의
-        /// 개수를 함께 늘린다. 그때까지 이 파일은 <b>큐 전부가 아니라 일곱</b>을 덮는다.
+        /// <b>이제 여덟 큐 전부를 덮는다.</b> <c>UiClick</c> 의 클립이 M6 step-11 에서
+        /// 만들어지면서 마지막 빈자리가 채워졌다.
         /// </summary>
         [Test]
         public void EveryCue_HasClip()
@@ -53,6 +52,7 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.IsTrue(_bank.StageCleared.HasClip, nameof(_bank.StageCleared));
             Assert.IsTrue(_bank.StageFailed.HasClip, nameof(_bank.StageFailed));
             Assert.IsTrue(_bank.Bgm.HasClip, nameof(_bank.Bgm));
+            Assert.IsTrue(_bank.UiClick.HasClip, nameof(_bank.UiClick));
         }
 
         [Test]
@@ -63,28 +63,46 @@ namespace SushiDefense.Tests.EditMode.Data
             {
                 _bank.SushiEaten.Clip, _bank.CustomerPlaced.Clip, _bank.RewardPicked.Clip,
                 _bank.StageAdvanced.Clip, _bank.StageCleared.Clip, _bank.StageFailed.Clip,
-                _bank.Bgm.Clip
+                _bank.Bgm.Clip, _bank.UiClick.Clip
             };
 
-            Assert.AreEqual(7, clips.Count, "큐 일곱이 서로 다른 클립을 써야 한다");
+            Assert.AreEqual(8, clips.Count, "큐 여덟이 서로 다른 클립을 써야 한다");
         }
 
+        /// <summary>
+        /// <b>불변식이 «가장 조용한 큐» 에서 «자주 나는 큐가 더 조용하다» 로 바뀌었다.</b>
+        /// step-11 이 <c>UiClick</c>(0.4)을 물리면서 <c>SushiEaten</c>(0.5)이 더는 최소값이
+        /// 아니게 됐다 — 옛 이름은 단언이 통과해도 <b>거짓을 주장한다.</b>
+        ///
+        /// <para>
+        /// 구체값이 아니라 관계를 박아 M9 의 밸런싱을 막지 않는다.
+        /// </para>
+        /// </summary>
         [Test]
-        public void SushiEaten_IsTheQuietestCue()
+        public void RepeatingCues_AreQuieterThanOneShotResults()
         {
-            // 가장 자주 나는 소리다. 여기가 다른 큐보다 크면 귀가 먼저 지친다.
-            // 구체값이 아니라 관계를 박아 M9 의 밸런싱을 막지 않는다.
+            // 자주 나는 소리가 결과음보다 크면 귀가 먼저 지친다.
             Assert.Less(_bank.SushiEaten.Volume, _bank.StageCleared.Volume);
             Assert.Less(_bank.SushiEaten.Volume, _bank.CustomerPlaced.Volume);
+            Assert.Less(_bank.UiClick.Volume, _bank.StageCleared.Volume);
+            Assert.Less(_bank.UiClick.Volume, _bank.CustomerPlaced.Volume);
         }
 
+        /// <summary>
+        /// 같은 이유로 이름을 고쳤다 — <c>UiClick</c> 도 간격을 갖게 되어
+        /// <c>SushiEaten</c> 이 «유일한» 큐가 아니다. 메뉴에서 연타되기 때문이다.
+        /// </summary>
         [Test]
-        public void SushiEaten_IsTheOnlyCueWithCooldown()
+        public void OnlyRepeatingCues_HaveCooldown()
         {
             // 겹침 제어가 필요한 것은 연달아 터지는 큐뿐이다. 전부에 간격을 걸면
             // 한 번뿐인 결과음까지 버려질 수 있다.
             Assert.Greater(_bank.SushiEaten.CooldownSeconds, 0f);
+            Assert.Greater(_bank.UiClick.CooldownSeconds, 0f);
+
             Assert.AreEqual(0f, _bank.StageCleared.CooldownSeconds, 1e-6f);
+            Assert.AreEqual(0f, _bank.StageFailed.CooldownSeconds, 1e-6f);
+            Assert.AreEqual(0f, _bank.RewardPicked.CooldownSeconds, 1e-6f);
             Assert.AreEqual(0f, _bank.Bgm.CooldownSeconds, 1e-6f);
         }
 
