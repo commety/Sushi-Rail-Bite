@@ -3,6 +3,7 @@ using SushiDefense.Belt;
 using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Effects;
+using SushiDefense.Navigation;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
@@ -23,7 +24,7 @@ namespace SushiDefense
     /// "판정을 돌리는 일" 이 한 컴포넌트에 섞인다 (<c>CLAUDE.md</c> §3.2).
     /// </para>
     /// </summary>
-    public sealed class StageBootstrap : MonoBehaviour
+    public sealed class StageBootstrap : MonoBehaviour, IStageRestarter
     {
         /// <summary>
         /// 이 런이 지나갈 스테이지 목록. 비어 있으면 <see cref="_stageConfig"/> 한 장짜리
@@ -51,6 +52,8 @@ namespace SushiDefense
         [SerializeField] private RewardSelectionView _rewardView;
         [SerializeField] private StageTransitionView _transitionView;
         [SerializeField] private DeckPanelView _deckPanelView;
+        [SerializeField] private StageMenuView _stageMenuView;
+        [SerializeField] private SceneRouter _sceneRouter;
         [SerializeField] private AudioDirector _audioDirector;
         [SerializeField] private EffectDirector _effectDirector;
         [SerializeField] private CustomerHandView _hand;
@@ -124,6 +127,22 @@ namespace SushiDefense
         /// </summary>
         public DeckPanelPresenter Deck { get; private set; }
 
+        /// <summary>
+        /// 인스테이지 메뉴의 로직. 화면이 씬에 없으면 <c>null</c> 이다. 런 수명이다.
+        /// </summary>
+        public StageMenuPresenter Menu { get; private set; }
+
+        /// <summary>
+        /// 이 판이 멈춰 있나. <b>시간을 흘릴지 말지의 유일한 진실</b>이다.
+        ///
+        /// <para>
+        /// <b>런 수명이다.</b> 판마다 새로 만들면 메뉴가 들고 있는 게이트가 죽은 객체를
+        /// 가리킨다. 다만 <b>새 판은 흐르는 상태로 시작</b>해야 하므로 <see cref="Build"/> 가
+        /// 재개시킨다 — 멈춘 채로 열리면 고장으로 보인다.
+        /// </para>
+        /// </summary>
+        public PauseState Pause { get; private set; }
+
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
                                SushiBeltView beltView, Transform beltStart, Transform beltEnd,
@@ -164,6 +183,10 @@ namespace SushiDefense
             Teardown();
             ResolveMissingReferences();
             EnsureRunScope();
+
+            // 새 판은 흐르는 상태로 열린다. 게이트 자체는 런 수명이라 살아남지만, 멈춘
+            // 채로 다음 판이 시작되면 고장으로 보인다.
+            Pause.Resume();
 
             // 런이 끝난 뒤에도 마지막 판을 그대로 두려면 폴백이 필요하다.
             ActiveStage = Progression.CurrentStage ?? ActiveStage ?? _stageConfig;
@@ -238,10 +261,12 @@ namespace SushiDefense
             Run = new RunState(SushiDeck.FromSpawnTable(stages[0]),
                                new CustomerDeck(_startingCustomers), NewSeed());
             Progression = new RunProgression(stages, Run);
+            Pause = new PauseState();
 
             BuildRewards();
             BuildTransition();
             BuildDeckPanel();
+            BuildStageMenu();
         }
 
         /// <summary>
@@ -368,6 +393,30 @@ namespace SushiDefense
             _deckPanelView.Bind(Deck);
         }
 
+        /// <summary>
+        /// 인스테이지 메뉴를 세운다. 화면이나 라우터가 없으면 조용히 건너뛴다 — 덱·보상과
+        /// 같은 판단이며, 메뉴는 판이 돌아가는 데 필요한 것이 아니다.
+        /// </summary>
+        private void BuildStageMenu()
+        {
+            if (_stageMenuView == null || _sceneRouter == null)
+            {
+                return;
+            }
+
+            Menu = new StageMenuPresenter(_stageMenuView, Pause, this, _sceneRouter);
+            _stageMenuView.Bind(Menu);
+        }
+
+        /// <summary>
+        /// 같은 판을 다시 연다. <c>Retry</c> 와 같은 것이며, 이름이 둘이 되지 않도록
+        /// 명시적 구현으로 넘긴다 — 재시작 경로가 하나여야 덱·명부 유지 규칙도 한 곳에 남는다.
+        /// </summary>
+        void IStageRestarter.Restart()
+        {
+            Retry();
+        }
+
         /// <summary>보상 화면이 닫혔다. 이제 다음 판으로 넘어갈지 묻는다.</summary>
         private void OnRewardsClosed()
         {
@@ -481,6 +530,16 @@ namespace SushiDefense
                 _deckPanelView = GetComponentInChildren<DeckPanelView>(true);
             }
 
+            if (_stageMenuView == null)
+            {
+                _stageMenuView = GetComponentInChildren<StageMenuView>(true);
+            }
+
+            if (_sceneRouter == null)
+            {
+                _sceneRouter = GetComponentInChildren<SceneRouter>(true);
+            }
+
             if (_placementController == null)
             {
                 _placementController = GetComponentInChildren<CustomerPlacementController>(true);
@@ -537,6 +596,13 @@ namespace SushiDefense
         /// </summary>
         private void Update()
         {
+            // 멈춤은 이 한 줄을 건너뛰는 것이다. 벨트·손님·시계·판정이 전부 여기를 지나므로
+            // 멈춤을 위해 새 경로를 만들 필요가 없다 (README D4).
+            if (Pause != null && Pause.IsPaused)
+            {
+                return;
+            }
+
             Stage?.Tick(Time.deltaTime);
         }
 
@@ -566,6 +632,8 @@ namespace SushiDefense
             }
 
             Deck = null;
+            Menu = null;
+            Pause = null;
 
             if (_audioDirector != null)
             {

@@ -136,23 +136,62 @@ PlayMode  Paused_BeltDoesNotAdvance                ← 멈춤이 실제로 시�
 
 > **`Paused_BeltDoesNotAdvance` 를 「값이 같다」로만 쓰지 않는다.** 멈춘 뒤 여러 프레임을 흘리고, **재개한 뒤에는 실제로 움직였는지**를 같은 테스트에 함께 박는다. 그러지 않으면 벨트가 아예 안 도는 구현에서도 통과한다 ([`tests.md`](../../.claude/rules/tests.md) §3).
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| `StageBootstrap.Update` 의 일시정지 가드 제거 | `Paused_BeltDoesNotAdvance` |
-| `Restart` 가 메뉴를 닫지 않는다 | `Restart_ClosesMenuBeforeRestarting` |
-| `PauseState` 를 `Build()` 안으로 옮긴다 (스테이지 수명) | (잡히지 않으면 그 계약은 테스트가 없는 것 — 스테이지 전환 테스트를 추가한다) |
-| `Close` 가 재개하지 않는다 | `Close_WhenPaused_Resumes` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Update` 의 일시정지 가드 제거 | 1건 | **2건** — 시계와 벨트가 각각 |
+| `Restart` 가 메뉴를 닫지 않는다 | 1건 | **2건** — 순서 테스트와 «재시작이 시간을 다시 흘린다» 가 함께 |
+| `QuitToMain` 이 재시작까지 부른다 | 1건 | 예측대로 **1건** |
+
+### PlayMode 에서 프레임으로 기다리면 안 된다
+
+`Paused_SushiOnBeltDoesNotMove` 가 처음 두 번 **«벨트에 초밥이 하나도 없다»** 로 실패했다.
+240프레임을 기다렸는데도 스폰 간격 `0.2`초를 못 넘긴 것이다 — **배치 모드는 프레임이 매우
+짧아** 수백 프레임이 게임 시간 몇 분의 일 초밖에 안 된다.
+
+`WaitForSeconds` 로 바꿔 해결했다. 그리고 이 실패는 **테스트가 자기가 아무것도 못 봤다는
+것을 알렸기 때문에** 드러났다 — 초밥이 없으면 조용히 통과하는 대신 `Assert.IsNotNull` 로
+실패시켜 둔 덕이다. 없었으면 «멈추면 안 움직인다» 가 영원히 초록인 채로 아무것도 검증하지
+않았을 것이다.
+
+> `Time.timeScale` 을 쓰지 않으므로 `WaitForSeconds` 가 일시정지 중에도 정상적으로 흐른다 —
+> 전역 배율을 썼다면 이 테스트 자체가 얼어붙는다.
 
 ### 완료 판정
 
-- [ ] `grep -rn "timeScale" Assets/Code/` = **0건**
-- [ ] `grep -c "UnityEngine" Assets/Code/Scripts/Presentation/Presenters/StageMenuPresenter.cs` = **0**
-- [ ] `ISceneRouter` 정의가 저장소에 **한 곳**뿐이다
-- [ ] EditMode · PlayMode Green — `./tests/run-tests.sh all`
-- [ ] **기존** `StageIntegrationTests` 가 수정 없이 통과한다
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `grep -rn "timeScale" Assets/Code/` = **0건**
+- [x] `StageMenuPresenter` 에 `UnityEngine` **0건**
+- [x] `ISceneRouter` 정의가 저장소에 **한 곳**뿐이다 (`Navigation/ISceneRouter.cs`)
+- [x] EditMode **656/656** · PlayMode **204/204**
+- [x] **기존** `StageIntegrationTests` 가 수정 없이 통과한다
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### step-09 의 내비게이션 계층을 앞당겼다
+
+`SceneNames` · `ISceneRouter` · `SceneRouter` 세 파일을 여기서 만들었다. **나가기는 목적지가
+없으면 성립하지 않는다** — 인터페이스만 정의하면 씬 진입점이 물릴 구현이 없어 배선 자체가
+불가능하다. step-09 는 이제 메인 화면 프레젠터·뷰만 만든다.
+
+`SceneNamesTests` 도 함께 왔다 (§5.4 — 새 파일에는 테스트가 따라온다). 다만 그 테스트가
+확인할 수 있는 것은 **상수끼리의 정합성뿐**이다. `"Stage1"` 같은 오타는 컴파일도 프레젠터
+테스트도 통과하며, **Build Settings 의 실제 경로와 대조해야만** 드러난다 — step-12 의 몫이다.
+
+> `Main.unity` 는 아직 없다. 지금 나가기를 누르면 Unity 가 *"씬이 빌드 설정에 없다"* 를
+> 로그로 남기고 아무 일도 하지 않는다. 예외는 아니며 step-12 가 등록하면서 해소된다.
+
+### 재시작은 `Retry()` 다 — 이름을 둘로 만들지 않았다
+
+`StageBootstrap` 이 `IStageRestarter` 를 **명시적 구현**으로 받는다
+(`void IStageRestarter.Restart() => Retry();`). 공개 이름을 하나로 유지해야 «덱·명부는
+유지되고 시도 횟수가 오른다» 는 규칙도 한 곳에만 남는다.
+
+### 게이트는 런 수명, 새 판은 흐르는 상태
+
+`PauseState` 는 `EnsureRunScope` 에서 한 번 만들어지고 `Build()` 가 `Resume()` 한다.
+판마다 새로 만들면 메뉴가 죽은 객체를 가리키고, 재개하지 않으면 재시작한 판이 멈춘 채로
+열려 고장으로 보인다. **두 계약 모두 테스트로 고정했다** — `Retry_KeepsTheSamePauseGate` 와
+`Retry_WhilePaused_StartsRunning`.
 
 ### 예상 커밋 메시지
 
