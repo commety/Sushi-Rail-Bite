@@ -12,8 +12,19 @@ namespace SushiDefense.Tests.EditMode.UI
     ///
     /// <para>
     /// 배포 타깃(WebGL)은 OS 폰트에 접근할 수 없어, 폰트에 없는 글자는 두부(□)로 나온다.
-    /// 정적 서브셋의 유일한 실패 모드가 <b>"나중에 추가한 문구의 글자가 빠지는 것"</b>이고,
-    /// 그 증상은 빌드해야만 드러난다 — 에디터에서는 시스템 폰트가 메워 주기 때문이다.
+    /// 그 증상은 <b>빌드해야만 드러난다</b> — 에디터에서는 시스템 폰트가 메워 주기 때문이다.
+    /// </para>
+    /// <para>
+    /// <b>M6 에서 서브셋의 출처가 바뀌었다.</b> 예전에는 소스의 문자열 리터럴에서 글자를
+    /// 모아, 문구를 한 줄 고칠 때마다 사람이 폰트를 다시 구워야 했다 (§7). 지금은
+    /// <b>폰트가 그릴 수 있는 글자를 전부</b> 굽는다 — 실측해 보니 전체를 담아도 아틀라스
+    /// 한 장(1024×1024, 48% 점유)이라 아낄 대상이 아니었다.
+    /// </para>
+    /// <para>
+    /// 그래서 남은 실패 모드는 둘이다: <b>목록을 다시 뽑고 폰트를 안 구운 경우</b>
+    /// (<see cref="Font_CoversEveryCharacterInTheCharsetFile"/> 가 잡는다)와,
+    /// <b>이 폰트에 아예 없는 글자를 쓴 경우</b> — 현대 한글 11,172 음절 중 2,791 자만
+    /// 있어서 드문 음절은 서브셋을 넓혀도 두부가 된다. 후자는 개별 문구 테스트가 잡는다.
     /// </para>
     /// <para>
     /// <b>이 테스트는 디스크의 애셋을 로드한다.</b> <c>.claude/rules/tests.md</c> §4 의 금지는
@@ -34,7 +45,7 @@ namespace SushiDefense.Tests.EditMode.UI
             _font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             if (_font == null)
             {
-                Assert.Ignore($"폰트 애셋이 아직 없습니다: {FontPath} — step-09 의 §7 승인 대기 중");
+                Assert.Ignore($"폰트 애셋이 아직 없습니다: {FontPath} — 굽는 것은 사람의 몫이다 (§7)");
             }
         }
 
@@ -68,6 +79,34 @@ namespace SushiDefense.Tests.EditMode.UI
             AssertCovers("0123456789/~()");
         }
 
+        /// <summary>
+        /// 메인 화면의 문구. <b>버튼 라벨은 코드가 아니라 씬에 있다</b> (step-12) — 추출기의
+        /// 리터럴 검사가 보지 못하는 자리라 여기 직접 박아 둔다.
+        /// </summary>
+        [Test]
+        public void Font_CoversMainMenuLabels()
+        {
+            AssertCovers("스시 레일 바이트 게임 시작 설정 백과사전");
+        }
+
+        [Test]
+        public void Font_CoversStageMenuLabels()
+        {
+            AssertCovers("메뉴 일시정지 진행 중 다시 시작 나가기 닫기 덱");
+        }
+
+        [Test]
+        public void Font_CoversSettingsLabels()
+        {
+            AssertCovers("설정 소리 전체화면");
+        }
+
+        [Test]
+        public void Font_CoversCodexLabels()
+        {
+            AssertCovers("백과사전 포화 영입");
+        }
+
         [Test]
         public void Font_CoversSushiDisplayNames()
         {
@@ -78,6 +117,48 @@ namespace SushiDefense.Tests.EditMode.UI
         public void Font_CoversCustomerDisplayNames()
         {
             AssertCovers(DisplayNamesOf<CustomerData>());
+        }
+
+        /// <summary>
+        /// <b>SDF 로 구우면 픽셀이 죽는다.</b> 모서리가 둥글려져 픽셀 폰트의 각이 사라지는데,
+        /// 에디터의 작은 라벨에서는 <i>"좀 흐린가?"</i> 정도로만 보여 눈으로 구분되지 않는다.
+        ///
+        /// <para>
+        /// 재굽기는 사람이 TMP Font Asset Creator 에서 하는 일이라(§7) 설정이 말로만
+        /// 전달된다 — <b>그래서 여기 숫자로 박아 둔다.</b> 값은 M5 가 처음 구운 애셋에서
+        /// 읽은 것이고, 바뀌었다면 굽기 설정이 어긋난 것이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Font_RenderMode_StaysRaster()
+        {
+            Assert.AreEqual(4118, (int)_font.atlasRenderMode,
+                            "굽기 설정이 바뀌었습니다 — Render Mode 를 RASTER 로 되돌리세요");
+        }
+
+        /// <summary>폰트 네이티브 높이의 정수배가 아니면 글자가 흐려진다.</summary>
+        [Test]
+        public void Font_SamplingPointSize_Is12()
+        {
+            Assert.AreEqual(12, _font.creationSettings.pointSize);
+        }
+
+        [Test]
+        public void Font_AtlasPadding_Is1()
+        {
+            Assert.AreEqual(1, _font.atlasPadding);
+        }
+
+        /// <summary>
+        /// 아틀라스가 <b>한 장</b>이어야 한다. 여러 장으로 갈리면 드로우콜이 늘고, 이 폰트의
+        /// 글자 수(3,247)는 1024×1024 에 48% 로 들어가므로 갈릴 이유가 없다 — 갈렸다면
+        /// 해상도를 작게 잡고 구운 것이다.
+        /// </summary>
+        [Test]
+        public void Font_Atlas_IsSingleTexture()
+        {
+            Assert.AreEqual(1, _font.atlasTextures.Length,
+                            "아틀라스가 여러 장입니다 — 1024×1024 로 다시 구우세요");
         }
 
         [Test]

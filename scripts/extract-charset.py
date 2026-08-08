@@ -1,59 +1,121 @@
 #!/usr/bin/env python3
-"""화면에 나갈 수 있는 글자를 모아 TMP 폰트 서브셋용 목록을 만든다.
+"""TMP 폰트 서브셋용 글자 목록을 만들고, 폰트가 못 그리는 문구를 잡아낸다.
 
 WebGL 은 OS 폰트에 접근할 수 없어, 폰트 애셋에 없는 글자는 두부(□)로 나온다.
-정적 서브셋의 유일한 실패 모드가 "나중에 추가한 문구의 글자가 빠지는 것"이므로,
-목록을 손으로 관리하지 않고 **소스에서 다시 뽑을 수 있게** 한다.
+
+**목록의 출처가 M6 에서 바뀌었다.** 예전에는 소스의 문자열 리터럴에서 글자를 모았는데,
+그러면 문구를 한 줄 고칠 때마다 사람이 TMP Font Asset Creator 를 다시 열어야 했다 (§7).
+백과사전 설명·튜토리얼처럼 글이 늘어나는 화면에서는 그 왕복이 계속 붙고, 한 번
+빠뜨리면 **빌드해야만 드러나는 두부**가 된다 — 이 프로젝트에서 가장 비싼 실패 모드다.
+
+그래서 지금은 **폰트가 그릴 수 있는 글자를 전부 굽는다.** 실측 근거:
+
+    글리프 최대 9x12 px + 패딩 1 -> 셀 154 px^2
+    1024x1024 아틀라스 용량 ~6,800 글리프 / 이 목록 ~3,250 글리프 = 48% 점유
+    Alpha8 텍스처 1 MB (256x256 일 때 64 KB)
+
+즉 **전체를 담아도 아틀라스 한 장**이다. 예전 주석이 걱정한 "489자면 512<->1024 를
+가른다" 는 실측해 보니 아낄 대상이 아니었다.
+
+한자(640)와 가나(185)는 **뺀다.** 아틀라스 크기는 그대로지만 애셋의 글리프 메타데이터가
+0.5MB 가량 늘고, 화면에 쓸 계획이 없다. 쓰게 되면 EXCLUDED 에서 그 범위를 지우면 된다.
 
     python3 scripts/extract-charset.py
 
-문구를 추가했으면 이 스크립트를 다시 돌리고 폰트를 다시 굽는다. 빠진 글자는
-`KoreanFontCoverageTests` 가 잡는다.
+폰트를 바꾸면 다시 돌린다. **문구를 바꾸는 것으로는 다시 돌릴 필요가 없다** — 그것이
+이번 변경의 목적이다.
 
-**주석은 담지 않는다.** 이 프로젝트는 문서 주석이 두꺼워서, 주석까지 담으면 한글이
-489자가 되고 리터럴만 담으면 89자다 — 여덟 배 차이이고 아틀라스 한 단계(512 -> 1024)를
-가른다. 주석 글자는 화면에 닿을 경로가 없으므로 제외가 안전하다.
-
-반대로 어느 리터럴이 실제로 렌더되는지는 분류하지 않는다 — 예외 메시지든 라벨이든 전부
-담는다. 그 분류 규칙은 반드시 어긋나고, 글자 몇 개의 비용은 무시할 만하다.
+리터럴 검사는 남는다. 목적이 바뀌었을 뿐이다: 이제는 서브셋을 만드는 대신
+**폰트에 아예 없는 글자를 쓰고 있는지** 본다. 이 폰트는 현대 한글 11,172 음절 중
+2,791 자만 갖고 있어서, 드문 음절(예: 뷁)은 서브셋을 아무리 넓혀도 두부가 된다.
 """
 
 import pathlib
 import re
+import struct
 import sys
+import unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# 화면 문구가 사는 곳
+FONT = ROOT / "Assets/Art/Fonts/x10y12pxDenkiChipHangul.ttf"
+OUT = ROOT / "Assets/Art/Fonts/charset-ko.txt"
+
+# 화면 문구가 사는 곳 — 이제는 검사 대상이지 목록의 출처가 아니다
 CODE_GLOBS = ["Assets/Code/Scripts/Presentation/**/*.cs"]
 ASSET_GLOBS = ["Assets/Level/Balance/*.asset"]
-
-OUT = ROOT / "Assets/Art/Fonts/charset-ko.txt"
 
 HANGUL = re.compile(r"[가-힣]")
 
 # C# 문자열 리터럴. 이스케이프된 따옴표를 건너뛴다.
 STRING_LITERAL = re.compile(r'"(?:[^"\\]|\\.)*"')
 
-# 숫자·영문·기호는 문구 조립에 항상 쓰인다
-ASCII_SET = (
-    "0123456789"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    " .,:;!?/()[]{}<>+-*=%'\"#&@~_|\\"
+# 굽지 않을 범위. 아틀라스 크기는 그대로지만 글리프 메타데이터가 늘고, 쓸 계획이 없다.
+EXCLUDED = (
+    (0x4E00, 0x9FFF),   # 한자 (CJK Unified Ideographs)
+    (0xF900, 0xFAFF),   # 한자 (CJK Compatibility Ideographs)
+    (0x3040, 0x30FF),   # 히라가나 · 가타카나
 )
 
-# 자주 쓰는 전각 기호 — 문구에 이미 등장한다
-EXTRA = "—…·「」『』～"
-
-# M6 이 거의 확실히 쓸 낱말만 미리 담는다. 폰트를 다시 굽는 것은 사람이 에디터에서
-# 해야 하는 일이라 재작업 비용이 있지만, 예비분이 커지면 서브셋의 의미가 사라진다 —
-# 확신이 높은 것만 남기고 나머지는 필요해질 때 이 스크립트를 다시 돌린다.
-RESERVE = "설정시작계속다시종료저장나가기소리음악확인취소덱"
+# 그려지지 않는 유니코드 분류. cmap 에 있어도 굽기가 건너뛰므로, 목록에 남기면
+# "목록에는 있는데 폰트에는 없는" 상태가 되어 커버리지 테스트가 **영영 빨간불**이 된다.
+# 폭 있는 공백(Zs)은 남긴다 — 글리프가 있고 줄 나눔에 쓰인다.
+UNRENDERABLE = frozenset(("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"))
 
 
-def collect() -> set[str]:
-    chars: set[str] = set(ASCII_SET) | set(EXTRA) | set(RESERVE)
+def font_codepoints(path: pathlib.Path) -> set[int]:
+    """TTF 의 cmap(format 4)에서 코드포인트를 읽는다.
+
+    fontTools 를 쓰지 않는다 — 새 패키지 추가는 팀 합의 사항이고 (CLAUDE.md §7),
+    필요한 것은 cmap 한 테이블뿐이다.
+    """
+    data = path.read_bytes()
+    table_count = struct.unpack(">H", data[4:6])[0]
+
+    cmap_offset = None
+    for i in range(table_count):
+        entry = 12 + 16 * i
+        if data[entry:entry + 4] == b"cmap":
+            cmap_offset = struct.unpack(">I", data[entry + 8:entry + 12])[0]
+            break
+
+    if cmap_offset is None:
+        raise SystemExit(f"cmap 테이블이 없습니다: {path}")
+
+    subtable = None
+    for i in range(struct.unpack(">H", data[cmap_offset + 2:cmap_offset + 4])[0]):
+        record = cmap_offset + 4 + 8 * i
+        offset = struct.unpack(">I", data[record + 4:record + 8])[0]
+        if struct.unpack(">H", data[cmap_offset + offset:cmap_offset + offset + 2])[0] == 4:
+            subtable = cmap_offset + offset
+
+    if subtable is None:
+        raise SystemExit(f"format 4 서브테이블이 없습니다: {path}")
+
+    seg_count = struct.unpack(">H", data[subtable + 6:subtable + 8])[0] // 2
+    end_at = subtable + 14
+    start_at = end_at + seg_count * 2 + 2
+
+    codes: set[int] = set()
+    for i in range(seg_count):
+        end = struct.unpack(">H", data[end_at + 2 * i:end_at + 2 * i + 2])[0]
+        start = struct.unpack(">H", data[start_at + 2 * i:start_at + 2 * i + 2])[0]
+        if start == 0xFFFF:
+            continue
+        codes.update(range(start, min(end, 0xFFFE) + 1))
+
+    return codes
+
+
+def keep(code: int) -> bool:
+    if unicodedata.category(chr(code)) in UNRENDERABLE:
+        return False
+    return not any(low <= code <= high for low, high in EXCLUDED)
+
+
+def screen_text() -> set[str]:
+    """화면에 나갈 수 있는 한글. 서브셋을 만들지 않고 **대조용**으로만 쓴다."""
+    chars: set[str] = set()
 
     for pattern in CODE_GLOBS:
         for path in ROOT.glob(pattern):
@@ -73,14 +135,28 @@ def collect() -> set[str]:
 
 
 def main() -> int:
-    chars = collect()
-    text = "".join(sorted(chars))
+    if not FONT.exists():
+        raise SystemExit(f"폰트를 찾지 못했습니다: {FONT}")
+
+    codes = sorted(c for c in font_codepoints(FONT) if keep(c))
+    text = "".join(chr(c) for c in codes)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(text + "\n", encoding="utf-8")
 
-    hangul = sum(1 for c in chars if HANGUL.match(c))
-    print(f"{OUT.relative_to(ROOT)}: {len(chars)}자 (한글 {hangul}, 그 외 {len(chars) - hangul})")
+    syllables = sum(1 for c in codes if 0xAC00 <= c <= 0xD7A3)
+    print(f"{OUT.relative_to(ROOT)}: {len(codes)}자 "
+          f"(한글 음절 {syllables}, 그 외 {len(codes) - syllables})")
+
+    # 폰트가 못 그리는 문구는 서브셋을 넓혀도 두부가 된다. 유일하게 남은 실패 모드다.
+    covered = {chr(c) for c in codes}
+    missing = sorted(screen_text() - covered)
+    if missing:
+        print(f"경고: 폰트에 없는 글자를 화면 문구가 쓰고 있습니다 — {''.join(missing)}",
+              file=sys.stderr)
+        return 1
+
+    print("화면 문구의 글자가 전부 폰트 안에 있습니다.")
     return 0
 
 
