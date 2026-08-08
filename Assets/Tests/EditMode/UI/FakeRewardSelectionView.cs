@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SushiDefense.Run;
 using SushiDefense.UI;
 
 namespace SushiDefense.Tests.EditMode.UI
@@ -13,8 +14,8 @@ namespace SushiDefense.Tests.EditMode.UI
     /// </summary>
     internal sealed class FakeRewardSelectionView : IRewardSelectionView
     {
-        /// <summary>마지막으로 화면에 올라간 후보 이름들.</summary>
-        public List<string> ShownOffers { get; } = new();
+        /// <summary>마지막으로 화면에 올라간 후보들.</summary>
+        public List<RewardOffer> ShownOffers { get; } = new();
 
         /// <summary><see cref="IRewardSelectionView.ShowOffers"/> 가 불린 횟수.</summary>
         public int ShowCount { get; private set; }
@@ -22,13 +23,16 @@ namespace SushiDefense.Tests.EditMode.UI
         /// <summary><see cref="IRewardSelectionView.Hide"/> 가 불린 횟수.</summary>
         public int HideCount { get; private set; }
 
-        public void ShowOffers(IReadOnlyList<string> offerNames)
+        public void ShowOffers(IReadOnlyList<RewardOffer> offers)
         {
             ShowCount++;
+
+            // 목록을 복사해 둔다 — 프레젠터가 버퍼를 재사용하므로, 참조만 들면 나중에
+            // 읽었을 때 내용이 이미 바뀌어 있다.
             ShownOffers.Clear();
-            for (var i = 0; i < offerNames.Count; i++)
+            for (var i = 0; i < offers.Count; i++)
             {
-                ShownOffers.Add(offerNames[i]);
+                ShownOffers.Add(offers[i]);
             }
         }
 

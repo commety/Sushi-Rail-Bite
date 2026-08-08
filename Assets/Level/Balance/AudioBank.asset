@@ -40,4 +40,8 @@ MonoBehaviour:
     _clip: {fileID: 8300000, guid: fefbb04155c23423ab076a8699def71d, type: 3}
     _volume: 0.35
     _cooldownSeconds: 0.0
+  _uiClick:
+    _clip: {fileID: 8300000, guid: 7b69013e4da684c8ea10d072dc73babe, type: 3}
+    _volume: 0.4
+    _cooldownSeconds: 0.05
   _maxConcurrentSfx: 6

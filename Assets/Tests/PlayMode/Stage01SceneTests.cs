@@ -1,11 +1,16 @@
 using System.Collections;
 using NUnit.Framework;
 using SushiDefense;
+using SushiDefense.Audio;
 using SushiDefense.Belt;
 using SushiDefense.Customers;
+using SushiDefense.Navigation;
 using SushiDefense.Run;
+using SushiDefense.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace SushiDefense.Tests.PlayMode
 {
@@ -58,7 +63,8 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// <b>씬의 명부가 비어 있으면 아무도 앉힐 수 없다.</b> 다른 씬 테스트는 자기가 들고 온
         /// <c>CustomerData</c> 로 직접 배치하므로 이 구멍을 지나친다 — 실제 플레이 경로는
-        /// 배치 껍데기의 명부를 타므로 그쪽을 본다.
+        /// 명부를 손패 카드로 늘어놓고 그 카드를 자리에 끌어다 놓으므로, 손패까지 값이
+        /// 닿았는지를 본다.
         ///
         /// <para>
         /// 직렬화 필드 이름이 바뀌면 Unity 가 옛 값을 조용히 버린다. 그때 코드도 테스트도
@@ -73,10 +79,12 @@ namespace SushiDefense.Tests.PlayMode
             Assert.Greater(_stage.Run.Customers.Count, 0,
                            "씬의 손님 명부가 비었다 — StageBootstrap 의 시작 손님 참조를 확인하라");
 
-            var controller = Object.FindAnyObjectByType<CustomerPlacementController>();
-            Assert.IsNotNull(controller, "씬에 배치 껍데기가 없다");
-            Assert.IsNotNull(controller.PendingCustomer,
-                             "배치 예정 손님이 없다 — 명부가 껍데기에 물리지 않았다");
+            var hand = Object.FindAnyObjectByType<CustomerHandView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(hand, "씬에 손패가 없다");
+            Assert.IsNotNull(hand.CustomerAt(0),
+                             "손패 첫 카드가 비었다 — 명부가 손패에 물리지 않았다");
+            Assert.IsTrue(hand.IsAvailableAt(0),
+                          "시작 손님을 아무 자리에도 놓을 수 없다 — 시작 예산 또는 자리 배치를 확인하라");
         }
 
         /// <summary>
@@ -110,6 +118,173 @@ namespace SushiDefense.Tests.PlayMode
             // 건너뛰기가 런을 건드리지 않는다는 것은 EditMode 가 검증한다. 여기서는
             // 화면을 열어 둔 채 테스트가 끝나지 않도록 닫기만 한다.
             _stage.Rewards.Skip();
+        }
+
+        /// <summary>
+        /// 보상 화면이 <b>처음에는 내려가 있는지</b> 본다.
+        ///
+        /// <para>
+        /// <c>ShowOffers</c> 는 오브젝트를 켜는데 <c>Hide</c> 는 카드와 건너뛰기만 끄고 있었다.
+        /// 화면에 배경이 없던 동안에는 그 비대칭이 보이지 않았지만, M6 에서 패널을 깔자마자
+        /// <b>스테이지 시작부터 보상 화면이 판을 덮었다.</b>
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardScreenStartsHidden()
+        {
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<RewardSelectionView>(FindObjectsInactive.Include);
+
+            Assert.IsNotNull(view, "씬에 보상 화면이 없다");
+            Assert.IsFalse(view.gameObject.activeInHierarchy,
+                           "판이 시작부터 보상 화면에 덮여 있다");
+            Assert.IsFalse(view.IsShowing);
+        }
+
+        /// <summary>
+        /// 보상 카드를 열었을 때 <b>글자가 실제로 라벨에 닿는지</b> 본다.
+        ///
+        /// <para>
+        /// <c>CardView.NameText</c> 는 라벨이 없어도 채워지는 프로퍼티라 그것만 보면 공허하다
+        /// (<c>.claude/rules/tests.md</c> §3). 카드는 껐다 켜는 구조여서 <c>CardView.Awake</c> 가
+        /// 아직 안 돈 상태로 <c>Show</c> 가 불릴 수 있는 자리이며, 그러면 글자가 <c>null</c>
+        /// 라벨로 흘러가 <b>빈 카드</b>가 뜬다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_RewardCardsRenderText()
+        {
+            yield return null;
+
+            _stage.Rewards.Open(_stage.Run);
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<RewardSelectionView>(FindObjectsInactive.Include);
+            Assert.Greater(view.ShownCardCount, 0, "전제: 제시할 보상이 있다");
+
+            var drawnCards = 0;
+            foreach (var card in view.GetComponentsInChildren<CardView>(true))
+            {
+                if (!card.IsShowing)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+                Assert.IsNotEmpty(card.NameText, $"{card.name} 이 이름을 들고 있지 않다");
+
+                var reachedALabel = false;
+                foreach (var label in card.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{card.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(view.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
+
+            _stage.Rewards.Skip();
+        }
+
+        /// <summary>
+        /// 덱 화면의 카드도 글자가 라벨에 닿는지 본다 — 배선이 끊기면 빈 카드가 뜬다.
+        ///
+        /// <para>
+        /// <b>이 테스트는 활성화 순서 문제를 잡지 못한다.</b> 참조 해석을 <c>Awake</c> 하나로
+        /// 되돌려 실측했더니 보상 카드만 빈 카드가 되고 <b>덱 카드는 멀쩡했다</b> — 계층 순서상
+        /// 덱 카드의 <c>Awake</c> 는 제때 돈다. 같은 모양이라고 같이 깨지지는 않으므로,
+        /// 그 계약을 지키는 것은 <c>Play_Scene_RewardCardsRenderText</c> 쪽이다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DeckCardsRenderText()
+        {
+            yield return null;
+
+            _stage.Deck.Open();
+            yield return null;
+
+            var view = Object.FindAnyObjectByType<DeckPanelView>(FindObjectsInactive.Include);
+            Assert.Greater(view.ShownCardCount, 0, "전제: 덱에 초밥이 있다");
+
+            var drawnCards = 0;
+            foreach (var card in view.GetComponentsInChildren<CardView>(true))
+            {
+                if (!card.IsShowing)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+
+                var reachedALabel = false;
+                foreach (var label in card.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{card.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(view.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
+
+            _stage.Deck.Close();
+        }
+
+        /// <summary>
+        /// <b>손패 카드에 글자와 그림이 실제로 나가는지</b> 본다. 플레이어가 가장 먼저 만지는
+        /// 화면인데 이것을 보는 테스트가 하나도 없었다.
+        ///
+        /// <para>
+        /// <b>이 테스트는 실행 순서 문제를 잡지 못한다.</b> 손패가 빈 카드로 뜬 원인은
+        /// <c>CustomerCardDrag</c> 가 자기 <c>Awake</c> 를 전제한 것이었는데, 고친 것을 되돌려
+        /// 실측했더니 <b>에디터에서는 통과한다</b> — 에디터의 <c>Awake</c> 순서가 플레이어와
+        /// 반대라 <c>Card</c> 가 이미 채워져 있다. 실제로 터진 곳은 WebGL 뿐이었다.
+        /// 그 계약은 <c>CustomerHandViewTests.Bind_CardAwakeHasNotRun_StillDrawsInsteadOfThrowing</c>
+        /// 이 순서를 손으로 만들어 지킨다.
+        /// </para>
+        /// <para>
+        /// 그래도 남긴다 — 명부가 카드에 닿는 배선이 끊기면 여기서 잡힌다. 기존 손패 테스트는
+        /// <c>DropAt</c> 을 직접 부르거나 카드를 코드로 만들어 물려서 이 경로를 지나간다
+        /// (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HandCardsRenderText()
+        {
+            yield return null;
+
+            var hand = Object.FindAnyObjectByType<CustomerHandView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(hand, "씬에 손패가 없다");
+            Assert.Greater(hand.ShownCardCount, 0, "전제: 명부에 손님이 있어 카드가 그려진다");
+
+            var drawnCards = 0;
+            foreach (var drag in hand.GetComponentsInChildren<CustomerCardDrag>(true))
+            {
+                if (drag.Customer == null)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+                Assert.IsNotNull(drag.Card, $"{drag.name} 이 카드 표현을 물지 못했다");
+                Assert.IsTrue(drag.Card.IsShowing, $"{drag.name} 이 내용을 그리지 않았다");
+
+                var reachedALabel = false;
+                foreach (var label in drag.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{drag.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(hand.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
         }
 
         [UnityTest]
@@ -186,13 +361,23 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// 라벨이 <b>한글 폰트를 물고 있는지</b> 본다. 비어 있으면 TMP 가 기본 폰트로
         /// 대신하는데 거기엔 한글이 없어 화면이 두부가 된다 — 빌드해야만 드러나는 실패다.
+        ///
+        /// <para>
+        /// <b>씬 전체를 본다.</b> <c>Stage</c> 하위만 보면 밖에 놓인 라벨을 지나치고, 무엇보다
+        /// <i>"폰트가 비었다"</i> 만 보는 검사로는 <b>엉뚱한 폰트가 물린 경우</b>를 못 잡는다 —
+        /// M6 에서 <c>Card.prefab</c> 이 그 형태로 기본 SDF 폰트를 물고 있었다.
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_LabelsUseKoreanFont()
         {
             yield return WaitSeconds(0.2f);
 
-            foreach (var label in _stage.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            var labels = Object.FindObjectsByType<TMPro.TMP_Text>(FindObjectsInactive.Include,
+                                                                 FindObjectsSortMode.None);
+
+            Assert.IsNotEmpty(labels, "라벨을 하나도 찾지 못했다 — 씬이 비었는지 확인하라");
+            foreach (var label in labels)
             {
                 Assert.IsNotNull(label.font, $"{label.name} 에 폰트가 없다");
                 Assert.IsTrue(label.font.HasCharacters("매출 클리어"),
@@ -249,8 +434,8 @@ namespace SushiDefense.Tests.PlayMode
         /// M5 의 결과물 대부분이 관측 불가능했다.
         ///
         /// <para>
-        /// 마우스를 흉내 내지 않고 <c>ClickAt</c> 을 직접 부른다. 좌표 변환은 카메라의
-        /// 몫이고, 여기서 볼 것은 <b>클릭이 배치로 이어지는가</b>다.
+        /// 포인터를 흉내 내지 않고 <c>DropAt</c> 을 직접 부른다. 좌표 변환은 카메라의
+        /// 몫이고, 여기서 볼 것은 <b>드롭이 배치로 이어지는가</b>다.
         /// </para>
         /// </summary>
         [UnityTest]
@@ -258,27 +443,27 @@ namespace SushiDefense.Tests.PlayMode
         {
             yield return WaitSeconds(0.2f);
 
-            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
-            Assert.IsNotNull(input, "씬에 배치 입력이 없다 — 손님을 앉힐 방법이 없다");
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            Assert.IsNotNull(hand, "씬에 손패가 없다 — 손님을 앉힐 방법이 없다");
 
             var slot = Object.FindAnyObjectByType<TableSlotView>();
-            var placed = input.ClickAt(slot.transform.position);
+            var placed = hand.DropAt(_stage.Run.Customers.Members[0], slot.transform.position);
 
-            Assert.IsTrue(placed, "빈 자리를 눌렀는데 앉지 않았다");
+            Assert.IsTrue(placed, "빈 자리에 떨어뜨렸는데 앉지 않았다");
             Assert.AreEqual(1, _stage.Placement.PlacedCount);
         }
 
         /// <summary>
-        /// 빈 곳을 눌렀을 때 <b>엉뚱한 자리에 앉지 않는지</b> 본다.
+        /// 빈 곳에 떨어뜨렸을 때 <b>엉뚱한 자리에 앉지 않는지</b> 본다.
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_ClickOnEmptySpace_PlacesNothing()
         {
             yield return WaitSeconds(0.2f);
 
-            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
 
-            Assert.IsFalse(input.ClickAt(new Vector2(100f, 100f)));
+            Assert.IsFalse(hand.DropAt(_stage.Run.Customers.Members[0], new Vector2(100f, 100f)));
             Assert.AreEqual(0, _stage.Placement.PlacedCount);
         }
 
@@ -577,6 +762,273 @@ namespace SushiDefense.Tests.PlayMode
             Assert.Greater(_stage.Rewards.OfferCount, 0,
                            "제시할 보상이 없다 — 손님 풀이 시작 명부와 완전히 겹친다");
             _stage.Rewards.Skip();
+        }
+
+        // ── 인스테이지 화면 (M6) ────────────────────────────────────
+        //
+        // 여기부터는 **씬에 오브젝트가 놓였는가**를 본다. step-03~10 이 만든 뷰는 코드로는
+        // 전부 검증돼 있었지만 씬에 한 번도 놓인 적이 없었고, 그 상태에서도 위의 테스트는
+        // 전부 초록이었다 — 하네스가 뷰 계층을 우회하기 때문이다 (tests.md §1).
+
+        /// <summary>없으면 버튼도 드래그도 배달되지 않는다.</summary>
+        [Test]
+        public void Stage01_HasEventSystem()
+        {
+            Assert.IsNotNull(Object.FindAnyObjectByType<EventSystem>(),
+                             "EventSystem 이 없으면 클릭이 아예 배달되지 않는다");
+        }
+
+        /// <summary>
+        /// 이 프로젝트는 <c>ENABLE_LEGACY_INPUT_MANAGER</c> 가 정의되어 있지 않아
+        /// <c>StandaloneInputModule</c> 이 런타임에 죽는다. <b>에디터에서는 경고만 뜨고
+        /// 넘어갈 수 있어</b> 빌드에서 클릭이 통째로 안 먹는 형태로 드러난다.
+        /// </summary>
+        [Test]
+        public void Stage01_UsesInputSystemUIModule()
+        {
+            // 타입 이름으로 본다. Tests.PlayMode 가 Unity.InputSystem 을 참조하지 않고,
+            // 테스트 하나 때문에 asmdef 를 바꾸는 것은 §7 승인 사항이다.
+            var module = Object.FindAnyObjectByType<BaseInputModule>();
+
+            Assert.IsNotNull(module, "입력 모듈이 없다");
+            Assert.AreEqual("InputSystemUIInputModule", module.GetType().Name,
+                            "레거시 입력 모듈이면 빌드에서 클릭이 통째로 죽는다");
+        }
+
+        /// <summary>
+        /// 손패·덱·메뉴가 씬에 놓였는지 본다. 세 화면은 <see cref="StageBootstrap"/> 이
+        /// 자기 하위에서 찾아 프레젠터를 세우므로, <b>프레젠터가 <c>null</c> 이면 곧 씬에
+        /// 오브젝트가 없다는 뜻</b>이다 — 메뉴는 <c>SceneRouter</c> 까지 있어야 선다.
+        /// </summary>
+        [Test]
+        public void Stage01_HasHandDeckAndMenuViews()
+        {
+            Assert.IsNotNull(Object.FindAnyObjectByType<CustomerHandView>(),
+                             "손패가 없으면 손님을 앉힐 방법이 없다");
+            Assert.IsNotNull(Object.FindAnyObjectByType<SceneRouter>(),
+                             "SceneRouter 가 없으면 나가기가 아무 일도 하지 않는다");
+            Assert.IsNotNull(_stage.Deck, "덱 화면이 없다 — DeckPanelView 오브젝트를 확인하라");
+            Assert.IsNotNull(_stage.Menu,
+                             "메뉴가 없다 — StageMenuView 또는 SceneRouter 오브젝트를 확인하라");
+        }
+
+        /// <summary>
+        /// step-04 가 <c>PlacementInput</c> 컴포넌트를 지웠다. 컴포넌트를 지우면 씬에는
+        /// <b>Missing Script</b> 로 남는데, 조용하고 재생해도 경고만 뜬다. 지금 0건이므로
+        /// 이것은 회귀 고정이며, 특정 이름이 아니라 <b>스크립트가 빠진 컴포넌트 전부</b>를 본다.
+        /// </summary>
+        [Test]
+        public void Stage01_HasNoPlacementInput()
+        {
+            foreach (var node in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include,
+                                                                    FindObjectsSortMode.None))
+            {
+                foreach (var component in node.GetComponents<Component>())
+                {
+                    Assert.IsNotNull(component,
+                                     $"{node.name} 에 스크립트가 빠진 컴포넌트가 남아 있다");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 자리마다 손님 시각 표현이 있고, 그 포화도 칸이 <b>가장 많이 먹는 손님</b>을 담을 수
+        /// 있는지 본다. 칸이 모자라면 먹보의 포화도가 화면에서 잘리는데, 예외가 나지 않아
+        /// 눈으로만 드러난다.
+        ///
+        /// <para>
+        /// 배치를 거치지 않고 바에 직접 물린다 — 여기서 볼 것은 <b>프리팹의 칸 수</b>이고,
+        /// 자리 넷에 먹보를 앉히려 하면 잔액·한도가 먼저 막는다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Stage01_CustomerViewHasSaturationCells()
+        {
+            var bigEater = LoadCustomer("Customer.BigEater");
+            var slots = Object.FindObjectsByType<TableSlotView>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None);
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+            Assert.AreEqual(8, bigEater.MaxSaturation, "전제: 먹보가 가장 많이 먹는다");
+
+            foreach (var slot in slots)
+            {
+                var seat = slot.GetComponentInChildren<CustomerView>(true);
+                Assert.IsNotNull(seat, $"자리 {slot.SlotIndex} 에 손님 시각 표현이 없다");
+
+                var bar = seat.GetComponentInChildren<SaturationBarView>(true);
+                Assert.IsNotNull(bar, $"자리 {slot.SlotIndex} 의 손님에 포화도 바가 없다");
+
+                bar.Bind(new CustomerRuntimeState(bigEater, 0));
+                Assert.AreEqual(bigEater.MaxSaturation, bar.ShownVisibleCells,
+                                $"자리 {slot.SlotIndex} 의 포화도 칸이 먹보의 최대 포화도보다 "
+                                + "적다 — 먹보의 배가 화면에서 잘린다");
+            }
+        }
+
+        /// <summary>
+        /// 자리마다 손님 시각 표현이 <b>정확히 하나</b>인지 본다.
+        ///
+        /// <para>
+        /// M6 조립 전까지 자리 0·1·2 에는 <c>Customer.prefab</c> 인스턴스가 <b>둘씩</b> 있었다.
+        /// <see cref="TableSlotView"/> 는 첫 번째만 찾아 물리고 <c>Vacate</c> 도 그것만 끄므로,
+        /// 나머지는 <b>아무것도 물리지 않은 채 켜져 있는 유령 손님</b>으로 세 자리에 앉아
+        /// 있었다. 예외도 경고도 없고, 위의 자리·포화도 테스트는 첫 번째만 보므로 전부 초록이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Stage01_EachSlotHasOneSeatVisual()
+        {
+            var slots = Object.FindObjectsByType<TableSlotView>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None);
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            foreach (var slot in slots)
+            {
+                Assert.AreEqual(1, slot.GetComponentsInChildren<CustomerView>(true).Length,
+                                $"자리 {slot.SlotIndex} 의 손님 시각 표현이 하나가 아니다 — "
+                                + "둘째부터는 물리지도 꺼지지도 않는 유령으로 남는다");
+            }
+        }
+
+        // ── 실플레이 리포트 (M6 후속) ────────────────────────────────
+
+        /// <summary>
+        /// <b>자리에 테이블 그림이 있는지 본다.</b> 리포트의 «테이블이 보이지 않는다» 는
+        /// 가려진 것이 아니라 <b>씬에 렌더러가 아예 없었던</b> 것이다 — 스프라이트는
+        /// 배경과 벨트 레일 둘뿐이었고, 손님이 허공에 앉아 있었다.
+        ///
+        /// <para>
+        /// <b>손님 뷰 바깥이어야 한다.</b> 안에 두면 자리가 빌 때 손님과 함께 꺼져,
+        /// 앉힐 수 있는 자리가 화면에서 사라진다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Stage01_EachSlotHasATableVisual()
+        {
+            var slots = Object.FindObjectsByType<TableSlotView>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None);
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            foreach (var slot in slots)
+            {
+                var table = slot.transform.Find("Table");
+                Assert.IsNotNull(table, $"자리 {slot.SlotIndex} 에 테이블 그림이 없다");
+
+                var renderer = table.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer, $"자리 {slot.SlotIndex} 의 테이블에 렌더러가 없다");
+                Assert.IsNotNull(renderer.sprite, $"자리 {slot.SlotIndex} 의 테이블 그림이 비었다");
+
+                Assert.IsNull(table.GetComponentInParent<CustomerView>(),
+                              $"자리 {slot.SlotIndex} 의 테이블이 손님 뷰 안에 있다 — "
+                              + "자리가 비면 함께 꺼진다");
+            }
+        }
+
+        /// <summary>
+        /// 요구된 HUD 배치. <b>이름으로 찾는 폴백에만 기대고 있어</b>, 오브젝트가 사라지거나
+        /// 이름이 바뀌면 코드는 멀쩡한 채 라벨만 조용히 빈다 (tests.md §1 «애셋 등록·설정»).
+        /// </summary>
+        [Test]
+        public void Stage01_HudHasStageLabelAndNoPendingLabel()
+        {
+            var hud = Object.FindAnyObjectByType<StageHudView>();
+            Assert.IsNotNull(hud, "전제: 씬에 HUD 가 있다");
+
+            Assert.IsNotNull(hud.transform.Find("StageLabel"),
+                             "스테이지 단계 라벨이 없다 — 몇 판째인지 화면에 안 나온다");
+            Assert.IsNull(hud.transform.Find("PendingCustomerLabel"),
+                          "「배치 예정」 라벨이 남아 있다 — 뜻을 알 수 없다는 지적을 받은 줄이다");
+        }
+
+        /// <summary>
+        /// 배너는 최상단 <b>가운데</b>, 진행 정보는 최상단 <b>우측</b>에 «단계 → 손님 → 대기»
+        /// 순서로. 값이 아니라 <b>순서와 정렬</b>을 본다 — 여백은 연출이고 순서는 요구다.
+        /// </summary>
+        [Test]
+        public void Stage01_HudLabelsSitWhereTheRequirementSays()
+        {
+            var hud = Object.FindAnyObjectByType<StageHudView>().transform;
+
+            var outcome = (RectTransform)hud.Find("OutcomeLabel");
+            Assert.AreEqual(new Vector2(0.5f, 1f), outcome.anchorMin, "배너가 최상단 가운데가 아니다");
+            Assert.Less(outcome.anchoredPosition.y, 0f, "배너가 화면 위로 잘린다 — 패딩이 없다");
+
+            var stage = (RectTransform)hud.Find("StageLabel");
+            var placement = (RectTransform)hud.Find("PlacementLabel");
+            var waiting = (RectTransform)hud.Find("WaitingLabel");
+
+            foreach (var rect in new[] { stage, placement, waiting })
+            {
+                Assert.AreEqual(new Vector2(1f, 1f), rect.anchorMin,
+                                $"{rect.name} 이 최상단 우측에 있지 않다");
+            }
+
+            // 위에서 아래로 단계 → 손님 → 대기. anchoredPosition.y 는 아래로 갈수록 작다.
+            Assert.Greater(stage.anchoredPosition.y, placement.anchoredPosition.y,
+                           "스테이지 단계가 손님 수보다 아래에 있다");
+            Assert.Greater(placement.anchoredPosition.y, waiting.anchoredPosition.y,
+                           "손님 수가 대기 인원보다 아래에 있다");
+        }
+
+        /// <summary>
+        /// 메뉴에서 「멈춤」과 「닫기」가 빠졌는지 본다. 메뉴를 여는 것이 곧 멈춤이고,
+        /// 「닫기」는 실패로 열린 메뉴에서 <b>아무것도 못 하는 판</b>으로 빠져나가게 한다.
+        /// </summary>
+        [Test]
+        public void Stage01_StageMenuHasNoPauseOrCloseButton()
+        {
+            var menu = Object.FindAnyObjectByType<StageMenuView>();
+            Assert.IsNotNull(menu, "전제: 씬에 메뉴가 있다");
+
+            var panel = menu.transform.Find("Panel");
+            Assert.IsNotNull(panel, "전제: 메뉴에 패널이 있다");
+
+            Assert.IsNull(panel.Find("PauseButton"), "「멈춤」이 남아 있다");
+            Assert.IsNull(panel.Find("CloseButton"), "「닫기」가 남아 있다");
+            Assert.IsNotNull(panel.Find("ResumeButton"), "재개가 없으면 판으로 돌아갈 수 없다");
+            Assert.IsNotNull(panel.Find("RestartButton"));
+            Assert.IsNotNull(panel.Find("QuitButton"));
+        }
+
+        /// <summary>
+        /// 로딩 화면에서 누른 클릭이 첫 프레임에 배달되던 것을 막는 게이트. <b>입력 배달
+        /// 경로에 붙어야</b> 의미가 있다.
+        /// </summary>
+        [Test]
+        public void Stage01_EventSystemIsArmedLate()
+        {
+            var eventSystem = Object.FindAnyObjectByType<EventSystem>();
+            Assert.IsNotNull(eventSystem, "전제: 씬에 EventSystem 이 있다");
+
+            Assert.IsNotNull(eventSystem.GetComponent<UiInputArmer>(),
+                             "로딩 중 클릭이 그대로 배달된다 — 준비 화면에서 누른 자리로 넘어간다");
+        }
+
+        /// <summary>
+        /// 클릭음이 <b>버튼에만</b> 붙었는지 씬에서 확인한다. 손패·덱·보상 카드가 함께 잡히면
+        /// 카드를 누를 때도 메뉴 소리가 난다.
+        /// </summary>
+        [Test]
+        public void Stage01_ClickSoundHooksButtonsOnly()
+        {
+            var clicks = Object.FindAnyObjectByType<UiClickSound>();
+            var buttons = Object.FindObjectsByType<Button>(FindObjectsInactive.Include,
+                                                          FindObjectsSortMode.None);
+            var cards = Object.FindObjectsByType<CardView>(FindObjectsInactive.Include,
+                                                          FindObjectsSortMode.None);
+
+            Assert.IsNotNull(clicks, "UiClickSound 가 없으면 버튼이 소리를 내지 않는다");
+
+            // 카드가 0장이면 "카드를 걸러 냈다" 가 확인되지 않고, 카드 아닌 버튼이 없으면
+            // "버튼에 붙었다" 가 확인되지 않는다 — 둘 다 전제로 박는다 (tests.md §3).
+            Assert.Greater(cards.Length, 0, "전제: 씬에 카드가 있다");
+            Assert.Greater(buttons.Length, cards.Length, "전제: 카드가 아닌 버튼도 있다");
+
+            // 어긋나는 방향이 둘이다: 많으면 카드가 딸려 들어간 것이고, 적으면 클릭음이
+            // 버튼들보다 아래에 붙어 나머지를 못 본 것이다 (주입으로 둘 다 확인했다).
+            Assert.AreEqual(buttons.Length - cards.Length, clicks.HookedCount,
+                            "클릭음이 잡은 버튼 수가 어긋난다 — 많으면 카드가 딸려 들어간 것이고, "
+                            + "적으면 UiClickSound 가 버튼 계층 아래에 붙은 것이다");
         }
 
         private static int BandWidth(SushiDefense.Data.CustomerData data) =>

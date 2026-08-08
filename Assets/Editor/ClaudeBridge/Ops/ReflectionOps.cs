@@ -31,9 +31,13 @@ namespace Editor.ClaudeBridge.Ops
             object target = null;
             if (!method.IsStatic)
             {
-                if (!int.TryParse(a.targetInstanceId, out var iid) || iid == 0)
-                    throw new ArgumentException("Non-static method requires targetInstanceId");
-                target = EditorUtility.EntityIdToObject(EntityId.FromULong((ulong)iid))
+                // int 로 받으면 안 된다 — EntityId 는 64비트이고 실제 값이 int32 범위를 훌쩍
+                //넘는다 (예: 568105584918854036). 파싱이 실패하면 "targetInstanceId 가 없다" 는
+                // **엉뚱한 메시지**가 나가서, 넘겼는데도 안 넘긴 것처럼 보인다.
+                if (!ulong.TryParse(a.targetInstanceId, out var iid) || iid == 0)
+                    throw new ArgumentException(
+                        $"Non-static method requires a numeric targetInstanceId (got: '{a.targetInstanceId}')");
+                target = EditorUtility.EntityIdToObject(EntityId.FromULong(iid))
                          ?? throw new ArgumentException($"Instance not found: {iid}");
             }
 

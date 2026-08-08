@@ -32,6 +32,7 @@ namespace SushiDefense.Data
         [SerializeField] private AudioCue _stageCleared = new();
         [SerializeField] private AudioCue _stageFailed = new();
         [SerializeField] private AudioCue _bgm = new();
+        [SerializeField] private AudioCue _uiClick = new();
 
         [SerializeField, Min(MinimumConcurrentSfx)]
         private int _maxConcurrentSfx = MinimumConcurrentSfx;
@@ -68,6 +69,17 @@ namespace SushiDefense.Data
         public AudioCue Bgm => _bgm;
 
         /// <summary>
+        /// 버튼·카드를 눌렀을 때.
+        ///
+        /// <para>
+        /// 메뉴에서 <b>연타된다</b> — 먹힘 다음으로 자주 나는 큐라 볼륨이 작아야 하고, 짧은
+        /// 간격이 필요하다. 이 소리는 조작이 먹혔다는 신호이므로 상한에 걸려 버려지면
+        /// 버튼이 고장 난 것처럼 느껴진다.
+        /// </para>
+        /// </summary>
+        public AudioCue UiClick => _uiClick;
+
+        /// <summary>
         /// 동시에 울릴 수 있는 효과음 수. 이 수를 넘는 요청은 버려진다.
         ///
         /// <para>
@@ -97,6 +109,7 @@ namespace SushiDefense.Data
             _stageCleared.Clamp();
             _stageFailed.Clamp();
             _bgm.Clamp();
+            _uiClick.Clamp();
         }
     }
 }

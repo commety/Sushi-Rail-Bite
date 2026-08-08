@@ -100,6 +100,93 @@ namespace SushiDefense.Tests.PlayMode.Customers
         }
 
         /// <summary>
+        /// <b>실플레이에서 손님이 32×32 색 블록으로 나오던 증상을 잡는 테스트다.</b>
+        ///
+        /// <para>
+        /// 자리는 손님이 앉을 때까지 <b>꺼져 있고</b>, 꺼진 오브젝트의 <c>Awake</c> 는
+        /// 켜질 때까지 돌지 않는다. 참조를 <c>Awake</c> 에서만 챙기면 첫 배치의
+        /// <see cref="CustomerView.Bind"/> 는 <c>_body</c> 가 <c>null</c> 인 채로 지나가
+        /// 아이콘이 영영 안 바뀐다 — 두 번째 판부터는 <c>Awake</c> 가 이미 돌아 정상으로
+        /// 보이는 것이 «가끔 된다» 의 정체다.
+        /// </para>
+        /// <para>
+        /// 이 테스트가 필요한 이유는 나머지 전부가 <c>AddComponent</c> 로 <b>켜진</b>
+        /// 오브젝트를 세우기 때문이다 — 하네스가 구조적으로 안 밟는 경로다
+        /// (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Bind_WhileObjectInactive_StillShowsIcon()
+        {
+            var go = NewObject("InactiveCustomer");
+            go.SetActive(false);
+            var body = go.AddComponent<SpriteRenderer>();
+            var view = go.AddComponent<CustomerView>();
+            var icon = NewSprite();
+            SetIcon(icon);
+
+            view.Bind(_logic, null);
+
+            Assert.AreSame(icon, body.sprite, "꺼진 채로 물리면 아이콘이 배선되지 않는다");
+        }
+
+        /// <summary>
+        /// 같은 원인의 다른 얼굴 — 포화도 칸이 통째로 안 그려지던 증상이다. 칸도
+        /// <c>Awake</c> 에서만 모으면 첫 배치에서 <c>null</c> 이라 표시 칸이 0 이 된다.
+        /// </summary>
+        [Test]
+        public void Bind_WhileObjectInactive_StillBindsSaturationBar()
+        {
+            var go = NewObject("InactiveCustomer");
+            go.SetActive(false);
+            go.AddComponent<SpriteRenderer>();
+
+            var bar = new GameObject("SaturationBar");
+            _objects.Add(bar);
+            bar.transform.SetParent(go.transform);
+            for (var i = 0; i < 8; i++)
+            {
+                var cell = new GameObject($"Cell{i}");
+                _objects.Add(cell);
+                cell.transform.SetParent(bar.transform);
+                cell.AddComponent<SpriteRenderer>();
+            }
+
+            var barView = bar.AddComponent<SaturationBarView>();
+            var view = go.AddComponent<CustomerView>();
+
+            view.Bind(_logic, null);
+
+            Assert.Greater(barView.ShownVisibleCells, 0, "칸이 하나도 안 켜지면 포화도가 안 보인다");
+        }
+
+        /// <summary>
+        /// 자리를 비우면 <b>프리팹의 그림으로 돌아간다.</b> 안 돌리면 다시 시작한 판의
+        /// 빈 자리에 직전 손님이 그대로 남는다.
+        /// </summary>
+        [Test]
+        public void Bind_Null_RestoresThePrefabSprite()
+        {
+            var go = NewObject("SeatCustomer");
+            go.SetActive(false);
+            var body = go.AddComponent<SpriteRenderer>();
+
+            // 그림을 먼저 얹는다 — 프리팹이 들고 있던 상태를 재현하는 것이라
+            // 뷰가 참조를 챙기는 시점보다 앞이어야 한다.
+            var prefabSprite = NewSprite();
+            body.sprite = prefabSprite;
+
+            var view = go.AddComponent<CustomerView>();
+            SetIcon(NewSprite());
+            view.Bind(_logic, null);
+            Assert.AreNotSame(prefabSprite, body.sprite, "아이콘이 애초에 안 걸렸다");
+
+            view.Bind(null, null);
+
+            Assert.AreSame(prefabSprite, body.sprite);
+        }
+
+        /// <summary>
         /// 그림과 상태 색은 다른 채널이다. 유형을 색으로 구분하면 상태 색과 싸우므로
         /// 유형은 <b>실루엣</b>이 맡고 색은 상태가 그대로 쓴다 (M5).
         /// </summary>
