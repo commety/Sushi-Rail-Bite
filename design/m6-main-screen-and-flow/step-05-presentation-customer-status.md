@@ -121,22 +121,63 @@ namespace SushiDefense.Customers
 
 > **`Waiting_NotDigesting_DoesNotShowBadge` 가 필요한 이유:** 대기(파란 틴트)와 소화(회색 틴트)는 둘 다 "지금 안 먹는 상태" 라 구현에서 뭉뚱그리기 쉽다. 배지는 **소화에만** 뜬다.
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| 표시 칸을 넘는 칸을 끄지 않고 회색으로 둔다 | `Bind_MaxSaturationBelowCapacity_DisablesSpareCells` |
-| `FilledCells` 대신 `CurrentSaturation` 을 그대로 쓴다 | `Bind_MaxSaturationAboveCapacity_ShowsCapacityCells` |
-| 배지를 `Idle` 에서도 띄운다 | `Waiting_NotDigesting_DoesNotShowBadge` |
-| `CustomerView.Bind` 에서 바 초기화 제거 | `CustomerView_Bind_ResetsBarAndBadge` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| 표시 칸을 넘는 칸을 끄지 않는다 | 1건 | **3건** |
+| 배지를 소화가 아닌 상태에서도 띄운다 | 1건 | 예측대로 **1건** (`CustomerView_Eating_DoesNotShowBadge`) |
+| `Bind` 가 재계산을 강제하지 않는다 | 1건 | **0건** — 아래 |
+
+### 0건이 나온 주입 하나 — 테스트가 아니라 **코드가** 불필요했다
+
+`Bind` 에 *"다음 `Refresh` 가 반드시 색을 쓰게"* 하는 한 줄(`ShownFilledCells = -1`)을 넣어
+두었다가, 그것을 지워도 아무도 죽지 않았다. [`tests.md`](../../.claude/rules/tests.md) §3 의
+3분기를 순서대로 배제했다:
+
+1. **검사가 헛돌았나** — 아니다. 같은 편집에서 함께 넣은 배지 주입은 잡혔으므로 컴파일은 됐다
+2. **관측 범위 밖인가** — 아니다. 칸 색은 **오직 찬 칸 수로만** 정해진다. 찬 칸 수가 같으면
+   손님이 바뀌어도 그려야 할 색이 정확히 같고, 표시 칸을 넘는 칸은 이미 꺼져 있다
+3. **테스트가 공허한가** — 아니다. **지킬 계약이 애초에 없었다**
+
+그래서 테스트를 보강하는 대신 **그 줄을 지웠다.** 지워도 관측 결과가 같은 코드는 방어가
+아니라 군더더기다 (R8). 주입이 0건일 때 반사적으로 테스트를 늘리면 검증은 안 늘고 코드만 는다.
+
+### 애셋 테스트를 또 붙였다 — `CustomerPrefabTests`
+
+step-03·step-04 와 같은 사각지대다. 두 뷰 테스트는 오브젝트를 **코드로** 세우므로
+`Customer.prefab` 이 비어 있어도 초록이고, 뷰가 자식을 이름으로 찾는 폴백이 있어 프리팹에
+자식이 없으면 표시가 통째로 빠지는데 예외는 나지 않는다.
+
+**칸 수는 단언한다.** 위치·색은 연출이지만 개수는 계약이다 — 먹보의 포화도가 8 이라 칸이
+그보다 적으면 그 손님만 비례로 접혀 한 입이 한 칸이 아니게 된다.
 
 ### 완료 판정
 
-- [ ] `grep -rn "CustomerState\." Assets/Code/Scripts/Presentation/Customers/DigestingBadgeView.cs` 가 **0건** (배지는 상태를 모른다)
-- [ ] `LateUpdate` 가 `CustomerView` 에만 있다 — 바·배지에는 없다
-- [ ] PlayMode Green — `./tests/run-tests.sh all`
-- [ ] **기존** `CustomerViewTests` 가 수정 없이 통과한다
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `DigestingBadgeView` 에 `CustomerState` **0건** (배지는 상태를 모른다)
+- [x] `LateUpdate` 가 `CustomerView` 에만 있다 — 바·배지에는 **0건**
+- [x] EditMode **630/630** · PlayMode **193/193**
+- [x] **기존** `CustomerViewTests` 가 수정 없이 통과한다
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### `InternalsVisibleTo` 를 하나 넓혔다
+
+`CustomerRuntimeState.CurrentSaturation` 의 세터가 `internal` 이라 PlayMode 에서 *"세 칸 찬
+손님"* 을 꾸밀 수 없었다. **프로덕션에 세터를 여는 대신** `Runtime/AssemblyInfo.cs` 에
+`Tests.PlayMode` 를 더했다 — [`tests.md`](../../.claude/rules/tests.md) §7 이 지정한 탈출구이고,
+`Tests.EditMode` 에 대해 이미 내린 결정을 한 줄 확장한 것이다.
+
+실제 로직으로 초밥을 먹여 만들 수도 있었지만, 그러면 **표시 테스트가 집기 규칙까지 끌고 온다**
+— 바가 깨졌을 때 원인이 표시인지 집기인지 구분되지 않는다.
+
+### 배지는 아이콘이다 — 요구를 한 번 좁혔다
+
+요구는 *"'소화중...' 인터페이스가 16x16px"* 인데 이 프로젝트의 픽셀 폰트는 12 px 이라
+«소화중» 세 글자가 60 px 을 넘는다. 16×16 안에 글자를 넣을 방법이 없어 **아이콘 하나**로
+그 상태를 말하게 했다.
+
+말풍선 폭을 다시 정하면 문구를 넣을 수 있지만 그건 별도 기획이다. 스프라이트는 step-11 이
+만들며, **애셋이 정확히 16×16 px 인지**는 그 단계가 테스트로 고정한다.
 
 ### 예상 커밋 메시지
 

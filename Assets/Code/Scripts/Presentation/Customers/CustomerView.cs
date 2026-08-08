@@ -25,6 +25,9 @@ namespace SushiDefense.Customers
         /// <summary>인스펙터가 비었을 때 자기 하위에서 찾을 자식 이름. 씬 조립과의 약속이다.</summary>
         private const string BandLabelName = "BandLabel";
 
+        private const string SaturationBarName = "SaturationBar";
+        private const string DigestingBadgeName = "DigestingBadge";
+
         [SerializeField] private SpriteRenderer _body;
         [SerializeField] private TMP_Text _bandLabel;
         [SerializeField] private Color _idleColor = Color.white;
@@ -33,6 +36,12 @@ namespace SushiDefense.Customers
 
         /// <summary>대역 밖 초밥을 두고 더 좋은 것을 기다리는 중임을 나타내는 색.</summary>
         [SerializeField] private Color _waitingColor = new(0.45f, 0.75f, 1f);
+
+        /// <summary>포화도 칸. 없으면 표시만 빠진다 — 표시는 로직의 전제 조건이 아니다.</summary>
+        [SerializeField] private SaturationBarView _saturationBar;
+
+        /// <summary>소화중 배지. 없으면 표시만 빠진다.</summary>
+        [SerializeField] private DigestingBadgeView _digestingBadge;
 
         private ClaimCoordinator _coordinator;
         private CustomerState _shownState = CustomerState.Idle;
@@ -68,6 +77,18 @@ namespace SushiDefense.Customers
             _coordinator = coordinator;
             _shownWaiting = false;
 
+            // 자리를 갈아탈 때 직전 손님의 칸·배지가 남으면, 방금 앉은 손님이 이미 찼거나
+            // 소화 중인 것처럼 보인다. 로직이 null 인 경우에도 지나가야 하므로 앞에 둔다.
+            if (_saturationBar != null)
+            {
+                _saturationBar.Bind(logic?.State);
+            }
+
+            if (_digestingBadge != null)
+            {
+                _digestingBadge.Hide();
+            }
+
             if (logic == null)
             {
                 BandText = string.Empty;
@@ -87,7 +108,7 @@ namespace SushiDefense.Customers
 
         /// <summary>
         /// 유형별 그림을 물린다. <b>아이콘이 비면 프리팹의 그림을 그대로 둔다</b> —
-        /// 손님이 화면에서 사라지면 자리가 비어 보인다 (<see cref="NameOf"/> 와 같은 처리다).
+        /// 손님이 화면에서 사라지면 자리가 비어 보인다 (<c>CardCaption.NameOf</c> 와 같은 처리다).
         ///
         /// <para>
         /// 그림과 상태 색은 다른 채널이다. 유형을 색으로 구분하면 상태 색과 싸우므로
@@ -110,6 +131,26 @@ namespace SushiDefense.Customers
             }
 
             _bandLabel = HudLabel.Resolve(transform, _bandLabel, BandLabelName);
+
+            // 인스펙터가 비면 자기 하위에서 이름으로 찾는다. 씬 전역 탐색이 아니다 (§4.3).
+            _saturationBar = Resolve(_saturationBar, SaturationBarName);
+            _digestingBadge = Resolve(_digestingBadge, DigestingBadgeName);
+        }
+
+        /// <summary>
+        /// 인스펙터에서 비어 있으면 <b>자기 하위 계층에서만</b> 이름으로 찾는다.
+        /// <see cref="HudLabel.Resolve"/> 와 같은 방식이며, 타입 둘 때문에 그 조각을
+        /// 일반화하지는 않았다.
+        /// </summary>
+        private T Resolve<T>(T assigned, string childName) where T : Component
+        {
+            if (assigned != null)
+            {
+                return assigned;
+            }
+
+            var child = transform.Find(childName);
+            return child != null && child.TryGetComponent<T>(out var found) ? found : null;
         }
 
         /// <summary>
@@ -130,6 +171,13 @@ namespace SushiDefense.Customers
             {
                 Apply(state, waiting);
             }
+
+            // 포화도는 상태·대기와 다른 축이라 변화 감지에 걸리지 않는다. 바가 스스로
+            // 값이 바뀐 프레임에만 색을 쓰므로 매 프레임 물어도 할당이 없다 (§4.3).
+            if (_saturationBar != null)
+            {
+                _saturationBar.Refresh();
+            }
         }
 
         /// <summary>
@@ -140,6 +188,20 @@ namespace SushiDefense.Customers
         {
             _shownState = state;
             _shownWaiting = waiting;
+
+            // 배지는 소화에만 뜬다. 대기와 소화는 둘 다 "지금 안 먹는 상태" 라 뭉뚱그리기
+            // 쉬운데, 그러면 배지가 거의 항상 떠 있어 아무것도 알려 주지 않는다.
+            if (_digestingBadge != null)
+            {
+                if (state == CustomerState.Digesting)
+                {
+                    _digestingBadge.Show();
+                }
+                else
+                {
+                    _digestingBadge.Hide();
+                }
+            }
 
             if (_body == null)
             {
