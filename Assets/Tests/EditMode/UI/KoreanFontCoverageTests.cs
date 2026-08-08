@@ -70,7 +70,7 @@ namespace SushiDefense.Tests.EditMode.UI
         [Test]
         public void Font_CoversRewardLabels()
         {
-            AssertCovers("보상 선택 받을 보상 없음 (Esc) 영입");
+            AssertCovers("보상 선택 받을 보상 없음 (Esc) 영입 건너뛰기");
         }
 
         [Test]
@@ -92,7 +92,7 @@ namespace SushiDefense.Tests.EditMode.UI
         [Test]
         public void Font_CoversStageMenuLabels()
         {
-            AssertCovers("메뉴 일시정지 진행 중 다시 시작 나가기 닫기 덱");
+            AssertCovers("메뉴 일시정지 진행 중 다시 시작 나가기 닫기 덱 멈춤 재개 재시작");
         }
 
         [Test]

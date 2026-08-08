@@ -125,6 +125,12 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// <b>씬 조립에서 반복해 걸린 것.</b> 폰트가 비어 있으면 TMP 가 기본 폰트로 폴백하고,
         /// 에디터에서는 시스템 폰트가 메워 줘서 <b>빌드해야만 두부가 드러난다</b>.
+        ///
+        /// <para>
+        /// <b>«비었나» 로는 모자란다.</b> M6 에서 <c>Card.prefab</c> 이 기본 <c>SDF</c> 폰트를
+        /// 물고 있었는데, 비어 있지는 않아 이 검사를 그대로 통과했다 — 사전 카드 11장이
+        /// 빌드에서 전부 두부가 되는 상태였다. 그래서 한글 커버리지까지 본다.
+        /// </para>
         /// </summary>
         [Test]
         public void MainScene_EveryLabelHasAFont()
@@ -136,6 +142,8 @@ namespace SushiDefense.Tests.PlayMode
             foreach (var label in labels)
             {
                 Assert.IsNotNull(label.font, $"{label.name} 의 폰트가 비었다 — 빌드에서 두부가 된다");
+                Assert.IsTrue(label.font.HasCharacters("매출 클리어"),
+                              $"{label.name} 의 폰트에 한글이 없다: {label.font.name}");
             }
         }
 
