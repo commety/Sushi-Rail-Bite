@@ -31,6 +31,7 @@ namespace SushiDefense.Audio
         private const int StageAdvancedCue = 3;
         private const int StageClearedCue = 4;
         private const int StageFailedCue = 5;
+        private const int UiClickCue = 6;
 
         [SerializeField] private AudioBankSO _bank;
 
@@ -160,6 +161,22 @@ namespace SushiDefense.Audio
             {
                 StartBgm();
             }
+        }
+
+        /// <summary>
+        /// UI 버튼이 눌렸다. <b>버튼 전용이다</b> — 카드 선택·손님 배치는 자기 큐를 갖는다
+        /// (아키텍트 결정). 무엇이 버튼인지는 <c>UiClickSound</c> 가 가른다.
+        ///
+        /// <para>
+        /// <b>여기서도 잠금을 푼다.</b> 메인 화면이 앞에 생기면서 게임의 <b>첫 제스처가
+        /// 배치가 아니라 버튼 클릭</b>이 됐다 — 이 줄이 없으면 브라우저 잠금이 스테이지에
+        /// 들어갈 때까지 안 풀려 메뉴에서 아무 소리도 나지 않는다.
+        /// </para>
+        /// </summary>
+        public void PlayUiClick()
+        {
+            NotifyUserInput();
+            Play(_bank != null ? _bank.UiClick : null, UiClickCue);
         }
 
         private void Awake()
