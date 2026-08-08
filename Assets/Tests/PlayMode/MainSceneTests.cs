@@ -48,6 +48,21 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         /// <summary>
+        /// <b>메인 화면이 이 문제의 현장이다.</b> 준비 화면(로딩 바)이 떠 있는 동안 버튼이
+        /// 놓일 자리를 누르면, 게임이 뜨자마자 그 클릭이 그대로 배달되어 누른 적 없는 화면으로
+        /// 넘어갔다 — 화면은 아직 안 그려졌는데 입력이 먼저 도착한다.
+        /// </summary>
+        [Test]
+        public void MainScene_EventSystemIsArmedLate()
+        {
+            var eventSystem = Object.FindAnyObjectByType<EventSystem>();
+            Assert.IsNotNull(eventSystem, "전제: 씬에 EventSystem 이 있다");
+
+            Assert.IsNotNull(eventSystem.GetComponent<UiInputArmer>(),
+                             "로딩 중 클릭이 그대로 배달된다 — 준비 화면에서 누른 자리로 넘어간다");
+        }
+
+        /// <summary>
         /// 이 프로젝트는 <c>ENABLE_LEGACY_INPUT_MANAGER</c> 가 정의되어 있지 않아
         /// <c>StandaloneInputModule</c> 이 런타임에 죽는다. <b>에디터에서는 경고만 뜨고
         /// 넘어갈 수 있어</b> 빌드에서 클릭이 통째로 안 먹는 형태로 드러난다.

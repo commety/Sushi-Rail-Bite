@@ -70,6 +70,54 @@ namespace SushiDefense.Tests.EditMode.Customers
             }
         }
 
+        /// <summary>
+        /// <b>렌더러가 있는 것만으로는 아무것도 안 보인다.</b> 실플레이에서 포화도가 통째로
+        /// 안 뜬 절반의 원인이 이것이었다 — 칸 여덟 개의 스프라이트가 전부 비어 있었고,
+        /// 위의 테스트는 렌더러의 <i>존재</i>만 봐서 초록이었다
+        /// (<c>.claude/rules/tests.md</c> §3 «공허하게 통과하는 테스트»).
+        /// </summary>
+        [Test]
+        public void Prefab_SaturationCells_HaveSprites()
+        {
+            var bar = _prefab.transform.Find("SaturationBar");
+
+            for (var i = 0; i < bar.childCount; i++)
+            {
+                var cell = bar.GetChild(i).GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(cell.sprite,
+                                 $"{bar.GetChild(i).name} 의 그림이 비었다 — 켜도 안 보인다");
+            }
+        }
+
+        [Test]
+        public void Prefab_DigestingBadge_HasSprite()
+        {
+            var badge = _prefab.transform.Find("DigestingBadge").GetComponent<SpriteRenderer>();
+
+            Assert.IsNotNull(badge.sprite, "배지의 그림이 비었다 — 켜도 안 보인다");
+        }
+
+        /// <summary>
+        /// 칸과 배지는 손님 몸통 <b>앞</b>에 그려져야 한다. 뒤면 그림을 물려도 몸통에 가려
+        /// 안 보이는데, 이것 역시 예외 없이 «표시만 빠지는» 형태다.
+        /// </summary>
+        [Test]
+        public void Prefab_OverlaysDrawInFrontOfTheBody()
+        {
+            var body = _prefab.GetComponent<SpriteRenderer>();
+            var bar = _prefab.transform.Find("SaturationBar");
+            var badge = _prefab.transform.Find("DigestingBadge").GetComponent<SpriteRenderer>();
+
+            Assert.IsNotNull(body, "전제: 몸통에 렌더러가 있다");
+            Assert.Greater(badge.sortingOrder, body.sortingOrder, "배지가 몸통 뒤에 있다");
+
+            for (var i = 0; i < bar.childCount; i++)
+            {
+                Assert.Greater(bar.GetChild(i).GetComponent<SpriteRenderer>().sortingOrder,
+                               body.sortingOrder, $"{bar.GetChild(i).name} 이 몸통 뒤에 있다");
+            }
+        }
+
         [Test]
         public void Prefab_HasDigestingBadgeChild()
         {

@@ -887,6 +887,120 @@ namespace SushiDefense.Tests.PlayMode
             }
         }
 
+        // ── 실플레이 리포트 (M6 후속) ────────────────────────────────
+
+        /// <summary>
+        /// <b>자리에 테이블 그림이 있는지 본다.</b> 리포트의 «테이블이 보이지 않는다» 는
+        /// 가려진 것이 아니라 <b>씬에 렌더러가 아예 없었던</b> 것이다 — 스프라이트는
+        /// 배경과 벨트 레일 둘뿐이었고, 손님이 허공에 앉아 있었다.
+        ///
+        /// <para>
+        /// <b>손님 뷰 바깥이어야 한다.</b> 안에 두면 자리가 빌 때 손님과 함께 꺼져,
+        /// 앉힐 수 있는 자리가 화면에서 사라진다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Stage01_EachSlotHasATableVisual()
+        {
+            var slots = Object.FindObjectsByType<TableSlotView>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None);
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            foreach (var slot in slots)
+            {
+                var table = slot.transform.Find("Table");
+                Assert.IsNotNull(table, $"자리 {slot.SlotIndex} 에 테이블 그림이 없다");
+
+                var renderer = table.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer, $"자리 {slot.SlotIndex} 의 테이블에 렌더러가 없다");
+                Assert.IsNotNull(renderer.sprite, $"자리 {slot.SlotIndex} 의 테이블 그림이 비었다");
+
+                Assert.IsNull(table.GetComponentInParent<CustomerView>(),
+                              $"자리 {slot.SlotIndex} 의 테이블이 손님 뷰 안에 있다 — "
+                              + "자리가 비면 함께 꺼진다");
+            }
+        }
+
+        /// <summary>
+        /// 요구된 HUD 배치. <b>이름으로 찾는 폴백에만 기대고 있어</b>, 오브젝트가 사라지거나
+        /// 이름이 바뀌면 코드는 멀쩡한 채 라벨만 조용히 빈다 (tests.md §1 «애셋 등록·설정»).
+        /// </summary>
+        [Test]
+        public void Stage01_HudHasStageLabelAndNoPendingLabel()
+        {
+            var hud = Object.FindAnyObjectByType<StageHudView>();
+            Assert.IsNotNull(hud, "전제: 씬에 HUD 가 있다");
+
+            Assert.IsNotNull(hud.transform.Find("StageLabel"),
+                             "스테이지 단계 라벨이 없다 — 몇 판째인지 화면에 안 나온다");
+            Assert.IsNull(hud.transform.Find("PendingCustomerLabel"),
+                          "「배치 예정」 라벨이 남아 있다 — 뜻을 알 수 없다는 지적을 받은 줄이다");
+        }
+
+        /// <summary>
+        /// 배너는 최상단 <b>가운데</b>, 진행 정보는 최상단 <b>우측</b>에 «단계 → 손님 → 대기»
+        /// 순서로. 값이 아니라 <b>순서와 정렬</b>을 본다 — 여백은 연출이고 순서는 요구다.
+        /// </summary>
+        [Test]
+        public void Stage01_HudLabelsSitWhereTheRequirementSays()
+        {
+            var hud = Object.FindAnyObjectByType<StageHudView>().transform;
+
+            var outcome = (RectTransform)hud.Find("OutcomeLabel");
+            Assert.AreEqual(new Vector2(0.5f, 1f), outcome.anchorMin, "배너가 최상단 가운데가 아니다");
+            Assert.Less(outcome.anchoredPosition.y, 0f, "배너가 화면 위로 잘린다 — 패딩이 없다");
+
+            var stage = (RectTransform)hud.Find("StageLabel");
+            var placement = (RectTransform)hud.Find("PlacementLabel");
+            var waiting = (RectTransform)hud.Find("WaitingLabel");
+
+            foreach (var rect in new[] { stage, placement, waiting })
+            {
+                Assert.AreEqual(new Vector2(1f, 1f), rect.anchorMin,
+                                $"{rect.name} 이 최상단 우측에 있지 않다");
+            }
+
+            // 위에서 아래로 단계 → 손님 → 대기. anchoredPosition.y 는 아래로 갈수록 작다.
+            Assert.Greater(stage.anchoredPosition.y, placement.anchoredPosition.y,
+                           "스테이지 단계가 손님 수보다 아래에 있다");
+            Assert.Greater(placement.anchoredPosition.y, waiting.anchoredPosition.y,
+                           "손님 수가 대기 인원보다 아래에 있다");
+        }
+
+        /// <summary>
+        /// 메뉴에서 「멈춤」과 「닫기」가 빠졌는지 본다. 메뉴를 여는 것이 곧 멈춤이고,
+        /// 「닫기」는 실패로 열린 메뉴에서 <b>아무것도 못 하는 판</b>으로 빠져나가게 한다.
+        /// </summary>
+        [Test]
+        public void Stage01_StageMenuHasNoPauseOrCloseButton()
+        {
+            var menu = Object.FindAnyObjectByType<StageMenuView>();
+            Assert.IsNotNull(menu, "전제: 씬에 메뉴가 있다");
+
+            var panel = menu.transform.Find("Panel");
+            Assert.IsNotNull(panel, "전제: 메뉴에 패널이 있다");
+
+            Assert.IsNull(panel.Find("PauseButton"), "「멈춤」이 남아 있다");
+            Assert.IsNull(panel.Find("CloseButton"), "「닫기」가 남아 있다");
+            Assert.IsNotNull(panel.Find("ResumeButton"), "재개가 없으면 판으로 돌아갈 수 없다");
+            Assert.IsNotNull(panel.Find("RestartButton"));
+            Assert.IsNotNull(panel.Find("QuitButton"));
+        }
+
+        /// <summary>
+        /// 로딩 화면에서 누른 클릭이 첫 프레임에 배달되던 것을 막는 게이트. <b>입력 배달
+        /// 경로에 붙어야</b> 의미가 있다.
+        /// </summary>
+        [Test]
+        public void Stage01_EventSystemIsArmedLate()
+        {
+            var eventSystem = Object.FindAnyObjectByType<EventSystem>();
+            Assert.IsNotNull(eventSystem, "전제: 씬에 EventSystem 이 있다");
+
+            Assert.IsNotNull(eventSystem.GetComponent<UiInputArmer>(),
+                             "로딩 중 클릭이 그대로 배달된다 — 준비 화면에서 누른 자리로 넘어간다");
+        }
+
         /// <summary>
         /// 클릭음이 <b>버튼에만</b> 붙었는지 씬에서 확인한다. 손패·덱·보상 카드가 함께 잡히면
         /// 카드를 누를 때도 메뉴 소리가 난다.
