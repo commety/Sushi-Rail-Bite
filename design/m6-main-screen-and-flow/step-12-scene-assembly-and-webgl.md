@@ -61,6 +61,28 @@ Main
 | `TableSlot*/CustomerView` | **개조** — 포화도 칸 8개 + 소화중 배지 |
 | `PlacementInput` 오브젝트 | **삭제** (step-04 이 컴포넌트를 지웠다) |
 | `StageBootstrap` | 새 참조 배선 |
+| **프리팹·뷰의 빈 스프라이트 자리** | **step-11 에서 넘어온 것** — 아래 |
+
+#### step-11 에서 넘어온 스프라이트 배선 (아키텍트 결정)
+
+step-11 이 스프라이트 9종을 만들었지만 **프리팹에 물리지는 않았다.** 어차피 에디터를 열어야
+하는 작업이라 씬 조립과 묶는 편이 왕복이 적다는 판단이다.
+
+| 스프라이트 | 물릴 곳 |
+|---|---|
+| `card-frame` · `card-frame-disabled` | `Card.prefab` 의 배경 `Image` (못 놓는 손님 카드는 후자) |
+| `badge-digesting` | `DigestingBadgeView` 의 `Image` — **16×16 크기 그대로** |
+| `bar-cell` | `SaturationBarView` 의 칸 8개 |
+| `button` · `button-pressed` | 메뉴·설정·건너뛰기·닫기 버튼의 `Image` (9-slice, `Type = Sliced`) |
+| `panel` | 덱·메뉴·설정·사전 패널 배경 (9-slice, `Type = Sliced`) |
+| `icon-deck` · `icon-menu` | 인스테이지 두 버튼의 아이콘 |
+
+> **9-slice 는 `Image.type` 을 `Sliced` 로 바꿔야 먹는다.** 임포터 테두리만 넣고 `Simple` 로
+> 두면 테두리가 무시되고 통째로 늘어난다 — 값은 맞는데 화면만 찌그러지는 형태라 눈으로
+> 원인을 못 찾는다. 테두리 자체는 `UiSpriteAssetTests` 가 이미 고정했다.
+
+> **아이콘이 비면 프리팹의 그림을 그대로 둔다** 는 M5 규칙 때문에, 배선을 빠뜨려도 **코드도
+> 테스트도 초록이다.** 씬 테스트(§5)에 스프라이트가 실제로 물렸는지 보는 항목을 넣는다.
 
 ### 3) Build Settings (§7 · RULE-06)
 
