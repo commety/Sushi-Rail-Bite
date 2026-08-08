@@ -78,26 +78,11 @@ namespace SushiDefense.Customers
             // 손님의 정적 데이터는 런타임에 바뀌지 않으므로 여기서 한 번만 만든다.
             // LateUpdate 에서 매 프레임 만들면 WebGL 에서 GC 스파이크가 그대로 히칭이 된다.
             var data = logic.State.Data;
-            BandText = $"{NameOf(data)}\n{data.TargetingMin}~{data.TargetingMax}";
+            BandText = $"{CardCaption.NameOf(data)}\n{data.TargetingMin}~{data.TargetingMax}";
             HudLabel.Write(_bandLabel, BandText);
 
             ShowIcon(data);
             Apply(logic.State.State, false);
-        }
-
-        /// <summary>
-        /// 라벨에 쓸 손님 이름. <b>비어 있으면 애셋 이름으로 대신한다</b> — 이름을 아직
-        /// 안 채운 애셋에서 빈 줄이 나오면 라벨이 고장 난 것처럼 보인다
-        /// (<c>RewardOffer.DisplayName</c> 과 같은 처리다).
-        ///
-        /// <para>
-        /// 유형 enum 으로 분기해 한글을 붙이지 않는다. 그러면 표시 문자열이 코드로
-        /// 들어가고(§3.1), 유형이 늘 때마다 여기를 고쳐야 한다 — <b>유형은 데이터 차이다.</b>
-        /// </para>
-        /// </summary>
-        private static string NameOf(CustomerData data)
-        {
-            return string.IsNullOrWhiteSpace(data.DisplayName) ? data.name : data.DisplayName;
         }
 
         /// <summary>

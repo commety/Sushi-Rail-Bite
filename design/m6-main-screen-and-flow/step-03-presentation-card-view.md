@@ -154,25 +154,58 @@ PlayMode  Show_Sushi_WritesNameAndIcon
 
 > **`CardCaptionTests` 를 뷰 없이 쓴다.** 문구 생성이 `MonoBehaviour` 밖에 있는 이유가 그것이고, 뷰를 세워야만 확인되는 문구라면 `CardCaption` 이 제 역할을 못 하는 것이다.
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| `NameOf` 의 `IsNullOrWhiteSpace` → `== null` | `NameOf_WhitespaceDisplayName_...` |
-| `Show` 에서 아이콘 대입 제거 | `Show_Sushi_WritesNameAndIcon` |
-| `Clear` 에서 `IsShowing = false` 제거 | `Click_AfterClear_DoesNotRaise` |
-| `CustomerView` 의 이름 폴백을 접으면서 문구를 바꾼다 | **기존** `CustomerViewTests` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `NameOf` 의 `IsNullOrWhiteSpace` → `== null` | 1건 | 예측대로 **1건** |
+| **프리팹의 자식 이름을 바꾼다** (`NameLabel` → `TitleLabel`) | — | **1건** — `CardPrefabTests` 만 |
+| `Show` 에서 아이콘 대입 제거 | 1건 | **2건** — 재사용 테스트가 함께 |
+| `CustomerView` 의 이름 폴백을 접으면서 문구를 바꾼다 | 기존 테스트 | **기존 `CustomerViewTests`·`StageHudViewTests` 수정 없이 통과** |
 
-마지막 항목이 이 단계의 핵심 안전장치다 — 기존 테스트가 그대로 통과하는지로 "접기" 가 동작을 바꾸지 않았음을 확인한다.
+### 코드 하네스가 프리팹을 못 밟는다 — `CardPrefabTests` 를 추가했다
+
+작업서에는 없던 파일이다. `CardViewTests` 는 오브젝트를 **코드로** 세우므로 프리팹이 어떻게
+생겼든 초록이고, 자식을 이름으로 찾는 폴백이 있어 **프리팹의 자식 이름이 하나만 틀려도
+화면이 비는데 예외는 나지 않는다.**
+
+프리팹의 `NameLabel` 을 `TitleLabel` 로 바꿔 확인했다 — **`CardPrefabTests` 한 건만** 죽고
+나머지 619건은 전부 초록이었다. 이것이 [`tests.md`](../../.claude/rules/tests.md) §1 의
+«애셋 등록·설정» 사각지대이며, M5 가 Build Settings 로 같은 값을 치렀다.
+
+봐야 할 것 중 **루트의 레이캐스트 그래픽**을 잊지 않는다. 없으면 `Button` 이 있어도 눌리지
+않는데 화면에는 카드가 멀쩡히 보인다.
+
+### 공허해서 지운 테스트 하나
+
+`Prefab_IconAndLabels_AreDistinctObjects`(셋이 서로 다른 오브젝트인가)를 넣었다가 **지웠다.**
+`Transform.Find` 는 이름이 다르면 같은 오브젝트를 돌려줄 수 없고, 셋 다 없는 경우는
+`Prefab_Has*Child` 셋이 이미 각각 잡는다 — 독립적으로 잡는 것이 없다 (step-01 · step-02 에서
+지운 것과 같은 이유).
 
 ### 완료 판정
 
-- [ ] `Presentation.asmdef` 에 `UnityEngine.UI` 가 있고 `autoReferenced` 는 여전히 `false`
-- [ ] `grep -rn "IsNullOrWhiteSpace" Assets/Code/Scripts/Presentation/` 이 **`CardCaption` 한 파일**에서만 나온다
-- [ ] `Card.prefab` 이 `Assets/Code/Scripts/Presentation/UI/` 에 있다 (`Assets/Art/` 도 `Assets/Level/Prefabs/` 도 아니다)
-- [ ] EditMode · PlayMode Green — `./tests/run-tests.sh all`
-- [ ] **기존** `CustomerViewTests` · `StageHudViewTests` 가 수정 없이 통과한다
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `Presentation.asmdef` 에 `UnityEngine.UI` 가 있고 `autoReferenced` 는 여전히 `false`
+- [x] `grep -rn "IsNullOrWhiteSpace" Assets/Code/Scripts/Presentation/` 이 **`CardCaption` 한 파일**에서만 나온다
+- [x] `Card.prefab` 이 `Assets/Code/Scripts/Presentation/UI/` 에 있다
+- [x] EditMode **619/619** · PlayMode **167/167**
+- [x] **기존** `CustomerViewTests` · `StageHudViewTests` 가 수정 없이 통과한다
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### 계약 두 곳이 작업서와 다르다
+
+| 작업서 | 실제 | 이유 |
+|---|---|---|
+| `internal static class CardCaption` | **`public`** | `Presentation` 에 `InternalsVisibleTo` 가 없다. 새로 만드는 것보다 `SlotPicker`(이미 `public static`)의 선례를 따르는 편이 작다 |
+| `Clear()` 는 내용만 지운다 | **오브젝트도 끈다** | `TableSlotView.Vacate` 와 같은 형태다. 부르는 쪽이 `Clear` 뒤에 `SetActive(false)` 를 또 부르게 두면 한쪽을 잊는 날이 온다 |
+
+`Show`/`Clear` 가 활성 상태까지 다루므로 뒤 단계의 패널들은 **켜고 끄는 코드를 따로 쓰지
+않는다.**
+
+### 프리팹은 브리지로 만들었다
+
+`Asset.CreatePrefab` 까지 17개 op 이 전부 `ok`. uGUI 프리팹 YAML 을 손으로 쓰면 `fileID`·
+`m_Component` 목록·앵커가 얽혀 조용히 어긋난다 — 브리지가 만들면 그 부분이 정답으로 나온다.
 
 ### 예상 커밋 메시지
 

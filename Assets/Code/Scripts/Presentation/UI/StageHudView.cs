@@ -261,7 +261,7 @@ namespace SushiDefense.UI
 
             _shownPendingCustomer = pending;
             PendingCustomerText = pending != null
-                ? $"배치 예정 {DisplayNameOf(pending)}"
+                ? $"배치 예정 {CardCaption.NameOf(pending)}"
                 : "배치 예정 없음";
             HudLabel.Write(_pendingCustomerLabel, PendingCustomerText);
         }
@@ -295,16 +295,6 @@ namespace SushiDefense.UI
             _shownWaitingCount = waiting;
             WaitingText = $"대기 {waiting}";
             HudLabel.Write(_waitingLabel, WaitingText);
-        }
-
-        /// <summary>
-        /// 표시 이름이 비면 애셋 이름으로 대신한다. <c>CustomerView.NameOf</c> ·
-        /// <c>RewardOffer.DisplayName</c> 과 같은 처리다 — 세 곳이 어긋나면 같은 손님이
-        /// 화면마다 다른 이름으로 불린다.
-        /// </summary>
-        private static string DisplayNameOf(CustomerData data)
-        {
-            return string.IsNullOrWhiteSpace(data.DisplayName) ? data.name : data.DisplayName;
         }
 
         private void RefreshPlacement()
