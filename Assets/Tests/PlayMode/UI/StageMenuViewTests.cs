@@ -146,6 +146,27 @@ namespace SushiDefense.Tests.PlayMode.UI
         }
 
         /// <summary>
+        /// <b>실패 창 위에서 메뉴 아이콘은 죽어 있다.</b> 눌러서 닫히면 실패한 판만 남고
+        /// 다시 시작·나가기가 함께 사라진다 — 브라우저 실플레이에서 나온 증상이다.
+        ///
+        /// <para>
+        /// 프레젠터가 아니라 <b>버튼을 눌러</b> 확인한다. 아이콘의 <c>onClick</c> 이 어디에
+        /// 물려 있는지가 이 테스트의 대상이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void OpenButton_ClickedAfterFailure_LeavesTheFailureWindowUp()
+        {
+            _presenter.OpenAfterFailure();
+
+            _open.onClick.Invoke();
+
+            Assert.IsTrue(_view.IsShowing, "실패 창이 닫혀 출구가 사라졌다");
+            Assert.AreEqual("실패", _view.StateText, "«일시정지» 로 다시 열렸다");
+            Assert.IsFalse(_view.IsResumeShown, "실패한 판에 재개가 돌아왔다");
+        }
+
+        /// <summary>
         /// 실패로 감춘 재개가 <b>다음에 멈췄을 때 돌아오는지</b> 본다. 한 번 끄고 다시
         /// 켜지 않으면, 재시작한 판에서는 영영 재개할 수 없다.
         /// </summary>

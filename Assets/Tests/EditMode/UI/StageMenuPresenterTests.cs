@@ -152,6 +152,47 @@ namespace SushiDefense.Tests.EditMode.UI
         }
 
         /// <summary>
+        /// <b>실패 창은 메뉴 아이콘에 반응하지 않는다.</b> 토글이 그대로 닫아 버리면 실패한
+        /// 판만 남고 출구(다시 시작·나가기)가 함께 사라진다 — 브라우저 실플레이에서 나온
+        /// 증상이다.
+        ///
+        /// <para>
+        /// <c>HideCount</c> 와 <c>ShowCount</c> 를 함께 본다. «닫았다 곧바로 다시 연다» 는
+        /// 구현은 창이 떠 있다는 것만으로는 걸러지지 않는데, 그 경로로 열린 창은
+        /// <see cref="StageMenuPresenter.Open()"/> 을 지나 <b>재개가 붙은 «일시정지»</b> 가
+        /// 된다 — 이미 끝난 판으로 돌아가는 버튼이 생긴다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Toggle_WhileFailureMenuOpen_KeepsItOpen()
+        {
+            _presenter.OpenAfterFailure();
+
+            _presenter.Toggle();
+
+            Assert.IsTrue(_presenter.IsOpen, "실패 창이 닫혀 출구가 사라졌다");
+            Assert.AreEqual(0, _view.HideCount);
+            Assert.AreEqual(1, _view.ShowCount, "다시 그렸다 — 닫았다 여는 경로를 탄 것이다");
+            Assert.IsFalse(_presenter.CanResume, "실패한 판에 재개가 돌아왔다");
+            Assert.IsFalse(_view.LastCanResume);
+        }
+
+        /// <summary>
+        /// 멈춰서 연 메뉴는 <b>여전히 토글이다.</b> 실패만 막아야 하는데 토글 전체를 죽인
+        /// 구현을 배제한다.
+        /// </summary>
+        [Test]
+        public void Toggle_WhilePausedMenuOpen_StillCloses()
+        {
+            _presenter.Open();
+
+            _presenter.Toggle();
+
+            Assert.IsFalse(_presenter.IsOpen);
+            Assert.AreEqual(1, _view.HideCount);
+        }
+
+        /// <summary>
         /// 더 높은 창은 없지만, 조정자가 거절하면 열리지 않아야 한다. 조정자를 아예
         /// 무시하는 구현을 배제한다.
         /// </summary>
