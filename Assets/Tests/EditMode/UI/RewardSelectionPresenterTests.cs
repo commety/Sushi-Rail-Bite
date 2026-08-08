@@ -84,7 +84,7 @@ namespace SushiDefense.Tests.EditMode.UI
         }
 
         [Test]
-        public void Open_OfferNames_UseCardDisplayNames()
+        public void Open_Offers_CarryTheCardItself()
         {
             var sushi = AddSushiToPool();
             SerializedFieldSetter.SetString(sushi, "_displayName", "장어");
@@ -94,7 +94,8 @@ namespace SushiDefense.Tests.EditMode.UI
             _presenter.Open(_run);
 
             Assert.AreEqual(1, _view.ShownOffers.Count);
-            Assert.AreEqual("장어", _view.ShownOffers[0]);
+            Assert.AreEqual(RewardKind.SushiCard, _view.ShownOffers[0].Kind);
+            Assert.AreEqual("장어", _view.ShownOffers[0].Sushi.DisplayName);
         }
 
         [Test]

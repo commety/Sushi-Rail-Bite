@@ -21,9 +21,6 @@ namespace SushiDefense.UI
         /// <summary>지금 제시 중인 후보. 틱마다 도는 경로가 아니라 재사용은 편의다.</summary>
         private readonly List<RewardOffer> _offers = new();
 
-        /// <summary>뷰에 넘길 이름 버퍼. 매 열림마다 새 리스트를 만들지 않는다.</summary>
-        private readonly List<string> _names = new();
-
         /// <summary>지금 화면이 물고 있는 런. 닫히면 놓는다 — 죽은 참조를 들고 있지 않는다.</summary>
         private RunState _current;
 
@@ -73,13 +70,7 @@ namespace SushiDefense.UI
             _current = run;
             IsOpen = true;
 
-            _names.Clear();
-            for (var i = 0; i < _offers.Count; i++)
-            {
-                _names.Add(_offers[i].DisplayName);
-            }
-
-            _view.ShowOffers(_names);
+            _view.ShowOffers(_offers);
         }
 
         /// <summary>

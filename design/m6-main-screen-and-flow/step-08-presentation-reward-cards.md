@@ -111,22 +111,78 @@ PlayMode  ShowOffers_Three_DrawsThreeCards
 
 > **`ShowOffers_Empty_ShowsNoticeAndKeepsSkip` 이 필요한 이유:** 후보 0개는 실제로 발생한다 (카탈로그의 카드를 전부 가진 뒤). 그때 건너뛰기가 사라지면 **화면에서 나갈 수 없다** — 진행이 통째로 막힌다.
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| 카드 클릭이 항상 `Choose(0)` 를 부른다 | `ClickCard_Second_ChoosesIndexOne` |
-| 후보 0개일 때 건너뛰기 버튼을 끈다 | `ShowOffers_Empty_ShowsNoticeAndKeepsSkip` |
-| `Hide` 에서 카드 끄기 제거 | `ShowOffers_Twice_DoesNotLeaveStaleCards` · `ClickCard_AfterHide_DoesNothing` |
-| 숫자 키 경로 제거 | `KeyboardStillWorks_DigitOne_ChoosesFirst` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| 카드 클릭이 항상 `Choose(0)` 를 부른다 | 1건 | 예측대로 **1건** |
+| 후보 0개일 때 건너뛰기를 숨긴다 | 1건 | 예측대로 **1건** |
+| 숫자 키·`Esc` 경로를 통째로 지운다 | 1건 | **0건** — 아래 |
+
+### 키보드 경로에는 테스트가 없다 — 만들지 않았고, 그 이유를 남긴다
+
+`Update` 를 통째로 비워도 EditMode 650건이 전부 초록이었다. 작업서가 계획한
+`KeyboardStillWorks_DigitOne_ChoosesFirst` 는 **이 구성으로는 쓸 수 없다**:
+
+- 화면이 열려 있어야 도는 `Update` 이고 (§1 «가드가 걸린 `Update`»)
+- 배치 모드에는 **키보드 장치가 없다** — `Keyboard.current` 가 `null` 이라 그 아래로 못 간다
+- 키를 흉내 내려면 `Unity.InputSystem.TestFramework` 참조가 필요한데, 그것은 어셈블리
+  구성 변경(§7)이고 이 단계의 범위가 아니다
+
+**그래서 덮지 못한다는 사실을 코드 주석과 여기에 적었다.** 이 자리가 M5 에서 Enter·Esc 가
+런타임에 죽어 있던 그 모양이며, 지금의 방어는 `InputBackendTests` 가 **레거시 입력이 꺼져
+있다는 전제를 컴파일 시점에 고정**하는 것 하나뿐이다. 커버리지가 있는 척하지 않는다.
+
+### 배선 구멍을 하나 실제로 잡았다
+
+`ClickSkip` 이 처음에 실패했다. `Awake` 가 `Initialize` 보다 먼저 도는데 **`Subscribe` 를
+`Awake` 에서만 걸어** 뒀고, 건너뛰기 버튼에는 이름 폴백도 없어 그 시점에 `null` 이었다 —
+버튼은 화면에 멀쩡히 보이는데 눌러도 아무 일이 없다.
+
+둘 다 고쳤다: `Initialize` 가 **구독을 다시 걸고**, `Awake` 가 이름으로도 버튼을 찾는다.
+후보가 0개일 때 건너뛰기가 유일한 출구이므로, 이 구멍은 **화면에 갇히는** 형태로 드러났을 것이다.
+
+> `DeckPanelView`·`StageMenuView` 도 같은 모양이다(버튼에 이름 폴백이 없고 `Initialize` 가
+> 재구독하지 않는다). 그쪽은 인스펙터로 물리는 경로만 쓰므로 지금은 동작하지만,
+> **step-12 에서 버튼을 실제로 배선할 때 같이 확인한다.**
 
 ### 완료 판정
 
-- [ ] `grep -n "IReadOnlyList<string>" Assets/Code/Scripts/Presentation/Presenters/IRewardSelectionView.cs` = **0건**
-- [ ] `RewardSelectionPresenter` 의 `Choose`·`Skip`·이벤트 시그니처가 그대로다
-- [ ] `RewardOffer.DisplayName` 의 처분을 **실측으로 이 파일에 적었다**
-- [ ] EditMode · PlayMode Green — `./tests/run-tests.sh all`
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `IRewardSelectionView` 에 `IReadOnlyList<string>` **0건**
+- [x] `RewardSelectionPresenter` 의 `Choose`·`Skip`·이벤트 시그니처가 그대로다
+- [x] `RewardOffer.DisplayName` 을 **지웠다** (아래)
+- [x] EditMode **650/650** · PlayMode **209/209**
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### `RewardOffer.DisplayName` 은 지웠다 — D7 이 여기서 끝난다
+
+프레젠터가 후보를 그대로 넘기게 되면서 프로덕션 사용처가 **0** 이 됐다. 남겨 두면 죽은
+코드다 (R8). 함께 `RewardOfferTests` 의 해당 테스트 다섯도 지웠다.
+
+그 API 가 지고 있던 규칙 — *"손님 보상에는 영입 비용을 함께"* — 은 `CardCaption.DetailOf`
+가 이어받았고, `ShowOffers_CustomerCard_ShowsRecruitCost` 가 화면까지 도달하는지 지킨다.
+
+**이로써 이름 폴백 구현이 저장소 전체에서 한 곳이 됐다** —
+`grep -rn "IsNullOrWhiteSpace" Assets/Code/Scripts/` 가 **1건**이다. README D7 이 세 곳에서
+시작해 카드가 네 번째가 되는 것을 막겠다고 한 것이 여기서 완결된다.
+
+### 뷰 테스트가 진짜 프레젠터를 쓴다
+
+`RewardSelectionPresenter` 는 구체 타입이라 가짜를 물릴 수 없다. 카탈로그·런을 세워
+**진짜를 쓰고 그 이벤트로 관측**했다 — 실제 배선을 그대로 지나므로 오히려 낫다.
+
+뽑기 순서는 추첨이 정하므로 테스트가 알 수 없다. 그래서 **화면에 그려진 이름과 대조**해
+«올바른 번호를 넘겼는가» 를 본다. 다만 고르면 화면이 닫히면서 카드가 비므로
+**누르기 전에** 이름을 잡아 둬야 한다 (처음에 이걸 놓쳐 두 건이 실패했다).
+
+### `git checkout` 이 이번 단계 작업을 지웠다
+
+주입을 되돌리려고 `git checkout <파일>` 을 썼다가 **커밋되지 않은 이 단계의 재작성이 통째로
+날아갔다.** RULES.md RULE-02 의 «원복은 의도한 변경도 함께 지운다» 와 같은 형태다 —
+거기서는 빌드 스크립트가, 여기서는 내가 원복 도구를 썼다.
+
+**주입은 넣을 때와 같은 방식으로 되돌린다** (편집 도구로 그 자리만). 파일 단위 원복은
+«마지막 커밋 이후의 모든 것» 을 지운다.
 
 ### 예상 커밋 메시지
 
