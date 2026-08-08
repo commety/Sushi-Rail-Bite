@@ -65,7 +65,41 @@ git diff --stat Assets/Art/Fonts/charset-ko.txt
 | `panel.png` | 9-slice | 덱·메뉴·설정·사전 패널 배경 |
 | `icon-deck.png` · `icon-menu.png` | 16×16 | 인스테이지 버튼 |
 
-- SVG 를 직접 그려 `Sprite.ImportFromSvg` 로 넣는다 ([`unity-editor-automation.md`](../../.claude/knowledge/unity-editor-automation.md))
+#### 실측 — SVG 경로를 쓰지 않았다 (harness 결함 2건)
+
+**1. `Sprite.ImportFromSvg` 가 투명한 PNG 를 만든다.** op 은 성공을 반환하는데 결과가 전부
+알파 0 이다. 제 SVG 문제가 아니다 — `make-asset` 스킬 문서의 예제(하트 `<path>`)도, 단순한
+`<circle>` 도 똑같이 비어 나온다. 세 크기(16·128·256)에서 재현했다.
+
+```
+Sprite.ImportFromSvg → {"pngPath": ..., "width":256, ...}   ← 성공 반환
+실제 PNG: 불투명 0/65536 (0%)
+```
+
+`3fcd76a`(기존 스프라이트를 만든 커밋)와 Unity 버전·패키지 manifest 가 **동일한데도** 안 된다.
+단서 하나: `Shader.Find("Unlit/VectorGradient")` 가 `null` 을 돌려주어 `Sprites/Default`
+폴백으로 내려간다. 원인 규명은 하지 않았다 — 아래 이유로 경로를 바꾸는 편이 맞았다.
+
+**2. `Reflection.Invoke` 가 인스턴스 메서드를 부르지 못한다.** `targetInstanceId` 를
+`int.TryParse` 로 받는데 Unity 6 의 `EntityId` 는 64비트다 (실제 값 `568105584918854036`).
+파싱이 실패하면 *"Non-static method requires targetInstanceId"* 라는 **엉뚱한 메시지**가 나가,
+넘겼는데도 안 넘긴 것처럼 보인다. `ulong.TryParse` 로 고쳤다 (`ReflectionOps.cs`) — 이게
+막혀 있으면 9-slice 테두리를 `.meta` 편집(RULE-03 금지) 말고는 물릴 방법이 없다.
+
+#### 그래서 픽셀을 직접 찍었다 — [`scripts/make-ui-sprites.py`](../../scripts/make-ui-sprites.py)
+
+SVG 래스터화는 **애초에 이 작업에 맞지 않았다.** op 이 고쳐졌더라도 마찬가지다:
+
+| | SVG 경로 | 픽셀 직접 |
+|---|---|---|
+| 출력 크기 | **정방형 POT 강제** — `card-frame` 48×64 를 만들 수 없다 (64×64 로 스냅) | 정확히 48×64 |
+| 경계 | 테셀레이션 + MSAA → 8×8 셀에서 형태가 뭉개진다 | 하드 엣지 |
+| 의존 | Vector Graphics 패키지 · 셰이더 | 파이썬 stdlib |
+
+팔레트는 기존 스프라이트(`icon-coin`·`belt-rail`·`icon-plate`·`bg-wall`)에서 픽셀 값을 읽어
+가져왔다 — 새 UI 가 기존 화면과 같은 톤에 있어야 한다.
+
+- SVG 를 직접 그려 `Sprite.ImportFromSvg` 로 넣는다 ([`unity-editor-automation.md`](../../.claude/knowledge/unity-editor-automation.md)) — **위 실측대로 이번에는 쓰지 않았다**
 - **색은 눈으로 보지 말고 픽셀 값을 대조한다.** Linear 프로젝트에서 sRGB RenderTexture 를 쓰면 결과가 통째로 밝아지는데 *"좀 밝은가?"* 로는 구분되지 않는다 — `SvgOps` 가 이미 `Linear` 로 잡혀 있는지 확인한다
 - **아틀라스에 넣는다.** `UI.spriteatlasv2` 가 이미 있다. 새 스프라이트가 그 폴더에 들어가면 자동으로 잡히는지 확인한다 — 안 잡히면 아틀라스 설정은 `.meta` 안이라 **사람이 인스펙터에서** 넣는다 (RULE-03)
 - 최종 아트는 사람이 그린 픽셀 아트다. 이것들은 **교체 가능한 자리**이며 원본을 덮지 않는다 (§7·§9)
