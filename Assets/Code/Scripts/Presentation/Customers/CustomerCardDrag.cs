@@ -27,6 +27,9 @@ namespace SushiDefense.Customers
 
         [SerializeField] private CanvasGroup _canvasGroup;
 
+        /// <summary>참조를 이미 챙겼나.</summary>
+        private bool _resolved;
+
         private CustomerHandView _hand;
         private Camera _worldCamera;
         private RectTransform _rect;
@@ -50,6 +53,8 @@ namespace SushiDefense.Customers
         /// </summary>
         public void Bind(CustomerHandView hand, CustomerData customer, Camera worldCamera)
         {
+            Resolve();
+
             _hand = hand;
             _worldCamera = worldCamera;
             Customer = customer;
@@ -129,6 +134,30 @@ namespace SushiDefense.Customers
 
         private void Awake()
         {
+            Resolve();
+        }
+
+        /// <summary>
+        /// 자기 참조를 <b>한 번만</b> 챙긴다. <see cref="Awake"/> 뿐 아니라 <see cref="Bind"/>
+        /// 에서도 부르므로 <b>실행 순서에 기대지 않는다.</b>
+        ///
+        /// <para>
+        /// 씬 진입점은 <c>Awake</c> 안에서 판을 통째로 세우고 <b>마지막에</b> 손패를 물린다.
+        /// 그때 이 카드의 <see cref="Awake"/> 가 아직 안 돌았으면 <see cref="Card"/> 가
+        /// <c>null</c> 이라 <see cref="Bind"/> 가 그 자리에서 터진다 — WebGL 에서 실제로 났고,
+        /// 손패 배선이 <c>Build</c> 의 마지막 줄이라 <b>다른 것은 전부 멀쩡한 채 손패만</b>
+        /// 빈 카드로 남았다. 예외 하나가 콘솔에 조용히 찍힐 뿐이다.
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
             Card = GetComponent<CardView>();
             _rect = GetComponent<RectTransform>();
 

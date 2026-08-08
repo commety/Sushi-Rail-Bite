@@ -232,6 +232,58 @@ namespace SushiDefense.Tests.PlayMode
             _stage.Deck.Close();
         }
 
+        /// <summary>
+        /// <b>손패 카드에 글자와 그림이 실제로 나가는지</b> 본다. 플레이어가 가장 먼저 만지는
+        /// 화면인데 이것을 보는 테스트가 하나도 없었다.
+        ///
+        /// <para>
+        /// <b>이 테스트는 실행 순서 문제를 잡지 못한다.</b> 손패가 빈 카드로 뜬 원인은
+        /// <c>CustomerCardDrag</c> 가 자기 <c>Awake</c> 를 전제한 것이었는데, 고친 것을 되돌려
+        /// 실측했더니 <b>에디터에서는 통과한다</b> — 에디터의 <c>Awake</c> 순서가 플레이어와
+        /// 반대라 <c>Card</c> 가 이미 채워져 있다. 실제로 터진 곳은 WebGL 뿐이었다.
+        /// 그 계약은 <c>CustomerHandViewTests.Bind_CardAwakeHasNotRun_StillDrawsInsteadOfThrowing</c>
+        /// 이 순서를 손으로 만들어 지킨다.
+        /// </para>
+        /// <para>
+        /// 그래도 남긴다 — 명부가 카드에 닿는 배선이 끊기면 여기서 잡힌다. 기존 손패 테스트는
+        /// <c>DropAt</c> 을 직접 부르거나 카드를 코드로 만들어 물려서 이 경로를 지나간다
+        /// (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HandCardsRenderText()
+        {
+            yield return null;
+
+            var hand = Object.FindAnyObjectByType<CustomerHandView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(hand, "씬에 손패가 없다");
+            Assert.Greater(hand.ShownCardCount, 0, "전제: 명부에 손님이 있어 카드가 그려진다");
+
+            var drawnCards = 0;
+            foreach (var drag in hand.GetComponentsInChildren<CustomerCardDrag>(true))
+            {
+                if (drag.Customer == null)
+                {
+                    continue;
+                }
+
+                drawnCards++;
+                Assert.IsNotNull(drag.Card, $"{drag.name} 이 카드 표현을 물지 못했다");
+                Assert.IsTrue(drag.Card.IsShowing, $"{drag.name} 이 내용을 그리지 않았다");
+
+                var reachedALabel = false;
+                foreach (var label in drag.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    reachedALabel |= !string.IsNullOrEmpty(label.text);
+                }
+
+                Assert.IsTrue(reachedALabel,
+                              $"{drag.name} 의 글자가 라벨에 닿지 않았다 — 빈 카드가 뜬다");
+            }
+
+            Assert.AreEqual(hand.ShownCardCount, drawnCards, "그렸다고 센 카드 수와 실제가 다르다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_SpawnsSushiOntoBelt()
         {

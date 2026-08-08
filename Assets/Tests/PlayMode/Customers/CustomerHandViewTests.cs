@@ -294,6 +294,42 @@ namespace SushiDefense.Tests.PlayMode.Customers
             return customer;
         }
 
+        /// <summary>
+        /// <b><c>Awake</c> 가 아직 돌지 않은 카드에 물려도</b> 그려지는지 본다.
+        ///
+        /// <para>
+        /// 씬 진입점은 <c>Awake</c> 안에서 판을 세우고 마지막 줄에서 손패를 물리므로, 카드의
+        /// <c>Awake</c> 가 아직인 상태로 <see cref="CustomerCardDrag.Bind"/> 가 불릴 수 있다.
+        /// 그러면 <c>Card</c> 가 <c>null</c> 이라 그 자리에서 터지고, 앞의 것은 전부 끝난 뒤라
+        /// <b>HUD 도 벨트도 멀쩡한 채 손패만 빈 카드</b>가 된다.
+        /// </para>
+        /// <para>
+        /// <b>이 순서를 손으로 만들어야 한다.</b> 이 파일의 다른 하네스는 켜져 있는
+        /// 오브젝트에 <c>AddComponent</c> 하므로 <c>Awake</c> 가 즉시 돌아 이 자리를 지나가고,
+        /// 씬 테스트도 에디터에서는 순서가 반대라 잡지 못한다 — <b>실제로 난 곳은 WebGL 플레이어</b>
+        /// 뿐이었다. 꺼진 오브젝트에 붙이면 <c>Awake</c> 는 켜질 때까지 오지 않는다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Bind_CardAwakeHasNotRun_StillDrawsInsteadOfThrowing()
+        {
+            var card = new GameObject("Card", typeof(RectTransform));
+            _garbage.Add(card);
+            card.SetActive(false);
+
+            new GameObject("Icon", typeof(RectTransform)).transform.SetParent(card.transform, false);
+            card.AddComponent<Image>();
+            card.AddComponent<Button>();
+            card.AddComponent<CardView>();
+            var drag = card.AddComponent<CustomerCardDrag>();
+
+            drag.Bind(null, _cheap, null);
+
+            Assert.IsNotNull(drag.Card, "카드 표현을 물지 못했다 — Awake 순서에 기대고 있다");
+            Assert.IsTrue(drag.Card.IsShowing, "카드가 내용을 그리지 않았다");
+            Assert.AreEqual("기본", drag.Card.NameText);
+        }
+
         private T NewAsset<T>() where T : ScriptableObject
         {
             var asset = ScriptableObject.CreateInstance<T>();
