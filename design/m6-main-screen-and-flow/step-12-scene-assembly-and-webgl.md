@@ -1,8 +1,26 @@
-# Step 12: `Main.unity` 신설 · `Stage01` 조립 · WebGL 확인
+# Step 12: `Main.unity` 신설 · Build Settings · 문서 정정
 
 - **영역:** `scene` — 씬 애셋 + Build Settings + 문서 정정
 - **선행 단계:** step-01 ~ step-11 **전부**
-- **후행 단계:** 없음 (M6 의 마지막)
+- **후행 단계:** [step-13](step-13-stage01-scene-assembly.md) — `Stage01` 조립
+
+> ## 범위가 줄었다 (아키텍트 결정)
+>
+> **`Stage01` 조립과 WebGL 확인은 [step-13](step-13-stage01-scene-assembly.md) 으로 갈라졌다.**
+> 인스테이지 조립이 메인 씬보다 크고, 신설이 아니라 기존 씬 개조라 성격이 다르다.
+>
+> 이 단계에서 끝난 것:
+>
+> - `Main.unity` 신설 + `MainSceneTests` (`2a0bf57`)
+> - Build Settings 에 `Main` 첫 번째 등록 + `BuildSettingsTests` (`516a5a9`)
+> - `SampleScene.unity` 삭제 (승인, GUID 참조 0건 확인)
+> - 패널 닫힘 → 메뉴 복귀 버그 수정 + `MainBootstrap` (`1dec412`)
+> - UI 클릭음 재생 경로 — 버튼 전용 (`4b84294`)
+> - 원문 문서 정정 (§8)
+>
+> **step-13 으로 넘어간 것**: §2 `Stage01` 조립 전부 · §5 의 `Stage01SceneTests` 확장 ·
+> §6 재생 확인 · §7 WebGL 확인. 조사 결과는 step-13 에 실측으로 옮겨 적었다 —
+> 다시 조사하지 않아도 된다.
 
 ---
 
@@ -176,15 +194,15 @@ Stage 씬   Stage01_HasEventSystem                   ← 지금 0건인 것
 
 ### 완료 판정
 
-- [ ] `Main.unity` 가 Build Settings 에 **첫 번째로** 등록됐고 **커밋됐다**
-- [ ] 두 씬 모두 `EventSystem` + `InputSystemUIInputModule` 을 갖는다
-- [ ] 씬 테스트 3종이 초록이다
-- [ ] `grep -rn "PlacementInput" Assets/Level/Scenes/` = **0건**
-- [ ] 재생 확인 10항목 전부 통과
-- [ ] WebGL 확인 6항목 전부 통과 — **두부 0 포함**
-- [ ] `docs/plan/M5-M9-later.md` §M6 정정 완료
-- [ ] `./tests/run-tests.sh all` Green
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `Main.unity` 가 Build Settings 에 **첫 번째로** 등록됐고 **커밋됐다** (`516a5a9`)
+- [x] `Main` 이 `EventSystem` + `InputSystemUIInputModule` 을 갖는다 — `Stage01` 은 step-13
+- [x] 씬 테스트 — `MainSceneTests` · `BuildSettingsTests` 초록. `Stage01SceneTests` 확장은 step-13
+- [x] `grep -rn "PlacementInput" Assets/Level/Scenes/` = **0건** (이미 0이었다. 회귀 고정은 step-13)
+- [ ] 재생 확인 10항목 → **step-13**
+- [ ] WebGL 확인 6항목 → **step-13**
+- [x] `docs/plan/M5-M9-later.md` §M6 정정 완료
+- [x] `./tests/run-tests.sh all` Green
+- [x] `./tests/preflight.sh` 전 항목 PASS
 
 ### 예상 커밋 메시지
 

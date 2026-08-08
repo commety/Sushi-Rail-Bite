@@ -34,7 +34,7 @@
 
 | 확인 대상 | 상태 | 영향 |
 |---|---|---|
-| **`EventSystem`** | `Stage01.unity` 에 **0건** | **uGUI 버튼·드래그가 하나도 동작하지 않는다.** 씬에 `EventSystem` + `InputSystemUIInputModule` 이 없으면 클릭이 아예 배달되지 않는다 → step-12 |
+| **`EventSystem`** | `Stage01.unity` 에 **0건** | **uGUI 버튼·드래그가 하나도 동작하지 않는다.** 씬에 `EventSystem` + `InputSystemUIInputModule` 이 없으면 클릭이 아예 배달되지 않는다 → `Main` 은 step-12 에서 넣었고, `Stage01` 은 step-13 |
 | `Presentation.asmdef` 참조 | `Runtime`, `Runtime.Data`, `Unity.TextMeshPro`, `Unity.InputSystem` | **`UnityEngine.UI` 가 없다.** `Button`·`Image`·`Slider`·`IBeginDragHandler` 가 전부 그 어셈블리다 → §7 승인 (step-03) |
 | `SceneManager.LoadScene` | 프로덕션 코드 **0건** (테스트·브리지에만 있음) | 씬 전환이 통째로 신규 → step-09 |
 | `Time.timeScale` | **0건** | 일시정지 방식이 아직 정해지지 않았다 → D4 |
@@ -46,7 +46,7 @@
 | `SushiData` | `_description` 필드가 **없다** (`CustomerData` 에만 있다) | 백과사전의 초밥 항목은 수치로만 채운다 → step-10 |
 | `charset-ko.txt` | 199자 (한글 99) | M6 문구 전부가 **두부**가 된다. 재추출 + 재굽기 필요 → step-11 |
 | `Assets/Level/UI/` | `.gitkeep` 뿐 | UI 프리팹의 자리는 **기능 폴더**다 ([`parallel-work.md`](../../.claude/rules/parallel-work.md) §2) |
-| `Assets/Level/Scenes/SampleScene.unity` | 파일은 남아 있고 Build Settings 에는 없다 | step-12 에서 처분을 정한다 |
+| `Assets/Level/Scenes/SampleScene.unity` | 파일은 남아 있고 Build Settings 에는 없다 | step-12 에서 **지웠다** (승인, GUID 참조 0건) |
 
 ## 아키텍처 결정
 
@@ -75,7 +75,7 @@
   덱 확인은 정보 조회이고, 멈추는 것은 Menu 의 일이다. 둘을 묶으면 "덱을 열면 왜 시간이 멈추지" 와 "일시정지하려고 덱을 연다" 가 동시에 생긴다. 한 화면이 두 가지를 하면 나중에 한쪽만 고쳐진다.
 
 - **D9. 튜토리얼과 덱빌딩 편집 화면은 M6 이 하지 않는다.**
-  원문 §M6 과 `CLAUDE.md` §1.3 은 *"메인 화면: 스테이지 선택 + 덱빌딩"* 을 적고 있지만, 이번 요구는 메인을 **버튼 3개**로 못박았고 손님 선택은 스테이지 안 드래그앤드롭으로 옮겼다. **덱 편집은 아직 기획이 없다** — 로그라이트 덱은 보상으로만 자라고 카드를 빼는 경로가 없다(`SushiDeck` 주석). 편집 화면을 지금 만들면 편집할 대상이 없다. 원문과의 차이는 step-12 에서 문서에 정정으로 남긴다.
+  원문 §M6 과 `CLAUDE.md` §1.3 은 *"메인 화면: 스테이지 선택 + 덱빌딩"* 을 적고 있지만, 이번 요구는 메인을 **버튼 3개**로 못박았고 손님 선택은 스테이지 안 드래그앤드롭으로 옮겼다. **덱 편집은 아직 기획이 없다** — 로그라이트 덱은 보상으로만 자라고 카드를 빼는 경로가 없다(`SushiDeck` 주석). 편집 화면을 지금 만들면 편집할 대상이 없다. 원문과의 차이는 step-12 에서 `docs/plan/M5-M9-later.md` §M6 에 정정으로 남겼다.
 
 - **D10. 애셋 등록을 완료 판정에 박는다.**
   M5 는 Build Settings 에 씬을 등록하지 않아 **빌드가 성공하고 화면은 빈** 상태를 만들었다 ([`tests.md`](../../.claude/rules/tests.md) §1 «애셋 등록·설정»). M6 은 씬을 하나 더 만든다 — 같은 사고가 두 배로 가능하다. `Main.unity` 의 등록 여부를 **테스트가 본다** (step-12).
@@ -129,7 +129,7 @@ SushiDefense.Run.RewardOffer ──────────────► Sushi
 | 5 | 새 UI 스프라이트 · 효과음 커밋 (§9 원본 보호) | step-11 |
 | 6 | **한글 폰트 재굽기** — TMP Font Asset Creator 는 사람이 돌린다 | step-11 |
 | 7 | Build Settings 에 `Main.unity` 등록 (RULE-06) | step-12 |
-| 8 | `SampleScene.unity` 처분 (삭제 여부) | step-12 |
+| 8 | `SampleScene.unity` 처분 (삭제 여부) | step-12 — **삭제함** |
 
 ## 단계
 
@@ -146,7 +146,8 @@ SushiDefense.Run.RewardOffer ──────────────► Sushi
 | 09 | [step-09-presentation-main-menu.md](step-09-presentation-main-menu.md) | presentation | 메인 화면 + 씬 라우팅 |
 | 10 | [step-10-presentation-settings-and-codex.md](step-10-presentation-settings-and-codex.md) | presentation | 설정 · 백과사전 |
 | 11 | [step-11-assets-ui-sprites-and-font.md](step-11-assets-ui-sprites-and-font.md) | assets | UI 스프라이트 · 클릭음 · **한글 서브셋 재굽기** |
-| 12 | [step-12-scene-assembly-and-webgl.md](step-12-scene-assembly-and-webgl.md) | scene | `Main.unity` 신설 · `Stage01` 조립 · WebGL 확인 |
+| 12 | [step-12-scene-assembly-and-webgl.md](step-12-scene-assembly-and-webgl.md) | scene | `Main.unity` 신설 · Build Settings · 문서 정정 |
+| 13 | [step-13-stage01-scene-assembly.md](step-13-stage01-scene-assembly.md) | scene | `Stage01` 조립 · 재생·WebGL 확인 — **step-12 에서 갈라짐** |
 
 ## 병렬 실행 가능성
 
@@ -167,7 +168,7 @@ SushiDefense.Run.RewardOffer ──────────────► Sushi
 - **step-04 · 06 · 08 은 step-03 뒤에서 병렬 가능** — 셋 다 `CardView` 를 쓰지만 서로 다른 파일을 만든다
 - **step-05 는 step-02 뒤라면 언제든** — 다른 단계와 파일이 겹치지 않는다
 - **step-11 은 코드 단계 전부 뒤에 와야 한다.** 폰트 서브셋이 **코드의 문자열 리터럴에서 추출**되기 때문이다 (`scripts/extract-charset.py`). 순서가 뒤집히면 굽고 나서 다시 굽는다
-- **step-12 는 마지막.** 씬은 모든 결과가 모이는 곳이다
+- **씬 조립이 마지막.** 씬은 모든 결과가 모이는 곳이다 — step-12(메인) → step-13(스테이지)
 
 ## 완료 판정 (M6 전체)
 
