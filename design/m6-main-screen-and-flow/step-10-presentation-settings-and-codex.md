@@ -152,6 +152,24 @@ M5 의 오디오가 값/판정/재생 셋으로 나뉜 것과 같은 이유다.
 - 정적 가변 상태 금지 (RULE-01)
 - **한글 문구는 폰트 서브셋에 들어간다** (step-11)
 
+#### step-11 로 넘기는 실측 — 서브셋에 없는 글자 8자
+
+`Assets/Art/Fonts/charset-ko.txt`(413B)와 대조한 결과, step-09·step-10 이 넣은 문구 중
+**다음 글자가 아직 없다**:
+
+```
+과 레 바 백 사 일 전 트
+```
+
+`설`·`정`·`소`·`리`·`스`·`시`는 이미 있다. 빠진 글자는 `백과사전`(도감 헤더·메인 버튼)과
+`스시 레일 바이트`(타이틀)에서 온다. **WebGL 에서 두부(□)가 되고 에디터에서는 시스템 폰트가
+메워 주므로 빌드해야만 드러난다** (`presentation-and-audio.md` §5).
+
+이 단계에서 굽지 않는 이유: `Assets/Art/` 는 심링크 폴더(RULE-02)이고 폰트 재굽기는
+step-11 의 범위다. **step-11 은 `scripts/extract-charset.py` 를 다시 돌려 이 8자를 포함시켜야
+하고, `KoreanFontCoverageTests` 에 두 문구를 얹어야 한다** — 얹지 않으면 커버리지 테스트가
+초록인 채로 두부가 나간다.
+
 ### 테스트 계획 (TDD — 먼저 실패시킬 것)
 
 ```
@@ -178,12 +196,20 @@ PlayMode  ShowEntries_MoreThanSlots_DrawsWhatFits
 
 ### 주입 검증
 
-| 주입 | 예측 |
-|---|---|
-| `SetMasterVolume` 이 저장까지 한다 | `SetMasterVolume_DoesNotSaveYet` |
-| `Close` 가 저장하지 않는다 | `Close_SavesOnce` |
-| 프레젠터가 클램프 전 값을 뷰에 넘긴다 | `SetMasterVolume_AboveOne_ShowsClampedValue` |
-| 백과사전이 `RewardCatalog` 를 읽는다 | `Open_ShowsEverySushiAndCustomer` (시작 덱 5종이 빠진다) |
+| 주입 | 예측 | **실측** |
+|---|---|---|
+| `SetMasterVolume` 이 저장까지 한다 | `SetMasterVolume_DoesNotSaveYet` | **2건** — 예측한 것 + `Close_SavesOnce`(저장 횟수가 2가 된다) |
+| `Close` 가 저장하지 않는다 | `Close_SavesOnce` | **3건** — + `Close_Twice_SavesOnce` · `SetFullscreen_WhenApplierRefuses_StillSavesThePreference` |
+| 프레젠터가 클램프 전 값을 뷰에 넘긴다 | `SetMasterVolume_AboveOne_ShowsClampedValue` | **적중** (+ `BelowZero` 쌍) |
+| 백과사전이 보상 목록을 읽는다 | `Open_ShowsEverySushiAndCustomer` | **5건** — + `EntryCount_MatchesCatalog` · `EntryCount_SmallerCatalog_MatchesThatCatalog` · `Open_AfterClose_ShowsAgain` · `Open_PreservesCatalogOrder`(이쪽은 `Assert` 가 아니라 `IndexOutOfRange`) |
+
+> **네 번째 주입은 작업서가 쓴 형태로는 재현되지 않는다.** 보상 목록 SO 로 그냥 바꿔 끼우면
+> 타입이 달라 **컴파일 실패(종료 코드 2)** 로 끝나고 테스트가 한 개도 돌지 않는다 — 실제로
+> 한 번 그렇게 났다. 재현하려면 «목록의 초밥 쪽이 비어서 온다» 로 바꿔 주입해야 하며,
+> 그때 잡히는 것이 위의 5건이다.
+
+> 예측이 세 번 중 두 번 좁았다. `tests.md` §3 의 *"어느 테스트가 잡을지는 돌려 보기 전까지
+> 모른다"* 가 또 맞았다 — 예측을 그대로 두면 다음 사람이 「그 하나만 있으면 된다」는 오답을 얻는다.
 
 ### 완료 판정
 
