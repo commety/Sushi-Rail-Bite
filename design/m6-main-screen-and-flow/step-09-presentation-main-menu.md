@@ -119,6 +119,32 @@ M5 의 D5 는 *"씬이 여럿이 되어 씬을 넘는 통신이 실제로 필요
 
 **결론을 이 작업서에 실측으로 남긴다.** 두 마일스톤을 미룬 항목이 세 번째로 미뤄지면 그것은 결정이 아니라 회피다.
 
+#### 결론 — **지웠다** (2026-08-08, M6 step-09)
+
+실측:
+
+```
+grep -rn "SushiEatenEventChannelSO\|SushiEatenPayload" Assets/ --include=*.cs
+→ 프로덕션 0건. 유일한 사용처가 자기 자신의 테스트(SushiEatenEventChannelTests) 였다.
+grep -rn "<두 파일의 guid>" Assets/ ProjectSettings/
+→ 0건. 채널 `.asset` 인스턴스가 디스크에 하나도 없고, 씬·프리팹 어디서도 참조하지 않는다.
+```
+
+*"초밥이 먹혔다"* 는 이미 다른 길로 흐르고 있었다 — `ClaimCoordinator.SushiEaten` (C# `event`) 을
+`EffectDirector` · `AudioDirector` 가 직접 구독한다. 채널은 그 자리를 노렸다가 쓰이지 않은 채
+남은 **두 번째 배선**이었다.
+
+M6 의 씬 전환은 메인 ↔ 스테이지이고 **두 씬 사이에 오갈 게임 사건이 없다** — 메인 화면은
+초밥이 먹히는 것을 알 필요가 없다. 채널이 필요해지는 시점은 오지 않았고, 세 번째로 미루지
+않는다.
+
+지운 것: `SushiEatenEventChannelSO.cs` · `SushiEatenPayload.cs` · `SushiEatenEventChannelTests.cs`
+(+ `.meta`, 빈 `Events/` 폴더). `Runtime.Data` 의 파일이지만 **삭제는 이 단계가 지시한 것**이라
+「다른 어셈블리 수정 금지」의 예외로 처리했다.
+
+> 씬을 넘는 통신이 실제로 필요해지면 그때 다시 만든다. 그때는 **필요가 먼저 있고 배선이
+> 뒤따르므로** 이번처럼 쓰이지 않는 채로 남지 않는다.
+
 ### 선행 산출물 의존성
 
 - step-03 의 `UnityEngine.UI` 어셈블리 참조
