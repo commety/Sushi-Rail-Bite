@@ -249,8 +249,8 @@ namespace SushiDefense.Tests.PlayMode
         /// M5 의 결과물 대부분이 관측 불가능했다.
         ///
         /// <para>
-        /// 마우스를 흉내 내지 않고 <c>ClickAt</c> 을 직접 부른다. 좌표 변환은 카메라의
-        /// 몫이고, 여기서 볼 것은 <b>클릭이 배치로 이어지는가</b>다.
+        /// 포인터를 흉내 내지 않고 <c>DropAt</c> 을 직접 부른다. 좌표 변환은 카메라의
+        /// 몫이고, 여기서 볼 것은 <b>드롭이 배치로 이어지는가</b>다.
         /// </para>
         /// </summary>
         [UnityTest]
@@ -258,27 +258,27 @@ namespace SushiDefense.Tests.PlayMode
         {
             yield return WaitSeconds(0.2f);
 
-            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
-            Assert.IsNotNull(input, "씬에 배치 입력이 없다 — 손님을 앉힐 방법이 없다");
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            Assert.IsNotNull(hand, "씬에 손패가 없다 — 손님을 앉힐 방법이 없다");
 
             var slot = Object.FindAnyObjectByType<TableSlotView>();
-            var placed = input.ClickAt(slot.transform.position);
+            var placed = hand.DropAt(_stage.Run.Customers.Members[0], slot.transform.position);
 
-            Assert.IsTrue(placed, "빈 자리를 눌렀는데 앉지 않았다");
+            Assert.IsTrue(placed, "빈 자리에 떨어뜨렸는데 앉지 않았다");
             Assert.AreEqual(1, _stage.Placement.PlacedCount);
         }
 
         /// <summary>
-        /// 빈 곳을 눌렀을 때 <b>엉뚱한 자리에 앉지 않는지</b> 본다.
+        /// 빈 곳에 떨어뜨렸을 때 <b>엉뚱한 자리에 앉지 않는지</b> 본다.
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_ClickOnEmptySpace_PlacesNothing()
         {
             yield return WaitSeconds(0.2f);
 
-            var input = _stage.GetComponentInChildren<CustomerPlacementInput>(true);
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
 
-            Assert.IsFalse(input.ClickAt(new Vector2(100f, 100f)));
+            Assert.IsFalse(hand.DropAt(_stage.Run.Customers.Members[0], new Vector2(100f, 100f)));
             Assert.AreEqual(0, _stage.Placement.PlacedCount);
         }
 

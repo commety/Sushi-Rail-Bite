@@ -119,54 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &47054842
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 47054843}
-  - component: {fileID: 47054844}
-  m_Layer: 0
-  m_Name: PlacementInput
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &47054843
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47054842}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1201889959}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &47054844
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 47054842}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7463f09ab8bec4a6ea5ff2883218238c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Presentation::SushiDefense.Customers.CustomerPlacementInput
-  _controller: {fileID: 0}
-  _camera: {fileID: 0}
-  _slots: []
-  _pickRadius: 1.2
 --- !u!1001 &58001789
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -973,6 +925,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1201889959}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &617559223
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 617559224}
+  - component: {fileID: 617559225}
+  m_Layer: 0
+  m_Name: CustomerHand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &617559224
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 617559223}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1201889959}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &617559225
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 617559223}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 908c3ade0d9554967a34035c8fdb8303, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Presentation::SushiDefense.Customers.CustomerHandView
+  _controller: {fileID: 0}
+  _worldCamera: {fileID: 0}
+  _slots: []
+  _cards: []
+  _dropRadius: 1.2
 --- !u!1 &619999677
 GameObject:
   m_ObjectHideFlags: 0
@@ -1744,7 +1745,7 @@ MonoBehaviour:
   _transitionView: {fileID: 0}
   _audioDirector: {fileID: 0}
   _effectDirector: {fileID: 0}
-  _placementInput: {fileID: 0}
+  _hand: {fileID: 0}
 --- !u!4 &1201889959
 Transform:
   m_ObjectHideFlags: 0
@@ -1773,7 +1774,7 @@ Transform:
   - {fileID: 619999678}
   - {fileID: 426237666}
   - {fileID: 1566548567}
-  - {fileID: 47054843}
+  - {fileID: 617559224}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1237534438

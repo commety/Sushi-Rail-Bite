@@ -74,7 +74,21 @@ namespace SushiDefense.Customers
         /// </summary>
         public bool TryPlaceAt(TableSlotView slot)
         {
-            var placed = _service.TryPlace(PendingCustomer, slot.SlotIndex, slot.BeltPosition);
+            return TryPlace(PendingCustomer, slot);
+        }
+
+        /// <summary>
+        /// <b>어느 손님을</b> 놓을지 함께 받는다. 손패에서 카드를 끌어다 놓는 경로가 쓰며,
+        /// 고르는 것과 놓는 것이 한 동작이라 선택 상태를 거칠 이유가 없다.
+        /// </summary>
+        public bool TryPlace(CustomerData customer, TableSlotView slot)
+        {
+            if (customer == null || slot == null)
+            {
+                return false;
+            }
+
+            var placed = _service.TryPlace(customer, slot.SlotIndex, slot.BeltPosition);
             if (placed == null)
             {
                 return false;
@@ -82,6 +96,16 @@ namespace SushiDefense.Customers
 
             slot.Occupy(placed, _coordinator);
             return true;
+        }
+
+        /// <summary>
+        /// 이 손님을 이 자리에 놓을 수 있는가. <b>판정하지 않고 서비스에 묻는다</b> —
+        /// 카드를 흐리게 표시하려면 놓아 보기 전에 알아야 한다.
+        /// </summary>
+        public bool CanPlace(CustomerData customer, TableSlotView slot)
+        {
+            return customer != null && slot != null && _service != null
+                   && _service.CanPlace(customer, slot.SlotIndex);
         }
 
         /// <summary>이 자리의 손님을 물린다. 배치 취소 조작이 부른다.</summary>

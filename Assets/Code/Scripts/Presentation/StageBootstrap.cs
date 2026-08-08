@@ -52,7 +52,7 @@ namespace SushiDefense
         [SerializeField] private StageTransitionView _transitionView;
         [SerializeField] private AudioDirector _audioDirector;
         [SerializeField] private EffectDirector _effectDirector;
-        [SerializeField] private CustomerPlacementInput _placementInput;
+        [SerializeField] private CustomerHandView _hand;
 
         /// <summary>
         /// 지금 돌고 있는 스테이지의 정의. 스테이지가 넘어가면 이 값이 바뀐다.
@@ -192,12 +192,13 @@ namespace SushiDefense
                 _effectDirector.Bind(Coordinator, Stage, _slots);
             }
 
-            // M5 의 최소 입력. 손님을 고르는 화면은 M6 이고, 여기서는 배치 껍데기가
-            // 들고 있는 다음 손님을 빈 자리에 앉히기만 한다 — 이것이 없으면 소리도
-            // 이펙트도 브라우저에서 관측할 수 없다.
-            if (_placementInput != null)
+            // 손패는 명부를 카드로 늘어놓고, 카드를 자리에 떨어뜨리면 손님이 앉는다.
+            // 카메라를 넘기지 않는 것은 씬 진입점이 들고 있지 않기 때문이며, 손패가
+            // null 을 그대로 대입하지 않는다는 것이 그쪽의 계약이다.
+            if (_hand != null)
             {
-                _placementInput.Initialize(_placementController, null, _slots);
+                _hand.Initialize(_placementController, null, _slots);
+                _hand.Bind(Run.Customers.Members);
             }
         }
 
@@ -463,9 +464,9 @@ namespace SushiDefense
                 _effectDirector = GetComponentInChildren<EffectDirector>(true);
             }
 
-            if (_placementInput == null)
+            if (_hand == null)
             {
-                _placementInput = GetComponentInChildren<CustomerPlacementInput>(true);
+                _hand = GetComponentInChildren<CustomerHandView>(true);
             }
 
             if (_slots == null || _slots.Length == 0)

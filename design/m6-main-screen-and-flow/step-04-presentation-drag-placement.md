@@ -140,23 +140,60 @@ Canvas 가 `Screen Space - Overlay` 이면 카드의 `RectTransform` 은 스크�
 
 > **`Refresh_WhenLimitReached_DisablesAllCards` 를 공허하지 않게 쓴다.** 잔액을 넉넉히 두고 **한도만** 채워야 한도 검사가 불린다. 둘을 동시에 막으면 잔액만 보는 구현으로도 통과한다.
 
-### 주입 검증
+### 주입 실측
 
-| 주입 | 예측 |
-|---|---|
-| `DropAt` 이 `CanPlace` 를 되묻고 서비스를 건너뛴다 | `DropAt_InsufficientBalance_DoesNotPlace` |
-| `Initialize` 에서 카메라 `null` 가드 제거 | `Initialize_NullCamera_KeepsResolvedCamera` |
-| `Bind` 에서 기존 카드 정리 제거 | `Bind_Twice_DoesNotDuplicateCards` |
-| `SlotPicker` 에 넘기는 반경을 무한대로 | `DropAt_FarFromEverySlot_DoesNotPlace` |
+| 주입 | 예측 | 실제 |
+|---|---|---|
+| `Initialize` 에서 카메라 `null` 가드 제거 | 1건 | 예측대로 **1건** |
+| 가용 판정이 서비스를 건너뛴다 | 1건 | **2건** — 잔액·한도 테스트가 각각 |
+
+두 검사가 **각각 살아 있음**을 확인하려고 잔액과 한도를 나눠 막았다. 한 테스트에서
+둘을 동시에 막으면 잔액만 보는 구현으로도 통과한다.
+
+### 애셋 테스트를 하나 더 붙였다 — `CustomerCardPrefabTests`
+
+`CustomerHandViewTests` 는 카드를 **코드로** 세우므로 `CustomerCard.prefab` 이 어떻게 생겼든
+초록이다. step-03 에서 겪은 것과 같은 사각지대라 같은 처방을 했다 — 배리언트인지(복사본이면
+카드 틀을 고쳐도 손님 카드만 옛 모양으로 남는다), 끌기 컴포넌트가 있는지, `CanvasGroup` 이
+있는지(없으면 `SetAvailable` 이 조용히 아무것도 안 해 잔액이 모자라도 카드가 멀쩡해 보인다).
 
 ### 완료 판정
 
-- [ ] `grep -rn "CustomerPlacementInput" Assets/` 가 **0건** (테스트·씬·문서 포함)
-- [ ] `grep -rn "Instantiate\|Destroy(" Assets/Code/Scripts/Presentation/Customers/` 가 `OnDestroy` 라이프사이클 외 **0건**
-- [ ] `StageBootstrap` 이 `_placementInput` 대신 손패를 물린다
-- [ ] PlayMode Green — `./tests/run-tests.sh all`
-- [ ] **재생해서 실제로 끌어 놓아 본다** — 씬 배치가 없으면 step-12 로 넘기고 여기 기록한다
-- [ ] `./tests/preflight.sh` 전 항목 PASS
+- [x] `CustomerPlacementInput` 참조가 코드·씬 통틀어 **0건**
+- [x] `Presentation/Customers/` 에 `Instantiate`/`Destroy` 직접 호출 **0건**
+- [x] `StageBootstrap` 이 손패를 물리고 명부를 넘긴다
+- [x] EditMode **624/624** · PlayMode **178/178**
+- [ ] **재생해서 실제로 끌어 놓아 본다** — 씬에 카드가 아직 없다. **step-12 로 넘긴다**
+- [x] `./tests/preflight.sh` 전 항목 PASS
+
+### 씬을 최소한만 건드렸다 — 원래 step-12 의 몫이지만
+
+컴포넌트를 지우면 씬에는 **Missing Script** 로 남고, `Stage01SceneTests` 두 건이 즉시 죽는다.
+그 상태로 step-05~11 을 진행하면 PlayMode 가 여덟 단계 동안 빨간불이다.
+
+그래서 씬에서는 **오브젝트 교체 한 번만** 했다 — `PlacementInput` 을 지우고 `/Stage/CustomerHand`
+(`CustomerHandView`)를 만들었다. 카드 자식·레이아웃·버튼은 그대로 step-12 다. `DropAt` 은
+카드 없이도 도므로 씬 테스트가 살아 있다.
+
+### 계약을 지웠어야 하는데 남긴 것 하나
+
+`CustomerPlacementController.PendingCustomer` · `SelectPending` 과 HUD 의 «배치 예정» 줄이
+**의미를 잃었다.** 드래그앤드롭은 고르는 것과 놓는 것이 한 동작이라 선택 상태를 거치지
+않는다 — 지금 그 줄은 명부의 첫 손님을 계속 보여 준다.
+
+지우지 않은 이유는 `StageHudView.Bind` 시그니처가 바뀌고 `StageHudViewTests`·
+`Stage01SceneTests`·씬 라벨까지 여섯 파일이 딸려 오기 때문이다. **회귀 그물을 이 단계에서
+걷어내지 않는다.** HUD 를 다시 만지는 step-12 에서 함께 지운다.
+
+### 프리팹은 배리언트로 만들었다
+
+`Card.prefab` → `CustomerCard.prefab` (`Prefab.CreateVariant`) + `CanvasGroup` + `CustomerCardDrag`.
+카드 틀을 공유하되 끌기만 얹는 형태라 D3 를 지킨다.
+
+> **프리팹 스테이지의 경로는 `Prefab.Open` 이 돌려주는 `rootPath` 가 아니다.**
+> `/Canvas (Environment)/CustomerCard` 로 `Component.Add` 를 부르면 *GameObject not found* 가
+> 나고, 실제로 먹히는 것은 **`/CustomerCard`** 다. `GameObject.Find` 는 둘 다 받아 주므로
+> 조회로는 이 차이가 드러나지 않는다.
 
 ### 예상 커밋 메시지
 
