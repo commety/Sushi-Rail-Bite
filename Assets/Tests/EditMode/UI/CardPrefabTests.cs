@@ -138,6 +138,50 @@ namespace SushiDefense.Tests.EditMode.UI
         }
 
         /// <summary>
+        /// 설명 글이 <b>카드 변에 붙지 않는다.</b> 여백이 0 이면 글자가 사각형 모서리에서
+        /// 바로 시작해 답답하게 읽힌다 — 배경의 띠를 걷어내도(카드 틀 생성기) 이쪽이 0 이면
+        /// 그대로다.
+        ///
+        /// <para>
+        /// <b>값을 박지 않는 것이 이 클래스의 방침</b>인데(위 doc) 여기만 예외인 이유는,
+        /// 보는 것이 «10 인가» 가 아니라 <b>«0 이 아닌가»</b> 이기 때문이다. 눈으로 여백을
+        /// 조정해도 이 검사는 안 깨지고, <b>누가 0 으로 되돌리면</b> 깨진다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Prefab_DetailLabel_HasHorizontalPadding()
+        {
+            var margin = _prefab.transform.Find("DetailLabel").GetComponent<TMP_Text>().margin;
+
+            Assert.Greater(margin.x, 0f, "왼쪽 여백이 없다 — 글이 카드 변에서 시작한다");
+            Assert.Greater(margin.z, 0f, "오른쪽 여백이 없다");
+        }
+
+        /// <summary>
+        /// 행간이 붙어 있다. 손님 카드는 다섯 줄이라 기본 간격으로는 줄이 서로 붙어 읽힌다.
+        ///
+        /// <para>
+        /// <b>상한도 함께 본다.</b> 폰트가 12pt·행 높이 12 라 다섯 줄이 들어갈 여유는
+        /// 라벨 높이 88 에서 위아래 여백을 뺀 만큼뿐이다 — 간격을 크게 주면 아래 두 줄이
+        /// 상자 밖으로 밀린다. 줄바꿈이 꺼져 있어(<c>TextWrappingMode 0</c>) 아무도 못 막는다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Prefab_DetailLabel_HasLineSpacing()
+        {
+            var label = _prefab.transform.Find("DetailLabel").GetComponent<TMP_Text>();
+            var rows = 5;
+            var pitch = label.font.faceInfo.ascentLine - label.font.faceInfo.descentLine
+                        + label.lineSpacing;
+            var usable = ((RectTransform)label.transform).rect.height
+                         - label.margin.y - label.margin.w;
+
+            Assert.Greater(label.lineSpacing, 0f, "행간이 기본값이다 — 줄이 서로 붙는다");
+            Assert.LessOrEqual((rows - 1) * pitch + pitch, usable,
+                               $"손님 카드 {rows}줄이 라벨 높이를 넘는다 — 아래 줄이 상자 밖으로 밀린다");
+        }
+
+        /// <summary>
         /// 폰트가 비면 한글·숫자가 두부(□)가 된다. WebGL 은 OS 폰트에 접근할 수 없고,
         /// 에디터에서는 시스템 폰트가 메워 주므로 <b>빌드해야만 드러난다.</b>
         /// </summary>
