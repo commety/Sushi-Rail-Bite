@@ -5,6 +5,7 @@ using SushiDefense.Customers;
 using SushiDefense.Data;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
+using SushiDefense.Stages;
 using SushiDefense.Tests.EditMode.Data;
 using UnityEngine;
 
@@ -30,6 +31,7 @@ namespace SushiDefense.Tests.EditMode.Customers
         private SushiBelt _belt;
         private ClaimCoordinator _coordinator;
         private RecruitWallet _wallet;
+        private PauseState _pause;
         private CustomerPlacementService _service;
         private List<int> _claimedByCustomer;
 
@@ -69,6 +71,49 @@ namespace SushiDefense.Tests.EditMode.Customers
         public void CanPlace_EmptySlot_ReturnsTrue()
         {
             Assert.IsTrue(_service.CanPlace(_customerData, 0));
+        }
+
+        /// <summary>
+        /// <b>멈춘 판에는 앉히지 못한다.</b> 메뉴를 열어 놓고 손님을 앉힐 수 있으면 제한
+        /// 시간을 세워 둔 채 판을 짜는 것이 되고, 실패 창 위에서도 앉을 수 있으면 끝난
+        /// 판에서 영입 재화가 나간다 — 둘 다 실플레이에서 나왔다.
+        ///
+        /// <para>
+        /// <b>«멈추면 false» 만 보지 않는다.</b> 그것만 보면 항상 <c>false</c> 를 돌려주는
+        /// 구현도 통과한다 — 같은 자리·같은 손님으로 <b>멈추기 전에는 참</b>임을 함께 박는다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void CanPlace_WhilePaused_ReturnsFalse()
+        {
+            Assert.IsTrue(_service.CanPlace(_customerData, 0), "전제: 멈추기 전에는 놓을 수 있다");
+
+            _pause.Pause();
+
+            Assert.IsFalse(_service.CanPlace(_customerData, 0));
+        }
+
+        /// <summary>다시 흐르면 되돌아온다 — 멈춤은 상태이지 소모가 아니다.</summary>
+        [Test]
+        public void CanPlace_AfterResume_ReturnsTrueAgain()
+        {
+            _pause.Pause();
+            _pause.Resume();
+
+            Assert.IsTrue(_service.CanPlace(_customerData, 0));
+        }
+
+        /// <summary>
+        /// 확정 경로도 함께 막힌다. <see cref="CustomerPlacementService.CanPlace"/> 만 고치고
+        /// <c>TryPlace</c> 가 다른 길로 가면 화면만 «못 놓는 것처럼» 보이고 실제로는 앉는다.
+        /// </summary>
+        [Test]
+        public void TryPlace_WhilePaused_PlacesNothing()
+        {
+            _pause.Pause();
+
+            Assert.IsNull(_service.TryPlace(_customerData, 0, NearTable));
+            Assert.AreEqual(0, _service.PlacedCount);
         }
 
         [Test]
@@ -434,10 +479,11 @@ namespace SushiDefense.Tests.EditMode.Customers
             _belt = new SushiBelt(_config, SushiDeck.FromSpawnTable(_config).Cards,
                                   new SequenceNumberIssuer(),
                                   new SushiPool<SushiItem>(new SushiItemFactory()));
+            _pause = new PauseState();
             _wallet = new RecruitWallet(initialBudget);
             _coordinator = new ClaimCoordinator(_belt, _config, new RevenueLedger(), _wallet);
             _service = new CustomerPlacementService(_coordinator, _config,
-                                                    new SequenceNumberIssuer(), _wallet);
+                                                    new SequenceNumberIssuer(), _wallet, _pause);
 
             _claimedByCustomer = new List<int>();
             _coordinator.SushiClaimed += (customer, _) =>

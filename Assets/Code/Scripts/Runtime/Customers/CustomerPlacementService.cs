@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SushiDefense.Data;
 using SushiDefense.Scoring;
+using SushiDefense.Stages;
 
 namespace SushiDefense.Customers
 {
@@ -10,13 +11,14 @@ namespace SushiDefense.Customers
     /// EditMode 로 검증된다 (<c>CLAUDE.md</c> §3.2).
     ///
     /// <para>
-    /// 배치 조건은 셋이다 — <b>자리가 비어 있다 ∧ 인구수 합계가 한도를 넘지 않는다 ∧
-    /// 잔액 ≥ 영입 비용</b>. 한도가 세는 것은 머릿수가 아니라 <b>인구수</b>이므로,
+    /// 배치 조건은 넷이다 — <b>판이 흐른다 ∧ 자리가 비어 있다 ∧ 인구수 합계가 한도를 넘지
+    /// 않는다 ∧ 잔액 ≥ 영입 비용</b>. 한도가 세는 것은 머릿수가 아니라 <b>인구수</b>이므로,
     /// 자리가 남아도 못 앉히는 손님이 있을 수 있다.
     /// </para>
     /// <para>
     /// <b>스테이지 진행 중에도 배치할 수 있다</b> (M1 Q4 확정). 배치 즉시 조율자에 등록되어
-    /// 다음 배정부터 참여한다.
+    /// 다음 배정부터 참여한다. <b>단 «진행 중» 이 곧 «멈추지 않았다» 다</b> — 멈춘 판에
+    /// 앉히면 제한 시간을 세워 놓고 판을 짜는 것이 된다.
     /// </para>
     /// </summary>
     public sealed class CustomerPlacementService
@@ -25,6 +27,7 @@ namespace SushiDefense.Customers
         private readonly StageConfig _config;
         private readonly SequenceNumberIssuer _customerSequenceNumbers;
         private readonly RecruitWallet _wallet;
+        private readonly PauseState _pause;
         private readonly Dictionary<int, CustomerLogic> _bySlot = new();
 
         /// <summary>
@@ -75,20 +78,34 @@ namespace SushiDefense.Customers
         /// </summary>
         public int MaxPlacedCustomers => _config.MaxPlacedCustomers;
 
+        /// <param name="pause">
+        /// 판이 멈춰 있나. <b>선택 인자가 아니다</b> — 기본값을 두면 부르는 쪽이 조용히
+        /// 안 넘기고, 그러면 멈춘 판에 손님이 앉는다.
+        /// </param>
         public CustomerPlacementService(ClaimCoordinator coordinator, StageConfig config,
                                         SequenceNumberIssuer customerSequenceNumbers,
-                                        RecruitWallet wallet)
+                                        RecruitWallet wallet, PauseState pause)
         {
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _config = config != null ? config : throw new ArgumentNullException(nameof(config));
             _customerSequenceNumbers = customerSequenceNumbers
                                        ?? throw new ArgumentNullException(nameof(customerSequenceNumbers));
             _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
+            _pause = pause ?? throw new ArgumentNullException(nameof(pause));
         }
 
         /// <summary>
-        /// 이 손님을 이 자리에 놓을 수 있는가 — 점유 · 배치 한도 · 잔액.
+        /// 이 손님을 이 자리에 놓을 수 있는가 — <b>판이 흐른다</b> ∧ 점유 ∧ 배치 한도 ∧ 잔액.
         ///
+        /// <para>
+        /// <b>멈춤이 첫 항이다.</b> 멈춤은 «시간을 흘릴지» 만의 문제가 아니라 <b>판을 조작할
+        /// 수 있는지</b>의 문제다 — 메뉴를 열어 놓고 손님을 앉힐 수 있으면 제한 시간을 멈춘
+        /// 채 판을 짜는 것이 되고, 실패 창 위에서도 앉힐 수 있으면 끝난 판에 재화가 나간다.
+        /// </para>
+        /// <para>
+        /// 여기 두는 이유: 화면 쪽에 두면 <b>같은 판정이 두 곳</b>이 된다. 카드를 흐리게
+        /// 그리는 경로도 이 메서드를 지나므로, 멈춘 동안 카드가 저절로 흐려진다.
+        /// </para>
         /// <para>
         /// <b>잔액을 읽기만 한다.</b> 여기서 차감하면 <see cref="TryPlace"/> 가 검사와 확정에서
         /// 두 번 차감한다.
@@ -101,7 +118,8 @@ namespace SushiDefense.Customers
         /// </summary>
         public bool CanPlace(CustomerData data, int slotIndex)
         {
-            return data != null
+            return !_pause.IsPaused
+                   && data != null
                    && !_bySlot.ContainsKey(slotIndex)
                    && PlacedPopulation + data.Population <= MaxPlacedCustomers
                    && _wallet.CanAfford(data.RecruitCost);
@@ -123,7 +141,8 @@ namespace SushiDefense.Customers
             {
                 throw new InvalidOperationException(
                     $"자리 {slotIndex} 에 배치할 수 없습니다 " +
-                    $"(점유 중이거나, 인구수 {PlacedPopulation}+{data.Population} 가 " +
+                    $"(멈춤={_pause.IsPaused} 이거나, 점유 중이거나, " +
+                    $"인구수 {PlacedPopulation}+{data.Population} 가 " +
                     $"한도 {MaxPlacedCustomers} 를 넘거나, " +
                     $"영입 비용 {data.RecruitCost} 에 잔액 {_wallet.Balance} 가 모자랍니다).");
             }
