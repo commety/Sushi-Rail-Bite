@@ -34,7 +34,7 @@ namespace SushiDefense.Customers
         [SerializeField] private Camera _worldCamera;
         [SerializeField] private TableSlotView[] _slots;
 
-        private Action<CustomerLogic> _onTapped;
+        private Action<CustomerLogic, Vector2> _onTapped;
         private Action _onMissed;
 
         /// <summary>이번 누름이 uGUI 위에서 시작했나. 시작했으면 클릭으로 치지 않는다.</summary>
@@ -57,12 +57,16 @@ namespace SushiDefense.Customers
         /// 있지 않아 <c>null</c> 을 넘기는데, 그대로 대입하면 <see cref="Awake"/> 가 잡아 둔
         /// 참조가 날아가 클릭이 통째로 죽는다 — M5 에서 손패에 실제로 났던 사고다.
         /// </param>
+        /// <param name="onTapped">
+        /// 앉아 있는 손님과 <b>그 자리의 월드 좌표</b>를 받는다. 좌표가 함께 가지 않으면
+        /// 정보 창이 «어느 손님인지» 는 알아도 «어디에 떠야 하는지» 를 알 수 없다.
+        /// </param>
         /// <param name="onMissed">
         /// 손님이 아닌 곳을 눌렀을 때. <b>이것이 없으면 정보 창을 닫을 길이 없다</b> — 창에
         /// 닫기 버튼이 없고, 다른 창처럼 아이콘으로 토글되지도 않기 때문이다.
         /// </param>
         public void Bind(TableSlotView[] slots, Camera worldCamera,
-                         Action<CustomerLogic> onTapped, Action onMissed = null)
+                         Action<CustomerLogic, Vector2> onTapped, Action onMissed = null)
         {
             _slots = slots;
             _onTapped = onTapped;
@@ -96,7 +100,10 @@ namespace SushiDefense.Customers
             }
 
             TapCount++;
-            _onTapped(occupant.Logic);
+
+            // 누른 좌표가 아니라 <b>자리의 좌표</b>를 넘긴다. 손끝을 기준으로 삼으면 같은
+            // 손님을 두 번 눌러도 창이 조금씩 다른 데 뜬다.
+            _onTapped(occupant.Logic, slot.transform.position);
             return true;
         }
 

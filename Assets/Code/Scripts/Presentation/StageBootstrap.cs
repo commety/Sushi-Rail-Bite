@@ -313,8 +313,23 @@ namespace SushiDefense
             {
                 // 카메라를 넘기지 않는 것은 씬 진입점이 들고 있지 않기 때문이며,
                 // 라우터가 null 을 그대로 대입하지 않는다는 것이 그쪽의 계약이다.
-                _tapRouter.Bind(_slots, null, Inspector.Open, Inspector.Close);
+                _tapRouter.Bind(_slots, null, OpenInspectorAt, Inspector.Close);
             }
+        }
+
+        /// <summary>
+        /// 창을 <b>먼저 세우고</b> 띄운다. 순서를 바꾸면 한 프레임 동안 직전 손님 자리에
+        /// 창이 보인다.
+        ///
+        /// <para>
+        /// 람다가 아니라 메서드 그룹으로 넘긴다 — 나중에 구독을 풀 일이 생겨도 같은 대상을
+        /// 가리킬 수 있고, 매번 새 델리게이트를 만들지 않는다.
+        /// </para>
+        /// </summary>
+        private void OpenInspectorAt(CustomerLogic customer, Vector2 worldPoint)
+        {
+            _inspectorView.AnchorTo(worldPoint);
+            Inspector.Open(customer);
         }
 
         /// <summary>

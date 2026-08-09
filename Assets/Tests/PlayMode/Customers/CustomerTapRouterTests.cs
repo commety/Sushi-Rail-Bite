@@ -28,7 +28,11 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
         private CustomerTapRouter _router;
         private TableSlotView[] _slots;
-        private readonly List<CustomerLogic> _tapped = new();
+        /// <summary>
+        /// 넘어온 (손님, 좌표) 쌍. <b>좌표까지 모은다</b> — 손님만 보면 창이 어디에
+        /// 떠야 하는지가 검증에서 빠진다.
+        /// </summary>
+        private readonly List<(CustomerLogic Logic, Vector2 Point)> _tapped = new();
 
         /// <summary>
         /// <b>픽스처를 상속한다.</b> 그것 없이 <c>QueueStateEvent</c> 로 가상 마우스를 흔들면
@@ -49,7 +53,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             };
 
             _router = NewObject("TapRouter").AddComponent<CustomerTapRouter>();
-            _router.Bind(_slots, NewCamera(), _tapped.Add);
+            _router.Bind(_slots, NewCamera(), Record);
         }
 
         public override void TearDown()
@@ -72,8 +76,29 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
             Assert.IsTrue(opened);
             Assert.AreEqual(1, _tapped.Count);
-            Assert.AreSame(_slots[0].Occupant.Logic, _tapped[0]);
+            Assert.AreSame(_slots[0].Occupant.Logic, _tapped[0].Logic);
             Assert.AreEqual(1, _router.TapCount);
+        }
+
+        /// <summary>
+        /// <b>자리의 좌표가 함께 간다.</b> 손님만 넘기면 정보 창이 «어느 손님인지» 는 알아도
+        /// «어디에 떠야 하는지» 를 모른다.
+        ///
+        /// <para>
+        /// <b>누른 좌표가 아니라 자리의 좌표</b>다. 그래서 자리에서 조금 빗나가게 눌러도 같은
+        /// 값이 나온다 — 손끝을 기준으로 삼으면 같은 손님을 두 번 눌러도 창이 조금씩 다른
+        /// 데 뜬다. 두 좌표가 <b>다른</b> 지점을 골라야 이 구분이 드러난다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void TapAt_OffCenterOfTheSlot_ReportsTheSlotPosition()
+        {
+            var seat = (Vector2)_slots[0].transform.position;
+
+            _router.TapAt(seat + new Vector2(0.5f, 0.3f));
+
+            Assert.AreEqual(seat, _tapped[0].Point,
+                            "누른 좌표를 그대로 넘겼다 — 창이 손끝을 따라 흔들린다");
         }
 
         /// <summary>
@@ -102,7 +127,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
         public void TapAt_EmptySlot_ReportsAMiss()
         {
             var missed = 0;
-            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+            _router.Bind(_slots, null, Record, () => missed++);
 
             _router.TapAt(_slots[1].transform.position);
 
@@ -113,7 +138,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
         public void TapAt_FarFromEverySlot_ReportsAMiss()
         {
             var missed = 0;
-            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+            _router.Bind(_slots, null, Record, () => missed++);
 
             _router.TapAt(new Vector2(100f, 100f));
 
@@ -128,7 +153,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
         public void TapAt_OccupiedSlot_DoesNotReportAMiss()
         {
             var missed = 0;
-            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+            _router.Bind(_slots, null, Record, () => missed++);
 
             _router.TapAt(_slots[0].transform.position);
 
@@ -143,12 +168,12 @@ namespace SushiDefense.Tests.PlayMode.Customers
         public void TapAt_NearerToTheSecondSlot_PicksThatOne()
         {
             var occupiedSecond = NewSlot(1, new Vector2(4f, -2f), occupied: true);
-            _router.Bind(new[] { _slots[0], occupiedSecond }, NewCamera(), _tapped.Add);
+            _router.Bind(new[] { _slots[0], occupiedSecond }, NewCamera(), Record);
 
             _router.TapAt(new Vector2(3.8f, -2f));
 
             Assert.AreEqual(1, _tapped.Count);
-            Assert.AreSame(occupiedSecond.Occupant.Logic, _tapped[0]);
+            Assert.AreSame(occupiedSecond.Occupant.Logic, _tapped[0].Logic);
         }
 
         [Test]
@@ -173,7 +198,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             mainCamera.AddComponent<Camera>();
 
             var router = NewObject("TapRouter2").AddComponent<CustomerTapRouter>();
-            router.Bind(_slots, null, _tapped.Add);
+            router.Bind(_slots, null, Record);
 
             Assert.IsNotNull(router.WorldCamera, "씬 진입점이 넘긴 null 이 카메라를 지웠다");
         }
@@ -200,7 +225,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             yield return null;
 
             Assert.AreEqual(1, _router.TapCount, "포인터 경로가 TapAt 까지 닿지 않았다");
-            Assert.AreSame(_slots[0].Occupant.Logic, _tapped[0]);
+            Assert.AreSame(_slots[0].Occupant.Logic, _tapped[0].Logic);
         }
 
         /// <summary>
@@ -318,6 +343,11 @@ namespace SushiDefense.Tests.PlayMode.Customers
             camera.orthographic = true;
             camera.orthographicSize = 5f;
             return camera;
+        }
+
+        private void Record(CustomerLogic logic, Vector2 worldPoint)
+        {
+            _tapped.Add((logic, worldPoint));
         }
 
         private GameObject NewObject(string name)
