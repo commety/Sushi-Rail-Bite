@@ -339,19 +339,109 @@ namespace SushiDefense.Tests.PlayMode
         }
 
 
+        // ── 손님 정보 창 · 접히는 손패 (M6.5) ────────────────────────────
+
         /// <summary>
-        /// 손님 옆에 붙는 둘을 뺀 <b>나머지 라벨은 전부 Canvas 위에</b> 있어야 한다. 월드스페이스로
-        /// 되돌아가면 브라우저 창 크기가 바뀔 때 잘리는데, 코드로 세운 하네스는 그것을 못 잡는다 (§1).
+        /// 정보 창이 씬에 있고 <b>꺼진 채로 시작</b>하는지 본다. 켜진 채 남으면 판이 열리자마자
+        /// 빈 창이 화면을 덮는다 — 뷰의 <c>Awake</c> 가 내리므로 재생 직후에는 반드시 꺼져 있다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasCustomerInspectorPanel_AndItStartsHidden()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+
+            Assert.IsNotNull(view, "정보 창이 씬에 없다");
+            Assert.IsFalse(view.IsShowing, "정보 창이 켜진 채로 시작한다");
+            Assert.IsNotNull(_stage.Inspector, "부트스트랩이 정보 창을 세우지 않았다");
+        }
+
+        /// <summary>
+        /// 라벨 여섯이 <b>이름 그대로</b> 있는지 본다. 뷰는 인스펙터가 비면 자기 하위에서
+        /// 이름으로 찾으므로, 하나만 틀려도 그 칸이 조용히 비고 예외는 나지 않는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_InspectorPanel_HasEveryLabel()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+
+            foreach (var name in new[]
+                     {
+                         "NameLabel", "KindLabel", "StatsLabel",
+                         "StateLabel", "SaturationLabel", "RemainingLabel"
+                     })
+            {
+                var label = view.transform.Find(name);
+                Assert.IsNotNull(label, $"{name} 이 없다");
+                Assert.IsNotNull(label.GetComponent<TMPro.TMP_Text>(), $"{name} 이 TMP 가 아니다");
+                Assert.IsNotNull(label.GetComponent<TMPro.TMP_Text>().font, $"{name} 의 폰트가 비었다");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HasCustomerTapRouter()
+        {
+            yield return WaitSeconds(0.2f);
+
+            Assert.IsNotNull(_stage.GetComponentInChildren<CustomerTapRouter>(true),
+                             "클릭 라우터가 씬에 없다");
+        }
+
+        /// <summary>
+        /// <b>씬을 지나 정보 창이 열리는지</b> 본다. 앞의 셋은 «있다» 만 보므로 배선이 끊겨도
+        /// 통과한다 — 자리에 손님을 앉히고 그 좌표를 눌러 끝까지 간다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_TappingASeatedCustomer_OpensTheInspector()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var slot = _stage.GetComponentInChildren<TableSlotView>(true);
+            _stage.Placement.Place(_stage.Run.Customers.Members[0], slot.SlotIndex,
+                                   slot.BeltPosition);
+            slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
+
+            var router = _stage.GetComponentInChildren<CustomerTapRouter>(true);
+            var opened = router.TapAt(slot.transform.position);
+            yield return null;
+
+            Assert.IsTrue(opened, "자리를 눌렀는데 손님을 못 찾았다");
+            Assert.IsTrue(_stage.Inspector.IsOpen, "정보 창이 안 열렸다");
+        }
+
+        /// <summary>
+        /// 손패가 <b>접힐 수 있는 모양</b>인지 본다. 컨테이너를 안 물렸으면 손패 자신이 그
+        /// 역할을 하므로, 여기서 확인할 것은 «움직일 대상이 카드의 부모인가» 다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HandFolds_WithoutMovingItsCards()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            var card = (RectTransform)hand.transform.GetChild(0);
+            var before = card.anchoredPosition;
+
+            hand.SetExpanded(true);
+            yield return null;
+            hand.SetExpanded(false);
+            yield return WaitSeconds(0.3f);
+
+            Assert.AreEqual(before, card.anchoredPosition, "카드가 직접 움직였다");
+        }
+
+        /// <summary>
+        /// <b>Canvas 밖에 있어도 되는 라벨은 손님을 따라다니는 것뿐이다</b> — 대역 문구와
+        /// 소화 잔여 초. 자리를 따라 움직여야 해서 화면 좌표에 고정할 수 없다
+        /// (<c>HudLabel</c> 의 클래스 주석).
         ///
         /// <para>
-        /// <b>예외를 이름으로 못박는다.</b> «Canvas 밖도 허용» 으로 풀면 HUD 라벨 하나가
-        /// 월드스페이스로 새어 나가도 통과한다 — 느슨해진 가드는 진짜 위반을 놓친다
-        /// (<c>.claude/rules/scripts.md</c> §7). 새 월드스페이스 라벨을 더하려면 여기 이름을
-        /// 추가해야 하고, 그 순간 «정말 Canvas 밖이어야 하나» 를 한 번 더 묻게 된다.
-        /// </para>
-        /// <para>
-        /// 이 둘이 월드스페이스인 이유는 <b>손님 자리를 따라다녀야 하기 때문</b>이다
-        /// (<c>HudLabel</c> 의 클래스 주석). 전역 HUD 와 달리 화면 좌표에 고정할 수 없다.
+        /// <b>이름이 아니라 «어디 달렸나» 로 가른다.</b> 처음에는 이름 목록으로 예외를
+        /// 뒀는데, 정보 창이 <c>RemainingLabel</c> 이라는 같은 이름을 쓰면서 <b>엉뚱한 곳의
+        /// 동명 라벨이 예외를 타고 빠져나갔다.</b> 이름은 우연히 겹치지만 계층은 겹치지 않는다.
         /// </para>
         /// <para>
         /// <b>M6.5 이전에는 이 테스트가 모든 라벨을 검사했고 그래도 통과했다</b> — 씬에
@@ -367,48 +457,46 @@ namespace SushiDefense.Tests.PlayMode
             var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
             Assert.IsNotEmpty(labels, "씬에 TMP 라벨이 하나도 없다");
 
-            var worldSpaceByDesign = new System.Collections.Generic.HashSet<string>
-            {
-                "BandLabel", "RemainingLabel"
-            };
-
             var checkedAny = false;
             foreach (var label in labels)
             {
-                if (worldSpaceByDesign.Contains(label.name))
+                if (label.GetComponentInParent<Canvas>(true) != null)
                 {
                     continue;
                 }
 
                 checkedAny = true;
-                Assert.IsNotNull(label.GetComponentInParent<Canvas>(),
-                                 $"{label.name} 이 Canvas 밖에 있다");
+                Assert.IsNotNull(label.GetComponentInParent<CustomerView>(true),
+                                 $"{label.name} 이 Canvas 밖인데 손님 아래도 아니다");
             }
 
-            Assert.IsTrue(checkedAny, "예외 목록이 라벨을 전부 삼켰다 — 이 테스트가 아무것도 안 본다");
+            Assert.IsTrue(checkedAny,
+                          "Canvas 밖 라벨이 하나도 없다 — 대역·소화 라벨이 사라졌거나 이 테스트가 헛돈다");
         }
 
         /// <summary>
-        /// 예외로 둔 둘이 <b>실제로 손님 아래에</b> 있는지 본다. 위 테스트의 예외 목록은
-        /// 이름만 보므로, 엉뚱한 곳의 라벨이 같은 이름을 달면 그대로 통과한다.
+        /// 뒤집어서도 본다 — <b>HUD 라벨이 Canvas 밖으로 새지 않았는지.</b>
+        ///
+        /// <para>
+        /// 위 테스트는 «Canvas 밖이면 손님 아래여야 한다» 를 보므로, 손님 아래에 있는 것은
+        /// 무엇이든 통과한다. 여기서는 <b>손님 밖의 라벨은 전부 Canvas 위</b>여야 함을 본다.
+        /// 둘을 합치면 라벨이 갈 수 있는 곳이 두 자리로 못박힌다.
+        /// </para>
         /// </summary>
         [UnityTest]
-        public IEnumerator Play_Scene_WorldSpaceLabelsBelongToCustomers()
+        public IEnumerator Play_Scene_LabelsOutsideCustomersLiveOnCanvas()
         {
             yield return WaitSeconds(0.2f);
 
-            var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
-            foreach (var label in labels)
+            foreach (var label in _stage.GetComponentsInChildren<TMPro.TMP_Text>(true))
             {
-                if (label.name != "BandLabel" && label.name != "RemainingLabel")
+                if (label.GetComponentInParent<CustomerView>(true) != null)
                 {
                     continue;
                 }
 
-                // 자리는 손님이 앉을 때까지 꺼져 있고, 인자 없는 GetComponentInParent 는
-                // 비활성을 건너뛴다 — 그대로 두면 «손님 밖» 으로 오판한다.
-                Assert.IsNotNull(label.GetComponentInParent<CustomerView>(true),
-                                 $"{label.name} 이 손님 밖에 있다 — 월드스페이스일 이유가 없다");
+                Assert.IsNotNull(label.GetComponentInParent<Canvas>(true),
+                                 $"{label.name} 이 Canvas 밖에 있다");
             }
         }
 

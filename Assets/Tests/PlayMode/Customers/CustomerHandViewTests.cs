@@ -405,6 +405,31 @@ namespace SushiDefense.Tests.PlayMode.Customers
                             "펼친 상태에서 끌면 카드가 엉뚱한 자리로 돌아간다");
         }
 
+        /// <summary>
+        /// <b>컨테이너를 안 물려도 동작해야 한다.</b> 씬의 손패가 정확히 그 모양이다 —
+        /// <c>Hand</c> 는 그래픽이 없고 자식이 카드뿐이라, 그 자신이 컨테이너 역할을 한다.
+        ///
+        /// <para>
+        /// 다른 테스트는 전부 <c>_tray</c> 를 주입하므로 <b>이 폴백을 한 번도 밟지 않는다</b> —
+        /// 우회로가 곧 사각지대라는 그 형태다 (<c>.claude/rules/tests.md</c> §1). 폴백이 죽으면
+        /// 씬에서만 손패가 안 접힌다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SetExpanded_WithoutTray_MovesItself()
+        {
+            var hand = NewHand(cardCount: 1);
+            ClearTray(hand);
+            var rect = (RectTransform)hand.transform;
+            yield return null;
+            var collapsed = rect.anchoredPosition.y;
+
+            hand.SetExpanded(true);
+            yield return null;
+
+            Assert.Greater(rect.anchoredPosition.y, collapsed, "컨테이너가 없으면 아무것도 안 움직인다");
+        }
+
         [Test]
         public void PointerEnter_Collapsed_Expands()
         {
@@ -523,6 +548,16 @@ namespace SushiDefense.Tests.PlayMode.Customers
             serialized.FindProperty("_tray").objectReferenceValue = tray;
             serialized.FindProperty("_collapsedOffsetY").floatValue = CollapsedOffsetY;
             serialized.FindProperty("_slideSeconds").floatValue = 0f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+        }
+
+        /// <summary>컨테이너를 안 물린 상태로 되돌린다 — 씬의 손패와 같은 조건.</summary>
+        private static void ClearTray(CustomerHandView hand)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(hand);
+            serialized.FindProperty("_tray").objectReferenceValue = null;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 #endif
         }
