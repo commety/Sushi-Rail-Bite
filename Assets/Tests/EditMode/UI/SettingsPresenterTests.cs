@@ -55,6 +55,47 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.AreEqual(0.25f, applier.LastVolume, 0.0001f);
         }
 
+        /// <summary>
+        /// <b>불러온 전체화면 값을 밀어 넣지 않는다.</b> 전체화면 전환은 사용자 제스처 안에서만
+        /// 먹는데, 제스처 밖에서 요청하면 브라우저가 무시하는 것이 아니라 <b>미뤄 뒀다가 다음
+        /// 클릭에 실행한다</b> — 실플레이에서 «게임을 열고 아무 버튼이나 누르면 설정과 무관하게
+        /// 전체화면이 되는» 증상으로 났다.
+        ///
+        /// <para>
+        /// 그래서 저장값이 <c>true</c> 여도 <b>실제 화면 상태를 따른다.</b> 소리는 제스처가
+        /// 필요 없으므로 그대로 먹인다 — 위 테스트가 그쪽을 지킨다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Constructor_StoredFullscreen_DoesNotForceItOnTheScreen()
+        {
+            var store = new FakeSettingsStore { StoredFullscreen = true };
+            var applier = new FakeSettingsApplier { Fullscreen = false };
+            var settings = new GameSettings();
+
+            _ = new SettingsPresenter(new FakeSettingsView(), settings, store, applier);
+
+            Assert.IsFalse(applier.LastFullscreen, "불러온 값을 화면에 밀어 넣었다");
+            Assert.IsFalse(applier.Fullscreen, "창 모드로 열었는데 전체화면이 예약됐다");
+            Assert.IsFalse(settings.Fullscreen, "모델이 실제 화면 상태와 어긋난다");
+        }
+
+        /// <summary>
+        /// 반대 방향. <b>이미 전체화면으로 열렸으면</b> 모델도 그렇게 맞아야 한다 — 화면 상태를
+        /// 들고 있는 쪽이 브라우저이므로 우리가 읽어 따라간다.
+        /// </summary>
+        [Test]
+        public void Constructor_ScreenAlreadyFullscreen_ModelFollowsIt()
+        {
+            var applier = new FakeSettingsApplier { Fullscreen = true };
+            var settings = new GameSettings();
+
+            _ = new SettingsPresenter(new FakeSettingsView(), settings,
+                                      new FakeSettingsStore(), applier);
+
+            Assert.IsTrue(settings.Fullscreen, "실제로 전체화면인데 모델은 창 모드다");
+        }
+
         /// <summary>세울 때 저장까지 하면, 켜기만 해도 기본값이 디스크에 굳는다.</summary>
         [Test]
         public void Constructor_DoesNotSave()

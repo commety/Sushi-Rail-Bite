@@ -430,6 +430,81 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.Greater(rect.anchoredPosition.y, collapsed, "컨테이너가 없으면 아무것도 안 움직인다");
         }
 
+        // ── 드래그 좌표 ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// <b>카드가 커서에 붙어 있어야 한다.</b> 화면 델타를 그대로 더하면 캔버스 배율만큼
+        /// 어긋남이 <b>누적되어</b>, 끌수록 그림이 손에서 떨어져 나간다 — 기능은 커서 좌표로
+        /// 판정하므로 멀쩡하고 <b>그림만 틀리는</b> 형태라 테스트가 없으면 브라우저에서만
+        /// 드러난다.
+        ///
+        /// <para>
+        /// 캔버스를 <b>배율 2</b>로 세운다. 배율이 1이면 화면 픽셀과 캔버스 단위가 같아져
+        /// 잘못된 구현도 통과한다 (<c>.claude/rules/tests.md</c> §3).
+        /// </para>
+        /// </summary>
+        [Test]
+        public void OnDrag_ScaledCanvas_KeepsTheCardUnderTheCursor()
+        {
+            var (drag, canvas) = NewScaledCard(scale: 2f);
+            var rect = (RectTransform)drag.transform;
+            var start = ScreenPointOf(canvas, rect.anchoredPosition);
+
+            drag.OnBeginDrag(Pointer(start));
+            drag.OnDrag(Pointer(start + new Vector2(200f, 0f)));
+
+            // 화면에서 200px 옮겼고 배율이 2이므로 캔버스로는 100 이어야 한다.
+            Assert.AreEqual(100f, rect.anchoredPosition.x, 0.01f,
+                            "카드가 커서에서 벗어났다 — 화면 델타를 그대로 더하고 있다");
+        }
+
+        /// <summary>
+        /// 집은 지점을 유지한다. 카드 원점으로 순간이동하면 «집은 곳» 이 무시된다.
+        /// </summary>
+        [Test]
+        public void OnDrag_GrabbedOffCenter_KeepsTheGrabOffset()
+        {
+            var (drag, canvas) = NewScaledCard(scale: 1f);
+            var rect = (RectTransform)drag.transform;
+            var grab = ScreenPointOf(canvas, rect.anchoredPosition + new Vector2(40f, 0f));
+
+            drag.OnBeginDrag(Pointer(grab));
+            drag.OnDrag(Pointer(grab));
+
+            Assert.AreEqual(0f, rect.anchoredPosition.x, 0.01f, "카드가 커서로 순간이동했다");
+        }
+
+        private static PointerEventData Pointer(Vector2 screenPoint)
+        {
+            return new PointerEventData(EventSystem.current) { position = screenPoint };
+        }
+
+        private static Vector2 ScreenPointOf(Canvas canvas, Vector2 canvasPoint)
+        {
+            return canvasPoint * canvas.scaleFactor
+                   + new Vector2(Screen.width, Screen.height) * 0.5f;
+        }
+
+        /// <summary>배율이 1이 아닌 캔버스 위의 카드 하나. 배율 1이면 이 버그가 안 드러난다.</summary>
+        private (CustomerCardDrag drag, Canvas canvas) NewScaledCard(float scale)
+        {
+            var canvasGo = NewObject("ScaledCanvas");
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.scaleFactor = scale;
+
+            var card = new GameObject("Card", typeof(RectTransform));
+            card.transform.SetParent(canvasGo.transform, false);
+            new GameObject("Icon", typeof(RectTransform)).transform.SetParent(card.transform, false);
+            card.AddComponent<Image>();
+            card.AddComponent<Button>();
+            card.AddComponent<CardView>();
+
+            var drag = card.AddComponent<CustomerCardDrag>();
+            drag.Bind(_hand, _cheap, NewCamera());
+            return (drag, canvas);
+        }
+
         [Test]
         public void PointerEnter_Collapsed_Expands()
         {
