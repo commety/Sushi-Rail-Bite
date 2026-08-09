@@ -13,6 +13,19 @@ namespace SushiDefense.Tests.PlayMode.Customers
     /// 뷰는 상태를 <b>읽기만</b> 한다. 전이는 <c>CustomerAppetiteMachine</c> 이, "기다리는 중"
     /// 인지는 <c>ClaimCoordinator</c> 가 정하고 그 판정 자체는 EditMode 가 검증한다 —
     /// 여기서는 화면 반영만 본다.
+    ///
+    /// <para>
+    /// <b>머리 위 라벨을 보던 테스트 넷이 여기서 사라졌다</b> (M6.6). 라벨 자체를 없앴으므로
+    /// 그것이 지키던 계약은 각각 옮겨 갔다:
+    /// 이름 폴백은 <c>CardCaptionTests.NameOf_EmptyDisplayName_FallsBackToAssetName</c>,
+    /// «자리를 갈아탈 때 직전 손님이 안 남는다» 는 <see cref="Bind_Null_RestoresThePrefabSprite"/>,
+    /// «상시 라벨이 다시 들어오지 않는다» 는 <c>CustomerPrefabTests.Prefab_HasNoAlwaysOnLabel</c> 이다.
+    /// </para>
+    /// <para>
+    /// 마지막 것을 여기 두지 않은 이유: 이 하네스는 <c>CustomerView</c> 를 자식 없이 세우므로
+    /// «라벨이 없다» 가 <b>구현과 무관하게 항상 참</b>이다 — 애셋을 보는 테스트여야 뜻이 있다
+    /// (<c>.claude/rules/tests.md</c> §3).
+    /// </para>
     /// </summary>
     public sealed class CustomerViewTests
     {
@@ -200,65 +213,6 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.AreEqual(Color.white, _body.color, "Idle 은 틴트 없이 흰색이다");
         }
 
-        /// <summary>
-        /// 라벨은 <b>이름과 대역을 함께</b> 보여 준다. 유형이 셋으로 늘면 대역 숫자만으로는
-        /// "이게 소식인가 먹보인가" 를 매번 역산해야 한다 (M4).
-        /// </summary>
-        [Test]
-        public void Bind_Customer_ShowsNameAndTargetingBand()
-        {
-            SetDisplayName("소식");
-            SetBand(300, 550);
-
-            _view.Bind(_logic, null);
-
-            StringAssert.Contains("소식", _view.BandText);
-            StringAssert.Contains("300~550", _view.BandText);
-        }
-
-        /// <summary>
-        /// 다른 유형으로도 <b>자기 값</b>을 쓰는지 본다 — 위 테스트만 있으면 상수를
-        /// 돌려주는 구현이 통과한다.
-        /// </summary>
-        [Test]
-        public void Bind_BigEaterData_ShowsItsOwnNameAndBand()
-        {
-            SetDisplayName("먹보");
-            SetBand(100, 150);
-
-            _view.Bind(_logic, null);
-
-            StringAssert.Contains("먹보", _view.BandText);
-            StringAssert.Contains("100~150", _view.BandText);
-            StringAssert.DoesNotContain("소식", _view.BandText);
-        }
-
-        /// <summary>
-        /// 이름을 아직 안 채운 애셋에서 빈 줄이 나오면 라벨이 고장 난 것처럼 보인다.
-        /// 애셋 이름으로 대신한다.
-        /// </summary>
-        [Test]
-        public void Bind_DataWithoutDisplayName_FallsBackToAssetName()
-        {
-            _customerData.name = "Customer.Nameless";
-            SetDisplayName(string.Empty);
-            SetBand(100, 150);
-
-            _view.Bind(_logic, null);
-
-            StringAssert.Contains("Customer.Nameless", _view.BandText);
-        }
-
-        [Test]
-        public void Bind_Null_ClearsBandText()
-        {
-            _view.Bind(_logic, null);
-
-            _view.Bind(null, null);
-
-            Assert.IsEmpty(_view.BandText);
-        }
-
         [Test]
         public void LateUpdate_StateBecameEating_ReflectsIt()
         {
@@ -361,19 +315,6 @@ namespace SushiDefense.Tests.PlayMode.Customers
         private void Pump() =>
             _view.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
 
-        /// <summary>
-        /// 대역만 건드린다. <b>최대 포화도를 함께 손대지 않는다</b> — 기본값 1 이라야
-        /// 한 입에 포화돼 Eating → Digesting 전이를 한 틱으로 볼 수 있다.
-        /// </summary>
-        private void SetDisplayName(string displayName)
-        {
-#if UNITY_EDITOR
-            var serialized = new UnityEditor.SerializedObject(_customerData);
-            serialized.FindProperty("_displayName").stringValue = displayName;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-#endif
-        }
-
         private Sprite NewSprite()
         {
             var texture = new Texture2D(1, 1);
@@ -397,6 +338,10 @@ namespace SushiDefense.Tests.PlayMode.Customers
             field.SetValue(_customerData, icon);
         }
 
+        /// <summary>
+        /// 대역만 건드린다. <b>최대 포화도를 함께 손대지 않는다</b> — 기본값 1 이라야
+        /// 한 입에 포화돼 Eating → Digesting 전이를 한 틱으로 볼 수 있다.
+        /// </summary>
         private void SetBand(int min, int max)
         {
 #if UNITY_EDITOR

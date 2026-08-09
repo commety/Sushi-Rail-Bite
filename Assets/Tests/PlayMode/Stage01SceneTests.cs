@@ -556,7 +556,7 @@ namespace SushiDefense.Tests.PlayMode
             }
 
             Assert.IsTrue(checkedAny,
-                          "Canvas 밖 라벨이 하나도 없다 — 대역·소화 라벨이 사라졌거나 이 테스트가 헛돈다");
+                          "Canvas 밖 라벨이 하나도 없다 — 소화 배지의 숫자가 사라졌거나 이 테스트가 헛돈다");
         }
 
         /// <summary>
@@ -773,10 +773,18 @@ namespace SushiDefense.Tests.PlayMode
             }
         }
 
+        /// <summary>
+        /// 자리에 앉으면 <b>화면에 표시가 뜨는지</b> 본다. 머리 위 라벨을 걷어냈으므로(M6.6)
+        /// 남은 표시가 실제로 안 보이면 손님이 어떤 상태인지 알 방법이 통째로 사라진다.
+        ///
+        /// <para>
+        /// <b>씬의 인스턴스를 본다.</b> 프리팹이 멀쩡해도 씬에서 오버라이드로 꺼 두면
+        /// 프리팹 테스트는 전부 초록이다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
         [UnityTest]
-        public IEnumerator Play_Scene_OccupiedSeatShowsBand()
+        public IEnumerator Play_Scene_OccupiedSeatShowsSaturation()
         {
-            // 대역이 화면에 보이는지 — 이 마일스톤의 목적이 가독성이므로 선택이 아니다.
             var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
             var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
             slot.Occupy(logic, _stage.Coordinator);
@@ -784,7 +792,31 @@ namespace SushiDefense.Tests.PlayMode
             yield return null;
 
             Assert.IsNotNull(slot.Occupant, "자리에 손님 시각 표현이 없다 — 씬 조립을 확인하라");
-            Assert.IsNotEmpty(slot.Occupant.BandText, "손님 옆에 대역이 표시되지 않는다");
+
+            var bar = slot.Occupant.GetComponentInChildren<SushiDefense.Customers.SaturationBarView>(true);
+            Assert.IsNotNull(bar, "포화도 바가 없다");
+            Assert.IsTrue(bar.gameObject.activeInHierarchy, "포화도 바가 꺼져 있다");
+            Assert.Greater(bar.ShownVisibleCells, 0, "포화도 칸이 하나도 안 켜졌다");
+        }
+
+        /// <summary>
+        /// 씬의 손님에게 <b>상시 라벨이 붙어 있지 않은지</b> 본다. 프리팹에서 지워도
+        /// 씬 인스턴스에 하나 얹혀 있으면 화면에는 그대로 나온다 — M6 에서 카드 크기가
+        /// 정확히 그 형태로 어긋나 있었다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SeatedCustomer_HasNoAlwaysOnLabel()
+        {
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+            slot.Occupy(logic, _stage.Coordinator);
+
+            yield return null;
+
+            var labels = slot.Occupant.GetComponentsInChildren<TMPro.TMP_Text>(true);
+
+            Assert.AreEqual(1, labels.Length, "손님 위 라벨은 소화 배지의 숫자 하나뿐이어야 한다");
+            Assert.AreEqual("RemainingLabel", labels[0].name);
         }
 
         [UnityTest]

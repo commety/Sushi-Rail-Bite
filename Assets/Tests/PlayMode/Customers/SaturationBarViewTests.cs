@@ -158,6 +158,52 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.AreEqual(_cells[0].color, _cells[1].color, "찬 칸끼리는 같은 색이다");
         }
 
+        /// <summary>
+        /// <b>참조를 물려 주지 않는 경로</b>를 본다. 위의 테스트들은 전부
+        /// <c>InitializeCells</c> 로 칸을 넘겨 주므로 «비었을 때 스스로 모으는» 분기가
+        /// 한 번도 돌지 않는다 — 씬과 프리팹은 그 분기만 탄다
+        /// (<c>.claude/rules/tests.md</c> §1 «직접 주입으로 우회되는 폴백»).
+        ///
+        /// <para>
+        /// 칸에 <b>장식을 달아 둔다.</b> 장식이 없으면 하위 전체를 훑는 구현으로도 통과한다 —
+        /// 실제로 배경판을 칸의 자식으로 붙이자 칸이 열여섯으로 세어졌고, 판이 칸과 함께
+        /// 금색으로 물들었다.
+        /// </para>
+        /// <para>
+        /// <b>최대 포화도를 칸 수보다 크게 잡는다.</b> 둘이 같으면 용량이 8 이든 16 이든
+        /// <see cref="SaturationGauge.VisibleCells"/> 가 최대 포화도에서 잘려 <b>같은 값이
+        /// 나온다</b> — 처음에 그렇게 썼다가 잘못된 구현이 그대로 통과했다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Bind_CellsNotInjected_CountsOnlyDirectChildren()
+        {
+            var root = NewObject("Bar");
+            var decorations = new SpriteRenderer[Capacity];
+            for (var i = 0; i < Capacity; i++)
+            {
+                var cell = new GameObject($"Cell{i}");
+                cell.transform.SetParent(root.transform, false);
+                cell.AddComponent<SpriteRenderer>();
+
+                var decoration = new GameObject("Backing");
+                decoration.transform.SetParent(cell.transform, false);
+                decorations[i] = decoration.AddComponent<SpriteRenderer>();
+            }
+
+            var bar = root.AddComponent<SaturationBarView>();
+            bar.Bind(NewState(Capacity * 2, Capacity * 2));
+
+            Assert.AreEqual(Capacity, bar.ShownVisibleCells,
+                            "장식까지 칸으로 셌다 — 칸 수가 부풀면 소식가·먹보의 칸 수가 어긋난다");
+
+            foreach (var decoration in decorations)
+            {
+                Assert.AreEqual(Color.white, decoration.color,
+                                "배경판이 칸처럼 물들었다 — 판은 칸이 아니다");
+            }
+        }
+
         private CustomerRuntimeState NewState(int maxSaturation, int current)
         {
             var data = ScriptableObject.CreateInstance<CustomerData>();

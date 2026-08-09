@@ -1,6 +1,4 @@
 using SushiDefense.Data;
-using SushiDefense.UI;
-using TMPro;
 using UnityEngine;
 
 namespace SushiDefense.Customers
@@ -10,26 +8,29 @@ namespace SushiDefense.Customers
     /// 자격·배정 판단을 여기에 두지 않는다.
     ///
     /// <para>
-    /// 상태에 따라 색을, 손님 데이터에 따라 대역 문구를 바꾼다. <b>판정하지 않는다</b> —
-    /// 상태는 식욕 상태 머신이, "기다리는 중" 인지는 조율자가 정하고 이 뷰는 결과를 읽기만
-    /// 한다. 색 블록은 M5(아트)까지의 placeholder 다.
+    /// 상태에 따라 색을 바꾼다. <b>판정하지 않는다</b> — 상태는 식욕 상태 머신이,
+    /// "기다리는 중" 인지는 조율자가 정하고 이 뷰는 결과를 읽기만 한다.
     /// </para>
     /// <para>
-    /// <b>대역과 대기를 손님 옆에 둔 이유</b>: 대역은 손님마다 다른 값이라 전역 HUD 로는
-    /// 자리 셋을 구분해 보여 줄 수 없다. M2.5 를 하는 이유 자체가 "플레이어가 규칙을
-    /// 배우지 못한다" 이므로 어느 손님이 무엇을 노리는지가 자리 옆에 있어야 한다.
+    /// <b>머리 위에 상시 글자를 두지 않는다.</b> 한때 이름과 선호 가격대를 자리 옆에 적어
+    /// 두었는데(M2.5), 그때는 그것 말고 손님을 구별할 방법이 없었다. 지금은 유형이 실루엣으로
+    /// 갈리고(M5) 자세한 값은 눌러서 여는 창이 진다(M6.5) — 셋을 다 띄우면 자리마다 글자
+    /// 뭉치가 앉아 정작 포화도·소화가 안 읽힌다. 여기 남는 표시는 <b>상태 색 · 포화도 칸 ·
+    /// 소화 배지</b> 셋뿐이다.
+    /// </para>
+    /// <para>
+    /// 잃은 것이 하나 있다: <b>자리 셋을 나란히 놓고 비교할 수 없다.</b> 창은 한 번에 한
+    /// 손님만 연다 — 실플레이에서 그것이 문제로 드러나면 되돌릴 자리가 여기다.
     /// </para>
     /// </summary>
     public sealed class CustomerView : MonoBehaviour
     {
         /// <summary>인스펙터가 비었을 때 자기 하위에서 찾을 자식 이름. 씬 조립과의 약속이다.</summary>
-        private const string BandLabelName = "BandLabel";
-
         private const string SaturationBarName = "SaturationBar";
+
         private const string DigestingBadgeName = "DigestingBadge";
 
         [SerializeField] private SpriteRenderer _body;
-        [SerializeField] private TMP_Text _bandLabel;
         [SerializeField] private Color _idleColor = Color.white;
         [SerializeField] private Color _eatingColor = new(1f, 0.85f, 0.3f);
         [SerializeField] private Color _digestingColor = new(0.5f, 0.55f, 0.65f);
@@ -71,9 +72,6 @@ namespace SushiDefense.Customers
         /// <summary>지금 대기 상태로 그려져 있는가. 검증용이다.</summary>
         public bool ShownWaiting => _shownWaiting;
 
-        /// <summary>지금 표시 중인 대역 문구. 검증용이다.</summary>
-        public string BandText { get; private set; }
-
         /// <summary>지금 화면에 나가 있는 그림. 검증용이다.</summary>
         public Sprite ShownSprite => _body != null ? _body.sprite : null;
 
@@ -110,19 +108,11 @@ namespace SushiDefense.Customers
 
             if (logic == null)
             {
-                BandText = string.Empty;
-                HudLabel.Write(_bandLabel, BandText);
                 RestoreDefaultIcon();
                 return;
             }
 
-            // 손님의 정적 데이터는 런타임에 바뀌지 않으므로 여기서 한 번만 만든다.
-            // LateUpdate 에서 매 프레임 만들면 WebGL 에서 GC 스파이크가 그대로 히칭이 된다.
-            var data = logic.State.Data;
-            BandText = $"{CardCaption.NameOf(data)}\n{data.TargetingMin}~{data.TargetingMax}";
-            HudLabel.Write(_bandLabel, BandText);
-
-            ShowIcon(data);
+            ShowIcon(logic.State.Data);
             Apply(logic.State.State, false);
         }
 
@@ -192,8 +182,6 @@ namespace SushiDefense.Customers
 
             _defaultSprite = _body != null ? _body.sprite : null;
 
-            _bandLabel = HudLabel.Resolve(transform, _bandLabel, BandLabelName);
-
             // 인스펙터가 비면 자기 하위에서 이름으로 찾는다. 씬 전역 탐색이 아니다 (§4.3).
             _saturationBar = ResolveChild(_saturationBar, SaturationBarName);
             _digestingBadge = ResolveChild(_digestingBadge, DigestingBadgeName);
@@ -201,8 +189,8 @@ namespace SushiDefense.Customers
 
         /// <summary>
         /// 인스펙터에서 비어 있으면 <b>자기 하위 계층에서만</b> 이름으로 찾는다.
-        /// <see cref="HudLabel.Resolve"/> 와 같은 방식이며, 타입 둘 때문에 그 조각을
-        /// 일반화하지는 않았다.
+        /// <c>HudLabel.Resolve</c> 와 같은 방식이며, 타입 둘 때문에 그 조각을 일반화하지는
+        /// 않았다.
         /// </summary>
         private T ResolveChild<T>(T assigned, string childName) where T : Component
         {

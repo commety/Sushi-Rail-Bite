@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense.Customers;
 using TMPro;
@@ -130,15 +131,24 @@ namespace SushiDefense.Tests.EditMode.Customers
         }
 
         /// <summary>
-        /// 배지는 손님 <b>위</b>에, 포화도 바는 <b>아래</b>에 둔다. 겹치면 둘 다 못 읽는다.
+        /// 배지는 손님 <b>위</b>에, 포화도 바는 <b>옆</b>에 선다 — 둘이 <b>다른 축</b>을 쓴다.
+        ///
+        /// <para>
+        /// 예전에는 배지가 위, 바가 아래였다. 머리 위로 나란히 쌓는 안도 있었지만 세로 예산이
+        /// 없다 — 머리 끝에서 벨트 레일 바닥까지 0.8 유닛인데 배지가 이미 0.5 를 쓴다.
+        /// 축을 가르면 <b>어느 쪽이 켜지든 서로를 신경 쓸 필요가 없다.</b>
+        /// </para>
         /// </summary>
         [Test]
-        public void Prefab_BadgeSitsAboveBar()
+        public void Prefab_BadgeAndBar_UseDifferentAxes()
         {
             var badge = _prefab.transform.Find("DigestingBadge");
             var bar = _prefab.transform.Find("SaturationBar");
+            var body = _prefab.GetComponent<SpriteRenderer>();
 
-            Assert.Greater(badge.localPosition.y, bar.localPosition.y);
+            Assert.Greater(badge.localPosition.y, body.bounds.extents.y, "배지가 머리 위가 아니다");
+            Assert.Less(Mathf.Abs(badge.localPosition.x), body.bounds.extents.x, "배지가 옆으로 새 있다");
+            Assert.Greater(Mathf.Abs(bar.localPosition.x), body.bounds.extents.x, "바가 옆이 아니다");
         }
 
         /// <summary>
@@ -158,42 +168,137 @@ namespace SushiDefense.Tests.EditMode.Customers
         }
 
         /// <summary>
-        /// <b>대역 문구가 화면에 나오는지</b> 본다.
+        /// 손님 위에 <b>상시 라벨을 두지 않는다</b> (M6.6). 유형은 실루엣이(M5), 자세한 값은
+        /// 눌러 여는 창이(M6.5) 지므로, 셋을 다 띄우면 자리마다 글자 뭉치가 앉아 정작
+        /// 포화도·소화가 안 읽힌다.
         ///
         /// <para>
-        /// <c>CustomerView</c> 는 라벨을 <see cref="TMP_Text"/> 로 찾는데, 이 자식에 레거시
-        /// <c>TextMesh</c> 만 있으면 <b>찾기가 조용히 <c>null</c> 을 돌려주고 글자가 어디에도
-        /// 쓰이지 않는다.</b> 그런데 <c>CustomerViewTests</c>·<c>Stage01SceneTests</c> 는 둘 다
-        /// <c>BandText</c> <i>프로퍼티</i>를 보므로 전부 초록이다 — 계산은 맞고 화면만 빈다
-        /// (<c>.claude/rules/tests.md</c> §1 «애셋 등록·설정»).
+        /// <b>«BandLabel 자식이 없다» 로 쓰지 않는다.</b> 이름을 바꿔 다시 넣으면 그대로
+        /// 통과한다. 프리팹 전체의 라벨을 세어 <b>소화 배지 안의 숫자 하나뿐</b>임을 본다.
         /// </para>
         /// <para>
-        /// 실제로 M6 내내 그 상태였다. 프로퍼티가 아니라 <b>애셋의 컴포넌트 타입</b>을 보는
-        /// 테스트가 여기 말고는 없다.
+        /// 이 검사가 <c>CustomerViewTests</c> 가 아니라 여기 있는 이유: 그 하네스는 뷰를
+        /// 자식 없이 세우므로 «라벨이 없다» 가 구현과 무관하게 늘 참이다
+        /// (<c>.claude/rules/tests.md</c> §3).
         /// </para>
         /// </summary>
         [Test]
-        public void Prefab_BandLabel_IsTmpText()
+        public void Prefab_HasNoAlwaysOnLabel()
         {
-            var label = _prefab.transform.Find("BandLabel");
+            var labels = _prefab.GetComponentsInChildren<TMP_Text>(true);
 
-            Assert.IsNotNull(label, "BandLabel 자식이 없다");
-            Assert.IsNotNull(label.GetComponent<TMP_Text>(),
-                             "BandLabel 이 TMP_Text 가 아니다 — 대역 문구가 화면에 안 나온다");
+            Assert.AreEqual(1, labels.Length,
+                            "손님 위 라벨은 소화 배지의 숫자 하나뿐이어야 한다 — "
+                            + "상시 표시할 글자를 다시 넣지 않는다");
+            Assert.AreEqual("RemainingLabel", labels[0].name, "남은 라벨이 배지의 것이 아니다");
         }
 
         /// <summary>
-        /// <b>폰트가 비면 두부(□)가 된다.</b> WebGL 은 OS 폰트에 접근할 수 없어 TMP 가
-        /// 기본 폰트(LiberationSans, 한글 없음)로 폴백하는데, 에디터에서는 시스템 폰트가
-        /// 메워 주므로 <b>빌드해야만 드러난다</b>
-        /// (<c>.claude/domain/presentation-and-audio.md</c> §5).
+        /// 포화도 칸은 <b>세로로</b> 쌓인다 (M6.6). 가로로 두면 손님 아래 테이블 위에 얹혀
+        /// 자리마다 배경이 달라지고, 무엇보다 소화 배지와 같은 축을 두고 다툰다.
+        ///
+        /// <para>
+        /// <b>«x 가 전부 같다» 만 보지 않는다.</b> 칸 여덟이 한 자리에 겹쳐 있어도 그것은
+        /// 참이다 — <c>y</c> 가 서로 다르다는 것을 함께 본다.
+        /// </para>
         /// </summary>
         [Test]
-        public void Prefab_BandLabel_HasKoreanFont()
+        public void Prefab_SaturationCells_AreStackedVertically()
         {
-            var label = _prefab.transform.Find("BandLabel").GetComponent<TMP_Text>();
+            var bar = _prefab.transform.Find("SaturationBar");
+            var heights = new HashSet<float>();
 
-            Assert.IsNotNull(label.font, "폰트가 비었다 — 한글이 두부가 된다");
+            for (var i = 0; i < bar.childCount; i++)
+            {
+                Assert.AreEqual(bar.GetChild(0).localPosition.x, bar.GetChild(i).localPosition.x, 0.001f,
+                                $"{bar.GetChild(i).name} 이 다른 칸과 다른 x 에 있다 — 세로바가 아니다");
+                heights.Add(bar.GetChild(i).localPosition.y);
+            }
+
+            Assert.AreEqual(bar.childCount, heights.Count, "칸들이 같은 높이에 겹쳐 있다");
+        }
+
+        /// <summary>
+        /// 게이지는 <b>아래에서 위로</b> 찬다. <c>SaturationBarView</c> 는 배열 순서대로
+        /// 칠하므로, 칸 순서와 높이 순서가 어긋나면 <b>위에서부터 차오르거나 중간이 뛴다</b> —
+        /// 예외는 나지 않고 화면에서만 드러난다.
+        /// </summary>
+        [Test]
+        public void Prefab_SaturationCells_FillFromTheBottom()
+        {
+            var bar = _prefab.transform.Find("SaturationBar");
+
+            for (var i = 1; i < bar.childCount; i++)
+            {
+                Assert.Greater(bar.GetChild(i).localPosition.y, bar.GetChild(i - 1).localPosition.y,
+                               $"{bar.GetChild(i).name} 이 앞 칸보다 아래에 있다 — 게이지가 뒤집힌다");
+            }
+        }
+
+        /// <summary>
+        /// 바는 손님 <b>옆</b>에 선다. 아래에 두면 테이블 스프라이트 한복판에 얹힌다 —
+        /// 테이블이 자리 기준 좌우 ±1 유닛, 아래로 −1.85 유닛을 덮는다.
+        /// </summary>
+        [Test]
+        public void Prefab_SaturationBar_SitsBesideTheBody()
+        {
+            var bar = _prefab.transform.Find("SaturationBar");
+            var body = _prefab.GetComponent<SpriteRenderer>();
+
+            Assert.Greater(Mathf.Abs(bar.localPosition.x), body.bounds.extents.x,
+                           "바가 몸통 폭 안에 있다 — 손님과 겹친다");
+        }
+
+        /// <summary>
+        /// 칸마다 <b>배경판</b>이 붙어 있다. 뒤가 나무든 벽이든 금색 칸이 같게 읽히려면
+        /// 위치가 아니라 배경으로 풀어야 한다 — 세로바는 테이블을 벗어날 수 없다.
+        ///
+        /// <para>
+        /// <b>판은 «칸의 자식» 이다.</b> 바 밑에 형제로 두면 칸이 꺼져도 판이 남아,
+        /// 최대 포화도가 작은 손님(소식가 3칸)에게 빈 판이 길게 붙는다 —
+        /// <c>SaturationBarView</c> 가 칸 수를 손님마다 다르게 켜기 때문이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Prefab_EverySaturationCell_HasABacking()
+        {
+            var bar = _prefab.transform.Find("SaturationBar");
+
+            for (var i = 0; i < bar.childCount; i++)
+            {
+                var cell = bar.GetChild(i);
+                var backing = cell.Find("Backing");
+
+                Assert.IsNotNull(backing, $"{cell.name} 에 배경판이 없다");
+                Assert.IsNotNull(backing.GetComponent<SpriteRenderer>()?.sprite,
+                                 $"{cell.name} 의 배경판에 그림이 없다 — 켜도 안 보인다");
+            }
+        }
+
+        /// <summary>
+        /// 배경판은 칸 <b>뒤</b>, 몸통 <b>앞</b>이다.
+        ///
+        /// <para>
+        /// <b>세 층을 다 본다.</b> «판 &lt; 칸» 만 보면 판이 몸통 뒤로 숨어도 통과하는데,
+        /// 그러면 화면에서 판이 통째로 사라진다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Prefab_CellBacking_DrawsBehindItsCellButInFrontOfTheBody()
+        {
+            var bar = _prefab.transform.Find("SaturationBar");
+            var body = _prefab.GetComponent<SpriteRenderer>();
+
+            for (var i = 0; i < bar.childCount; i++)
+            {
+                var cell = bar.GetChild(i).GetComponent<SpriteRenderer>();
+                var backing = bar.GetChild(i).Find("Backing").GetComponent<SpriteRenderer>();
+
+                Assert.Less(backing.sortingOrder, cell.sortingOrder,
+                            $"{bar.GetChild(i).name} 의 판이 칸을 덮는다");
+                Assert.Greater(backing.sortingOrder, body.sortingOrder,
+                               $"{bar.GetChild(i).name} 의 판이 몸통 뒤로 숨었다");
+            }
         }
     }
 }
