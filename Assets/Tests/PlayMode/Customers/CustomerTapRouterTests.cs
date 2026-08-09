@@ -93,6 +93,48 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsEmpty(_tapped);
         }
 
+        // ── 다른 곳을 누르면 닫힌다 ────────────────────────────────────────
+        //
+        // 정보 창에는 닫기 버튼이 없고 아이콘으로 토글되지도 않는다. 이 경로가 없으면
+        // 창이 **영영 안 닫혀서** 보상 화면 위에도, 다음 판에도 그대로 남는다.
+
+        [Test]
+        public void TapAt_EmptySlot_ReportsAMiss()
+        {
+            var missed = 0;
+            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+
+            _router.TapAt(_slots[1].transform.position);
+
+            Assert.AreEqual(1, missed, "빈 자리를 눌렀는데 «다른 곳» 으로 안 쳤다");
+        }
+
+        [Test]
+        public void TapAt_FarFromEverySlot_ReportsAMiss()
+        {
+            var missed = 0;
+            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+
+            _router.TapAt(new Vector2(100f, 100f));
+
+            Assert.AreEqual(1, missed);
+        }
+
+        /// <summary>
+        /// 반례. <b>손님을 눌렀을 때는 «다른 곳» 이 아니다</b> — 이것이 없으면 «항상 닫는»
+        /// 구현이 통과하고, 열자마자 닫히는 창이 된다.
+        /// </summary>
+        [Test]
+        public void TapAt_OccupiedSlot_DoesNotReportAMiss()
+        {
+            var missed = 0;
+            _router.Bind(_slots, null, _tapped.Add, () => missed++);
+
+            _router.TapAt(_slots[0].transform.position);
+
+            Assert.AreEqual(0, missed, "손님을 눌렀는데 창을 닫았다");
+        }
+
         /// <summary>
         /// 자리 간격이 8 유닛이라, 반경 안에 있어도 <b>가장 가까운</b> 자리가 이겨야 한다.
         /// 목록 순서가 이기는 구현이면 왼쪽 자리가 항상 열린다.

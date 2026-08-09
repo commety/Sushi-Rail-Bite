@@ -15,8 +15,16 @@ namespace SushiDefense.UI
     /// </summary>
     public interface ICustomerInspectorView
     {
-        /// <summary>창을 띄우고 손님마다 고정된 줄을 그린다.</summary>
-        void ShowCustomer(string name, string kind, string stats);
+        /// <summary>
+        /// 창을 띄우고 손님마다 고정된 줄을 그린다.
+        ///
+        /// <para>
+        /// <b>유형을 따로 받지 않는다.</b> 세 손님의 표시 이름이 곧 유형이라(<c>기본</c>·
+        /// <c>소식</c>·<c>먹보</c>) 둘을 다 그리면 같은 글자가 창에 두 번 나온다. 이름과
+        /// 유형이 갈라지는 손님이 생기면 그때 되살릴 자리다.
+        /// </para>
+        /// </summary>
+        void ShowCustomer(string name, string stats);
 
         /// <summary>
         /// 판이 흐르는 동안 바뀌는 줄만 다시 쓴다.

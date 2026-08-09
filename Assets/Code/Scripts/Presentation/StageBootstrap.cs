@@ -313,7 +313,7 @@ namespace SushiDefense
             {
                 // 카메라를 넘기지 않는 것은 씬 진입점이 들고 있지 않기 때문이며,
                 // 라우터가 null 을 그대로 대입하지 않는다는 것이 그쪽의 계약이다.
-                _tapRouter.Bind(_slots, null, Inspector.Open);
+                _tapRouter.Bind(_slots, null, Inspector.Open, Inspector.Close);
             }
         }
 
@@ -577,6 +577,11 @@ namespace SushiDefense
         /// </summary>
         private void OnOutcomeDecided(StageOutcome outcome)
         {
+            // 판이 끝나면 정보 창을 내린다. 보상은 «밑에 깔리는» 창이라 조정자가 아무것도
+            // 밀어내지 않고, 정보 창은 아이콘으로 토글되지도 않아 스스로 닫힐 길이 없다 —
+            // 그대로 두면 보상 화면 위에 남고 다음 판까지 따라간다.
+            Inspector?.Close();
+
             if (outcome == StageOutcome.Cleared)
             {
                 Rewards?.Open(Run);
@@ -774,6 +779,10 @@ namespace SushiDefense
         /// </summary>
         private void Teardown()
         {
+            // 정보 창이 붙들고 있는 손님은 이 판의 것이다. 안 내리면 다음 판에 죽은 손님의
+            // 값이 그대로 떠 있고, 그 손님은 이미 조율자에서 빠져 갱신도 멈춰 있다.
+            Inspector?.Close();
+
             _beltView?.Unbind();
             if (_hud != null)
             {

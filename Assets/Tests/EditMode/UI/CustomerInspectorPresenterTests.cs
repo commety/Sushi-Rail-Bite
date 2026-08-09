@@ -145,36 +145,16 @@ namespace SushiDefense.Tests.EditMode.UI
         // ── 정적 줄 ─────────────────────────────────────────────
 
         [Test]
-        public void Open_Customer_ShowsNameKindAndStats()
+        public void Open_Customer_ShowsNameAndStats()
         {
             _presenter.Open(NewCustomer(name: "먹보", kind: CustomerKind.BigEater,
                                         min: 100, max: 150, reach: 3f, eat: 1f,
                                         digest: 3f, cost: 60, saturation: 8, population: 2));
 
             Assert.AreEqual("먹보", _view.LastName);
-            Assert.AreEqual("먹보", _view.LastKind, "유형이 한글로 나오지 않는다");
             StringAssert.Contains("100~150", _view.LastStats);
             StringAssert.Contains("3", _view.LastStats);
             StringAssert.Contains("60", _view.LastStats);
-        }
-
-        /// <summary>
-        /// 유형 셋이 <b>서로 다른</b> 글자로 나오는지 본다. 하나만 확인하면 상수를 돌려주는
-        /// 구현도 통과한다.
-        /// </summary>
-        [Test]
-        public void Open_EachKind_ShowsADistinctLabel()
-        {
-            var labels = new HashSet<string>();
-
-            foreach (var kind in new[] { CustomerKind.Normal, CustomerKind.SmallEater,
-                                         CustomerKind.BigEater })
-            {
-                _presenter.Open(NewCustomer(kind: kind));
-                labels.Add(_view.LastKind);
-            }
-
-            Assert.AreEqual(3, labels.Count, $"유형 표기가 겹친다: {string.Join(", ", labels)}");
         }
 
         [Test]
@@ -340,12 +320,12 @@ namespace SushiDefense.Tests.EditMode.UI
         public void Open_AnotherCustomerWithSameLiveValues_StillRedrawsLiveLines()
         {
             _presenter.Open(NewCustomer(saturation: 5));
-            Assert.AreEqual("0/5", _view.LastSaturation);
+            StringAssert.Contains("0/5", _view.LastSaturation);
 
             _presenter.Open(NewCustomer(saturation: 8));
 
-            Assert.AreEqual("0/8", _view.LastSaturation,
-                            "직전 손님의 포화도가 그대로 남았다");
+            StringAssert.Contains("0/8", _view.LastSaturation,
+                                  "직전 손님의 포화도가 그대로 남았다");
         }
 
         // ── 조립 ────────────────────────────────────────────────

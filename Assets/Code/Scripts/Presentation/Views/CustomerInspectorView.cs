@@ -17,7 +17,6 @@ namespace SushiDefense.UI
         /// <summary>인스펙터가 비었을 때 자기 하위에서 찾을 자식 이름. 씬 조립과의 약속이다.</summary>
         private const string NameLabelName = "NameLabel";
 
-        private const string KindLabelName = "KindLabel";
         private const string StatsLabelName = "StatsLabel";
         private const string StateLabelName = "StateLabel";
         private const string SaturationLabelName = "SaturationLabel";
@@ -27,7 +26,6 @@ namespace SushiDefense.UI
         [SerializeField] private GameObject _panel;
 
         [SerializeField] private TMP_Text _nameLabel;
-        [SerializeField] private TMP_Text _kindLabel;
         [SerializeField] private TMP_Text _statsLabel;
         [SerializeField] private TMP_Text _stateLabel;
         [SerializeField] private TMP_Text _saturationLabel;
@@ -40,12 +38,11 @@ namespace SushiDefense.UI
         public bool IsShowing { get; private set; }
 
         /// <inheritdoc />
-        public void ShowCustomer(string name, string kind, string stats)
+        public void ShowCustomer(string name, string stats)
         {
             Resolve();
 
             HudLabel.Write(_nameLabel, name);
-            HudLabel.Write(_kindLabel, kind);
             HudLabel.Write(_statsLabel, stats);
 
             IsShowing = true;
@@ -103,7 +100,6 @@ namespace SushiDefense.UI
             }
 
             _nameLabel = HudLabel.Resolve(transform, _nameLabel, NameLabelName);
-            _kindLabel = HudLabel.Resolve(transform, _kindLabel, KindLabelName);
             _statsLabel = HudLabel.Resolve(transform, _statsLabel, StatsLabelName);
             _stateLabel = HudLabel.Resolve(transform, _stateLabel, StateLabelName);
             _saturationLabel = HudLabel.Resolve(transform, _saturationLabel, SaturationLabelName);

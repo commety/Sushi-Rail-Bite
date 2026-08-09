@@ -35,6 +35,7 @@ namespace SushiDefense.Customers
         [SerializeField] private TableSlotView[] _slots;
 
         private Action<CustomerLogic> _onTapped;
+        private Action _onMissed;
 
         /// <summary>이번 누름이 uGUI 위에서 시작했나. 시작했으면 클릭으로 치지 않는다.</summary>
         private bool _pressBeganOverUi;
@@ -56,10 +57,16 @@ namespace SushiDefense.Customers
         /// 있지 않아 <c>null</c> 을 넘기는데, 그대로 대입하면 <see cref="Awake"/> 가 잡아 둔
         /// 참조가 날아가 클릭이 통째로 죽는다 — M5 에서 손패에 실제로 났던 사고다.
         /// </param>
-        public void Bind(TableSlotView[] slots, Camera worldCamera, Action<CustomerLogic> onTapped)
+        /// <param name="onMissed">
+        /// 손님이 아닌 곳을 눌렀을 때. <b>이것이 없으면 정보 창을 닫을 길이 없다</b> — 창에
+        /// 닫기 버튼이 없고, 다른 창처럼 아이콘으로 토글되지도 않기 때문이다.
+        /// </param>
+        public void Bind(TableSlotView[] slots, Camera worldCamera,
+                         Action<CustomerLogic> onTapped, Action onMissed = null)
         {
             _slots = slots;
             _onTapped = onTapped;
+            _onMissed = onMissed;
 
             if (worldCamera != null)
             {
@@ -83,6 +90,8 @@ namespace SushiDefense.Customers
             var occupant = slot != null ? slot.Occupant : null;
             if (occupant == null || occupant.Logic == null)
             {
+                // 빈 자리도 «다른 곳» 이다. 열려 있던 창은 여기서 닫힌다.
+                _onMissed?.Invoke();
                 return false;
             }
 

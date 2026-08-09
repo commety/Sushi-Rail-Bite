@@ -47,18 +47,17 @@ namespace SushiDefense.Tests.PlayMode.UI
         [Test]
         public void ShowCustomer_WritesEveryStaticLabel()
         {
-            _view.ShowCustomer("먹보", "먹보", "범위 3\n대역 100~150");
+            _view.ShowCustomer("먹보", "범위 3\n대역 100~150");
 
             Assert.IsTrue(_view.IsShowing);
             Assert.AreEqual("먹보", LabelText("NameLabel"));
-            Assert.AreEqual("먹보", LabelText("KindLabel"));
             StringAssert.Contains("100~150", LabelText("StatsLabel"));
         }
 
         [Test]
         public void RefreshLive_WritesEveryLiveLabel()
         {
-            _view.ShowCustomer("기본", "기본", "범위 3");
+            _view.ShowCustomer("기본", "범위 3");
 
             _view.RefreshLive("소화 중", "3/5", "2");
 
@@ -74,7 +73,7 @@ namespace SushiDefense.Tests.PlayMode.UI
         [Test]
         public void RefreshLive_LeavesStaticLabelsAlone()
         {
-            _view.ShowCustomer("먹보", "먹보", "범위 3");
+            _view.ShowCustomer("먹보", "범위 3");
 
             _view.RefreshLive("대기 중", "0/8", string.Empty);
 
@@ -85,7 +84,7 @@ namespace SushiDefense.Tests.PlayMode.UI
         [Test]
         public void Hide_TurnsThePanelOff()
         {
-            _view.ShowCustomer("기본", "기본", "범위 3");
+            _view.ShowCustomer("기본", "범위 3");
 
             _view.Hide();
 
@@ -104,7 +103,7 @@ namespace SushiDefense.Tests.PlayMode.UI
         {
             var view = NewView(active: false);
 
-            view.ShowCustomer("소식", "소식", "범위 3");
+            view.ShowCustomer("소식", "범위 3");
 
             Assert.AreEqual("소식", LabelTextOf(view, "NameLabel"),
                             "꺼진 채로는 라벨을 못 찾는다 — Awake 순서에 기대고 있다");
@@ -133,7 +132,7 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             foreach (var name in new[]
                      {
-                         "NameLabel", "KindLabel", "StatsLabel",
+                         "NameLabel", "StatsLabel",
                          "StateLabel", "SaturationLabel", "RemainingLabel"
                      })
             {

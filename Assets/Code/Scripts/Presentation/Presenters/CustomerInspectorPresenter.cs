@@ -71,7 +71,7 @@ namespace SushiDefense.UI
             IsOpen = true;
 
             var data = customer.State.Data;
-            _view.ShowCustomer(CardCaption.NameOf(data), KindLabel(data.Kind), StatsOf(data));
+            _view.ShowCustomer(CardCaption.NameOf(data), StatsOf(data));
 
             // 여는 순간 현재 값이 보여야 한다. 첫 변화가 올 때까지 빈 줄이면 안 된다.
             Invalidate();
@@ -126,9 +126,11 @@ namespace SushiDefense.UI
             _shownSaturation = state.CurrentSaturation;
             _shownRemaining = remaining;
 
-            _view.RefreshLive(StateLabel(state.State),
-                              $"{state.CurrentSaturation}/{state.Data.MaxSaturation}",
-                              digesting ? remaining.ToString() : string.Empty);
+            // 값만 적으면 «3/5» 가 무엇의 값인지 창만 보고 알 수 없다. 정적 줄은 이미
+            // 이름을 달고 있으므로 여기도 맞춘다.
+            _view.RefreshLive($"상태 {StateLabel(state.State)}",
+                              $"포화도 {state.CurrentSaturation}/{state.Data.MaxSaturation}",
+                              digesting ? $"소화 {remaining}초 남음" : string.Empty);
         }
 
         /// <summary>
@@ -142,20 +144,6 @@ namespace SushiDefense.UI
             _shownRemaining = -2;
         }
 
-        /// <summary>
-        /// 유형을 사람이 읽는 말로. <b>여기서 분기하는 것은 규칙 위반이 아니다</b> —
-        /// <c>CustomerKind</c> 는 그 자신이 «표시·정렬용이지 로직 분기용이 아니다» 라고
-        /// 적어 두었고, 이것이 그 표시다.
-        /// </summary>
-        private static string KindLabel(CustomerKind kind)
-        {
-            return kind switch
-            {
-                CustomerKind.SmallEater => "소식",
-                CustomerKind.BigEater => "먹보",
-                _ => "기본"
-            };
-        }
 
         private static string StateLabel(CustomerState state)
         {

@@ -20,8 +20,6 @@ namespace SushiDefense.Tests.EditMode.UI
 
         public string LastName { get; private set; }
 
-        public string LastKind { get; private set; }
-
         public string LastStats { get; private set; }
 
         public string LastState { get; private set; }
@@ -30,11 +28,10 @@ namespace SushiDefense.Tests.EditMode.UI
 
         public string LastRemaining { get; private set; }
 
-        public void ShowCustomer(string name, string kind, string stats)
+        public void ShowCustomer(string name, string stats)
         {
             ShowCount++;
             LastName = name;
-            LastKind = kind;
             LastStats = stats;
         }
 
