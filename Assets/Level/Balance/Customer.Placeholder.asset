@@ -23,4 +23,5 @@ MonoBehaviour:
   _maxSaturation: 99
   _digestSeconds: 0
   _recruitCost: 0
+  _population: 1
   _icon: {fileID: 0}

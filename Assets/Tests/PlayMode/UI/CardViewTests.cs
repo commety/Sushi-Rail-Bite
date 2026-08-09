@@ -27,6 +27,8 @@ namespace SushiDefense.Tests.PlayMode.UI
         private Image _icon;
         private TMP_Text _nameLabel;
         private TMP_Text _detailLabel;
+        private TMP_Text _costLabel;
+        private GameObject _coin;
         private Sprite _fallbackSprite;
 
         [SetUp]
@@ -41,6 +43,8 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             _nameLabel = NewChild(root, "NameLabel").AddComponent<TextMeshProUGUI>();
             _detailLabel = NewChild(root, "DetailLabel").AddComponent<TextMeshProUGUI>();
+            _costLabel = NewChild(root, "CostLabel").AddComponent<TextMeshProUGUI>();
+            _coin = NewChild(root, "Coin");
             _button = root.AddComponent<Button>();
 
             // 자식이 전부 선 뒤에 붙인다 — Awake 가 이 시점에 돌면서 이름으로 찾는다.
@@ -72,8 +76,12 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.AreSame(icon, _card.ShownSprite);
         }
 
+        /// <summary>
+        /// M6.5 에서 영입 비용이 수치 줄에서 <b>우상단 동전으로</b> 옮겨 갔다. 대역은 줄에
+        /// 남고 비용은 동전이 진다 — 둘 다 적으면 같은 값이 카드에 두 번 나온다.
+        /// </summary>
         [Test]
-        public void Show_Customer_WritesBandAndCost()
+        public void Show_Customer_WritesBandInTheRowsAndCostInTheCoin()
         {
             var customer = NewCustomer("기본", 100, 300, 20, NewSprite());
 
@@ -81,7 +89,8 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             Assert.AreEqual("기본", _nameLabel.text);
             StringAssert.Contains("100", _detailLabel.text);
-            StringAssert.Contains("20", _detailLabel.text);
+            StringAssert.Contains("300", _detailLabel.text);
+            Assert.AreEqual("20", _costLabel.text);
         }
 
         /// <summary>
@@ -186,6 +195,57 @@ namespace SushiDefense.Tests.PlayMode.UI
             _button.onClick.Invoke();
 
             Assert.AreEqual(0, count);
+        }
+
+        // ── 우상단 동전 (M6.5) ─────────────────────────────────────────────
+
+        [Test]
+        public void Show_Customer_WritesTheRecruitCost()
+        {
+            _card.Show(NewCustomer("먹보", 100, 150, 60, NewSprite()));
+
+            Assert.AreEqual("60", _costLabel.text);
+            Assert.AreEqual("60", _card.CostText);
+            Assert.IsTrue(_coin.activeSelf, "동전이 꺼져 있다");
+        }
+
+        /// <summary>
+        /// 반례. <b>초밥에는 영입 비용이 없다</b> — 동전을 켜 둔 채로 두면 값 없는 동전이
+        /// 남는다.
+        /// </summary>
+        [Test]
+        public void Show_Sushi_HidesTheCoin()
+        {
+            _card.Show(NewSushi("참치", 250, 2, NewSprite()));
+
+            Assert.IsEmpty(_costLabel.text);
+            Assert.IsFalse(_coin.activeSelf, "초밥 카드에 값 없는 동전이 남았다");
+        }
+
+        /// <summary>
+        /// 손님을 그린 카드를 초밥으로 재사용할 때 <b>직전 비용이 번쩍이지 않아야</b> 한다 —
+        /// 풀에서 그림을 되돌리는 것과 같은 이유다.
+        /// </summary>
+        [Test]
+        public void Show_SushiAfterCustomer_ClearsTheCost()
+        {
+            _card.Show(NewCustomer("먹보", 100, 150, 60, NewSprite()));
+
+            _card.Show(NewSushi("참치", 250, 2, NewSprite()));
+
+            Assert.IsEmpty(_costLabel.text);
+            Assert.IsFalse(_coin.activeSelf);
+        }
+
+        [Test]
+        public void Clear_ResetsTheCost()
+        {
+            _card.Show(NewCustomer("먹보", 100, 150, 60, NewSprite()));
+
+            _card.Clear();
+
+            Assert.IsEmpty(_costLabel.text);
+            Assert.IsFalse(_coin.activeSelf);
         }
 
         private SushiData NewSushi(string displayName, int price, int saturation, Sprite icon)

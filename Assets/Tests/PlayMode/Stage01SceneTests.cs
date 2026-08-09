@@ -339,9 +339,200 @@ namespace SushiDefense.Tests.PlayMode
         }
 
 
+        // ── 손님 정보 창 · 접히는 손패 (M6.5) ────────────────────────────
+
         /// <summary>
-        /// HUD 라벨이 <b>Canvas 위에</b> 있는지 본다. 월드스페이스로 되돌아가면 브라우저 창
-        /// 크기가 바뀔 때 잘리는데, 코드로 세운 하네스는 그것을 못 잡는다 (§1).
+        /// 정보 창이 씬에 있고 <b>꺼진 채로 시작</b>하는지 본다. 켜진 채 남으면 판이 열리자마자
+        /// 빈 창이 화면을 덮는다 — 뷰의 <c>Awake</c> 가 내리므로 재생 직후에는 반드시 꺼져 있다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HasCustomerInspectorPanel_AndItStartsHidden()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+
+            Assert.IsNotNull(view, "정보 창이 씬에 없다");
+            Assert.IsFalse(view.IsShowing, "정보 창이 켜진 채로 시작한다");
+            Assert.IsNotNull(_stage.Inspector, "부트스트랩이 정보 창을 세우지 않았다");
+        }
+
+        /// <summary>
+        /// 라벨 여섯이 <b>이름 그대로</b> 있는지 본다. 뷰는 인스펙터가 비면 자기 하위에서
+        /// 이름으로 찾으므로, 하나만 틀려도 그 칸이 조용히 비고 예외는 나지 않는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_InspectorPanel_HasEveryLabel()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+
+            foreach (var name in new[]
+                     {
+                         "NameLabel", "StatsLabel",
+                         "StateLabel", "SaturationLabel", "RemainingLabel"
+                     })
+            {
+                var label = view.transform.Find(name);
+                Assert.IsNotNull(label, $"{name} 이 없다");
+                Assert.IsNotNull(label.GetComponent<TMPro.TMP_Text>(), $"{name} 이 TMP 가 아니다");
+                Assert.IsNotNull(label.GetComponent<TMPro.TMP_Text>().font, $"{name} 의 폰트가 비었다");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HasCustomerTapRouter()
+        {
+            yield return WaitSeconds(0.2f);
+
+            Assert.IsNotNull(_stage.GetComponentInChildren<CustomerTapRouter>(true),
+                             "클릭 라우터가 씬에 없다");
+        }
+
+        /// <summary>
+        /// <b>씬을 지나 정보 창이 열리는지</b> 본다. 앞의 셋은 «있다» 만 보므로 배선이 끊겨도
+        /// 통과한다 — 자리에 손님을 앉히고 그 좌표를 눌러 끝까지 간다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_TappingASeatedCustomer_OpensTheInspector()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var slot = _stage.GetComponentInChildren<TableSlotView>(true);
+            _stage.Placement.Place(_stage.Run.Customers.Members[0], slot.SlotIndex,
+                                   slot.BeltPosition);
+            slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
+
+            var router = _stage.GetComponentInChildren<CustomerTapRouter>(true);
+            var opened = router.TapAt(slot.transform.position);
+            yield return null;
+
+            Assert.IsTrue(opened, "자리를 눌렀는데 손님을 못 찾았다");
+            Assert.IsTrue(_stage.Inspector.IsOpen, "정보 창이 안 열렸다");
+        }
+
+        /// <summary>
+        /// <b>다른 곳을 누르면 닫힌다.</b> 창에 닫기 버튼이 없고 아이콘으로 토글되지도 않아,
+        /// 이 경로가 없으면 영영 안 닫힌다 — 실플레이에서 보상 화면 위에도, 다음 판에도
+        /// 남았다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_TappingElsewhere_ClosesTheInspector()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var slot = _stage.GetComponentInChildren<TableSlotView>(true);
+            _stage.Placement.Place(_stage.Run.Customers.Members[0], slot.SlotIndex,
+                                   slot.BeltPosition);
+            slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
+
+            var router = _stage.GetComponentInChildren<CustomerTapRouter>(true);
+            router.TapAt(slot.transform.position);
+            Assert.IsTrue(_stage.Inspector.IsOpen, "전제: 창이 열렸다");
+
+            router.TapAt(new Vector2(999f, 999f));
+            yield return null;
+
+            Assert.IsFalse(_stage.Inspector.IsOpen, "다른 곳을 눌렀는데 창이 안 닫힌다");
+        }
+
+        /// <summary>
+        /// <b>판이 끝나면 내려간다.</b> 보상은 «밑에 깔리는» 창이라 조정자가 아무것도 밀어내지
+        /// 않고, 정보 창은 스스로 닫힐 길이 없다 — 그대로 두면 보상 화면 위에 남는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_StageCleared_ClosesTheInspector()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var slot = _stage.GetComponentInChildren<TableSlotView>(true);
+            _stage.Placement.Place(_stage.Run.Customers.Members[0], slot.SlotIndex,
+                                   slot.BeltPosition);
+            slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
+            _stage.GetComponentInChildren<CustomerTapRouter>(true).TapAt(slot.transform.position);
+            Assert.IsTrue(_stage.Inspector.IsOpen, "전제: 창이 열렸다");
+
+            _stage.Revenue.Add(_stage.Stage.TargetRevenue);
+            _stage.Stage.Tick(0.1f);
+            yield return null;
+
+            Assert.IsFalse(_stage.Inspector.IsOpen, "클리어했는데 정보 창이 남았다");
+        }
+
+        /// <summary>
+        /// 정보 창이 <b>메뉴·덱 아이콘을 가리지 않는지</b> 본다. 처음 배치에서 패널이 두
+        /// 아이콘 위에 정확히 겹쳐, 창이 뜨면 둘 다 누를 수 없었다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_InspectorPanel_DoesNotCoverTheIcons()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var panel = (RectTransform)_stage.GetComponentInChildren<CustomerInspectorView>(true)
+                                             .transform;
+
+            foreach (var button in _stage.GetComponentsInChildren<Button>(true))
+            {
+                if (button.name != "OpenButton" && button.name != "ToggleButton")
+                {
+                    continue;
+                }
+
+                Assert.IsFalse(Overlaps(panel, (RectTransform)button.transform),
+                               $"정보 창이 {button.name} 을 덮는다");
+            }
+        }
+
+        private static bool Overlaps(RectTransform a, RectTransform b)
+        {
+            return WorldRect(a).Overlaps(WorldRect(b));
+        }
+
+        private static Rect WorldRect(RectTransform rect)
+        {
+            var corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            return new Rect(corners[0].x, corners[0].y,
+                            corners[2].x - corners[0].x, corners[2].y - corners[0].y);
+        }
+
+        /// <summary>
+        /// 손패가 <b>접힐 수 있는 모양</b>인지 본다. 컨테이너를 안 물렸으면 손패 자신이 그
+        /// 역할을 하므로, 여기서 확인할 것은 «움직일 대상이 카드의 부모인가» 다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HandFolds_WithoutMovingItsCards()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            var card = (RectTransform)hand.transform.GetChild(0);
+            var before = card.anchoredPosition;
+
+            hand.SetExpanded(true);
+            yield return null;
+            hand.SetExpanded(false);
+            yield return WaitSeconds(0.3f);
+
+            Assert.AreEqual(before, card.anchoredPosition, "카드가 직접 움직였다");
+        }
+
+        /// <summary>
+        /// <b>Canvas 밖에 있어도 되는 라벨은 손님을 따라다니는 것뿐이다</b> — 대역 문구와
+        /// 소화 잔여 초. 자리를 따라 움직여야 해서 화면 좌표에 고정할 수 없다
+        /// (<c>HudLabel</c> 의 클래스 주석).
+        ///
+        /// <para>
+        /// <b>이름이 아니라 «어디 달렸나» 로 가른다.</b> 처음에는 이름 목록으로 예외를
+        /// 뒀는데, 정보 창이 <c>RemainingLabel</c> 이라는 같은 이름을 쓰면서 <b>엉뚱한 곳의
+        /// 동명 라벨이 예외를 타고 빠져나갔다.</b> 이름은 우연히 겹치지만 계층은 겹치지 않는다.
+        /// </para>
+        /// <para>
+        /// <b>M6.5 이전에는 이 테스트가 모든 라벨을 검사했고 그래도 통과했다</b> — 씬에
+        /// 월드스페이스 TMP 라벨이 하나도 없었기 때문이다. 대역 라벨이 레거시 <c>TextMesh</c> 라
+        /// 화면에 안 나오던 상태였고, 그것을 고치자 이 가드가 비로소 자기 범위를 드러냈다.
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_HudLabelsLiveOnCanvas()
@@ -351,9 +542,45 @@ namespace SushiDefense.Tests.PlayMode
             var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
             Assert.IsNotEmpty(labels, "씬에 TMP 라벨이 하나도 없다");
 
+            var checkedAny = false;
             foreach (var label in labels)
             {
-                Assert.IsNotNull(label.GetComponentInParent<Canvas>(),
+                if (label.GetComponentInParent<Canvas>(true) != null)
+                {
+                    continue;
+                }
+
+                checkedAny = true;
+                Assert.IsNotNull(label.GetComponentInParent<CustomerView>(true),
+                                 $"{label.name} 이 Canvas 밖인데 손님 아래도 아니다");
+            }
+
+            Assert.IsTrue(checkedAny,
+                          "Canvas 밖 라벨이 하나도 없다 — 대역·소화 라벨이 사라졌거나 이 테스트가 헛돈다");
+        }
+
+        /// <summary>
+        /// 뒤집어서도 본다 — <b>HUD 라벨이 Canvas 밖으로 새지 않았는지.</b>
+        ///
+        /// <para>
+        /// 위 테스트는 «Canvas 밖이면 손님 아래여야 한다» 를 보므로, 손님 아래에 있는 것은
+        /// 무엇이든 통과한다. 여기서는 <b>손님 밖의 라벨은 전부 Canvas 위</b>여야 함을 본다.
+        /// 둘을 합치면 라벨이 갈 수 있는 곳이 두 자리로 못박힌다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_LabelsOutsideCustomersLiveOnCanvas()
+        {
+            yield return WaitSeconds(0.2f);
+
+            foreach (var label in _stage.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                if (label.GetComponentInParent<CustomerView>(true) != null)
+                {
+                    continue;
+                }
+
+                Assert.IsNotNull(label.GetComponentInParent<Canvas>(true),
                                  $"{label.name} 이 Canvas 밖에 있다");
             }
         }
@@ -1071,5 +1298,39 @@ namespace SushiDefense.Tests.PlayMode
                 yield return null;
             }
         }
+
+        /// <summary>
+        /// 씬의 카드가 <b>프리팹과 같은 크기</b>인지 본다.
+        ///
+        /// <para>
+        /// 씬 인스턴스는 크기를 <b>오버라이드로</b> 들 수 있어서, 프리팹을 키워도 씬의 카드만
+        /// 옛 크기로 남는다. 그러면 라벨은 프리팹 기준으로 배치돼 있는데 틀만 작아져
+        /// <b>글자가 잘린다</b> — M6.5 에서 실제로 났고, 두 씬을 각각 손으로 고쳐야 했다.
+        /// 보고 있는 것이 없어서 두 번 반복한 실수라 여기 그물을 남긴다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_CardsMatchThePrefabSize()
+        {
+            yield return null;
+
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Code/Scripts/Presentation/UI/Card.prefab");
+            var expected = ((RectTransform)prefab.transform).sizeDelta;
+
+            var checkedAny = false;
+            foreach (var card in Object.FindObjectsByType<CardView>(FindObjectsInactive.Include,
+                                                                   FindObjectsSortMode.None))
+            {
+                checkedAny = true;
+                Assert.AreEqual(expected, ((RectTransform)card.transform).sizeDelta,
+                                $"{card.name} 이 프리팹과 다른 크기다 — 글자가 잘린다");
+            }
+
+            Assert.IsTrue(checkedAny, "씬에 카드가 하나도 없다 — 이 테스트가 헛돈다");
+#endif
+        }
+
     }
 }

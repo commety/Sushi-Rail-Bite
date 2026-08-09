@@ -99,7 +99,9 @@ namespace SushiDefense.Tests.PlayMode.UI
         {
             _view.ShowOffers(new[] { Customer("먹보", recruitCost: 60) });
 
-            StringAssert.Contains("60", _cards[0].DetailText);
+            // M6.5 에서 이 값이 수치 줄에서 우상단 동전으로 옮겨 갔다.
+            Assert.AreEqual("60", _cards[0].CostText);
+            Assert.IsTrue(_cards[0].IsCoinShown, "동전이 꺼져 값이 안 보인다");
         }
 
         [Test]
@@ -279,6 +281,15 @@ namespace SushiDefense.Tests.PlayMode.UI
             var detailLabel = new GameObject("DetailLabel", typeof(RectTransform));
             detailLabel.transform.SetParent(go.transform, false);
             detailLabel.AddComponent<TextMeshProUGUI>();
+
+            // M6.5 에서 영입 비용이 우상단 동전으로 옮겨 갔다. 하네스에 이 둘이 없으면
+            // 비용이 갈 곳이 없어, 카드가 값을 그리는지 확인할 방법도 사라진다.
+            var costLabel = new GameObject("CostLabel", typeof(RectTransform));
+            costLabel.transform.SetParent(go.transform, false);
+            costLabel.AddComponent<TextMeshProUGUI>();
+
+            var coin = new GameObject("Coin", typeof(RectTransform));
+            coin.transform.SetParent(go.transform, false);
 
             go.AddComponent<Image>();
             go.AddComponent<Button>();

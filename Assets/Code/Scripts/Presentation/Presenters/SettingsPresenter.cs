@@ -66,8 +66,17 @@ namespace SushiDefense.UI
             _applier = applier ?? throw new ArgumentNullException(nameof(applier));
 
             _store.Load(_settings);
-            _applier.Apply(_settings);
+
+            // 불러온 값을 그대로 적용하지 않는다. 전체화면은 **사용자 제스처 안에서만**
+            // 먹는데, 제스처 밖에서 요청하면 브라우저가 무시하는 것이 아니라 **미뤄 뒀다가
+            // 다음 클릭에 실행한다** — 그래서 «게임을 열고 아무 버튼이나 누르면 설정과
+            // 무관하게 전체화면이 되는» 증상이 났다. 화면 상태는 브라우저가 들고 있으므로
+            // 우리가 저장값을 밀어 넣는 것이 아니라 **실제 상태를 읽어 모델을 맞춘다.**
             _observedFullscreen = _applier.IsFullscreen;
+            _settings.SetFullscreen(_observedFullscreen);
+
+            // 소리는 제스처가 필요 없다. 이쪽은 불러온 값을 그대로 먹인다.
+            _applier.Apply(_settings);
         }
 
         /// <summary>

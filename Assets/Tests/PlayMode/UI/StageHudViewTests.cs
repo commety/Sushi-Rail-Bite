@@ -156,6 +156,43 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.AreEqual($"손님 1/{MaxPlaced}", _hud.PlacementText);
         }
 
+        /// <summary>
+        /// <b>손님 «한 명» 만 앉힌다.</b> 둘을 앉히면 머릿수를 세는 구현으로도 2가 나와
+        /// 이 테스트가 공허해진다 (<c>.claude/rules/tests.md</c> §3).
+        ///
+        /// <para>
+        /// 위의 <see cref="PlacedCustomer_UpdatesPlacementTextOnNextFrame"/> 이 대조군이다 —
+        /// 인구수 1이면 두 구현이 같은 답을 내므로, 짝으로 있어야 «인구수를 본다» 가 확정된다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void PlacedHeavyCustomer_ShowsPopulationTwo()
+        {
+            _placement.Place(HeavyCustomer(), 0, 5f);
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.AreEqual($"손님 2/{MaxPlaced}", _hud.PlacementText);
+        }
+
+        /// <summary>
+        /// 값이 바뀐 프레임에만 문자열을 만든다 (§4.3). 인구수로 바꾸면서 변화 감지가
+        /// 함께 깨지지 않았는지 본다 — 문구가 같은지만 보면 매번 새로 만드는 구현도
+        /// 통과하므로 <b>인스턴스</b>를 비교한다.
+        /// </summary>
+        [Test]
+        public void PlacementText_SamePopulationTwice_DoesNotRewrite()
+        {
+            _placement.Place(HeavyCustomer(), 0, 5f);
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+            var first = _hud.PlacementText;
+
+            _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            Assert.IsTrue(ReferenceEquals(first, _hud.PlacementText),
+                          "인구수가 그대로인데 문자열을 새로 만들었다");
+        }
+
         [Test]
         public void Unbind_ThenValueChanges_TextStaysPut()
         {
@@ -315,6 +352,30 @@ namespace SushiDefense.Tests.PlayMode.UI
             _hud.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
 
             Assert.AreEqual("스테이지 1", _hud.StageText);
+        }
+
+        /// <summary>
+        /// 인구수 2인 손님. <see cref="_customerData"/> 를 재활용하지 않는 이유는 그것이
+        /// 스위트 전체가 공유하는 «인구수 1» 대조군이기 때문이다.
+        /// </summary>
+        private CustomerData HeavyCustomer()
+        {
+            var data = ScriptableObject.CreateInstance<CustomerData>();
+            data.name = "Customer.Heavy";
+            _assets.Add(data);
+
+            SetReach(data, 50f);
+            SetPopulation(data, 2);
+            return data;
+        }
+
+        private static void SetPopulation(CustomerData data, int population)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(data);
+            serialized.FindProperty("_population").intValue = population;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
         }
 
         private static void SetReach(CustomerData data, float reach)

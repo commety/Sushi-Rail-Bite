@@ -71,6 +71,37 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         [Test]
+        public void OnValidate_PopulationBelowOne_ClampsToOne()
+        {
+            // 0 이면 배치 한도가 이 손님을 세지 않아, 한 자리에 무한히 앉힐 수 있게 된다.
+            // 밸런스가 아니라 구조 붕괴라 검증 대상이다.
+            SerializedFieldSetter.SetInt(_data, "_population", 0);
+
+            _data.OnValidate();
+
+            Assert.AreEqual(1, _data.Population);
+        }
+
+        [Test]
+        public void Population_Untouched_IsOne()
+        {
+            // 값을 넣은 적 없는 손님이 «0 명» 으로 읽히면 한도가 통째로 무력화된다.
+            // 애셋에 키가 없을 때 살아남는 것이 이 초기값이므로, 클램프와 따로 못박는다.
+            Assert.AreEqual(1, _data.Population);
+        }
+
+        [Test]
+        public void OnValidate_PopulationTwo_Kept()
+        {
+            // 반례. 클램프가 «항상 1» 로 뭉개면 먹보가 사라진다.
+            SerializedFieldSetter.SetInt(_data, "_population", 2);
+
+            _data.OnValidate();
+
+            Assert.AreEqual(2, _data.Population);
+        }
+
+        [Test]
         public void OnValidate_MaxBelowMin_RaisesMaxToMin()
         {
             // min ≤ max 가 대역의 유일한 구조 불변식이다. 뒤집힌 대역은 "안" 이 공집합이라

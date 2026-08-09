@@ -27,10 +27,17 @@ namespace SushiDefense.UI
 
         private const string NameLabelName = "NameLabel";
         private const string DetailLabelName = "DetailLabel";
+        private const string CostLabelName = "CostLabel";
+        private const string CoinName = "Coin";
 
         [SerializeField] private Image _icon;
         [SerializeField] private TMP_Text _nameLabel;
         [SerializeField] private TMP_Text _detailLabel;
+        [SerializeField] private TMP_Text _costLabel;
+
+        /// <summary>비용을 감싸는 동전. 값이 없으면 함께 꺼진다.</summary>
+        [SerializeField] private GameObject _coin;
+
         [SerializeField] private Button _button;
 
         /// <summary>
@@ -48,6 +55,12 @@ namespace SushiDefense.UI
         /// <summary>지금 표시 중인 수치 줄. 검증용이다.</summary>
         public string DetailText { get; private set; } = string.Empty;
 
+        /// <summary>지금 표시 중인 영입 비용. 초밥 카드에서는 빈 문자열이다. 검증용이다.</summary>
+        public string CostText { get; private set; } = string.Empty;
+
+        /// <summary>동전이 지금 떠 있나. 검증용이다.</summary>
+        public bool IsCoinShown { get; private set; }
+
         /// <summary>지금 화면에 나가 있는 그림. 검증용이다.</summary>
         public Sprite ShownSprite => _icon != null ? _icon.sprite : null;
 
@@ -64,7 +77,7 @@ namespace SushiDefense.UI
         public void Show(SushiData sushi)
         {
             Show(CardCaption.NameOf(sushi), CardCaption.DetailOf(sushi),
-                 sushi != null ? sushi.Icon : null);
+                 CardCaption.CostOf(sushi), sushi != null ? sushi.Icon : null);
         }
 
         /// <summary>
@@ -79,7 +92,7 @@ namespace SushiDefense.UI
         public void Show(CustomerData customer)
         {
             Show(CardCaption.NameOf(customer), CardCaption.DetailOf(customer),
-                 customer != null ? customer.Icon : null);
+                 CardCaption.CostOf(customer), customer != null ? customer.Icon : null);
         }
 
         /// <summary>
@@ -96,6 +109,7 @@ namespace SushiDefense.UI
 
             HudLabel.Write(_nameLabel, NameText);
             HudLabel.Write(_detailLabel, DetailText);
+            WriteCost(string.Empty);
             ShowSprite(null);
 
             gameObject.SetActive(false);
@@ -135,7 +149,14 @@ namespace SushiDefense.UI
 
             _nameLabel = HudLabel.Resolve(transform, _nameLabel, NameLabelName);
             _detailLabel = HudLabel.Resolve(transform, _detailLabel, DetailLabelName);
+            _costLabel = HudLabel.Resolve(transform, _costLabel, CostLabelName);
             _icon = ResolveIcon();
+
+            if (_coin == null)
+            {
+                var coin = transform.Find(CoinName);
+                _coin = coin != null ? coin.gameObject : null;
+            }
 
             if (_button == null)
             {
@@ -181,7 +202,7 @@ namespace SushiDefense.UI
         /// <summary>
         /// 그리는 유일한 경로. 두 <c>Show</c> 가 각자 라벨을 쓰면 한쪽만 고쳐지는 날이 온다.
         /// </summary>
-        private void Show(string name, string detail, Sprite icon)
+        private void Show(string name, string detail, string cost, Sprite icon)
         {
             Resolve();
 
@@ -191,9 +212,27 @@ namespace SushiDefense.UI
 
             HudLabel.Write(_nameLabel, NameText);
             HudLabel.Write(_detailLabel, DetailText);
+            WriteCost(cost);
             ShowSprite(icon);
 
             gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// 비용을 쓰고 동전을 켠다. <b>값이 없으면 동전째 끈다</b> — 초밥 카드에는 영입 비용이
+        /// 없어서, 켜 둔 채로 두면 값 없는 동전이 남는다.
+        /// </summary>
+        private void WriteCost(string cost)
+        {
+            CostText = cost ?? string.Empty;
+            IsCoinShown = !string.IsNullOrEmpty(CostText);
+
+            HudLabel.Write(_costLabel, CostText);
+
+            if (_coin != null)
+            {
+                _coin.SetActive(IsCoinShown);
+            }
         }
 
         /// <summary>

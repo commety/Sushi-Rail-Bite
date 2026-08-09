@@ -80,6 +80,7 @@ Agents must not rename these terms arbitrarily anywhere in code, commits, or PRs
 | Claim | Resolving which customer takes which sushi | `SushiClaimResolver` |
 | Trait | A tag on sushi that can trigger a synergy buff on the customer that eats it (optional, demo-scope) | `SushiTrait` |
 | Recruit cost | Price of placing a customer. Paid from recruit currency, which accrues as `score / 10` | `RecruitCost` |
+| Population | How much of the placement limit one customer consumes. **Not a seat count** — a customer with population 2 still occupies one table | `Population` |
 | Table | Fixed slot where a customer is placed | `TableSlot` |
 | Belt | The rotating line sushi flows on | `SushiBelt` |
 | Deck | The set of sushi/customer cards assembled before a stage | `SushiDeck`, `CustomerDeck` |

@@ -192,5 +192,39 @@ namespace SushiDefense.Tests.PlayMode
             Assert.AreEqual(1, director.PlayedCount,
                             "클릭음이 눌렸다 — _bank 또는 _sfxSource 가 비었는지 확인하라");
         }
+
+        /// <summary>
+        /// 씬의 카드가 <b>프리팹과 같은 크기</b>인지 본다.
+        ///
+        /// <para>
+        /// 씬 인스턴스는 크기를 <b>오버라이드로</b> 들 수 있어서, 프리팹을 키워도 씬의 카드만
+        /// 옛 크기로 남는다. 그러면 라벨은 프리팹 기준으로 배치돼 있는데 틀만 작아져
+        /// <b>글자가 잘린다</b> — M6.5 에서 실제로 났고, 두 씬을 각각 손으로 고쳐야 했다.
+        /// 보고 있는 것이 없어서 두 번 반복한 실수라 여기 그물을 남긴다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_CardsMatchThePrefabSize()
+        {
+            yield return null;
+
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Code/Scripts/Presentation/UI/Card.prefab");
+            var expected = ((RectTransform)prefab.transform).sizeDelta;
+
+            var checkedAny = false;
+            foreach (var card in Object.FindObjectsByType<CardView>(FindObjectsInactive.Include,
+                                                                   FindObjectsSortMode.None))
+            {
+                checkedAny = true;
+                Assert.AreEqual(expected, ((RectTransform)card.transform).sizeDelta,
+                                $"{card.name} 이 프리팹과 다른 크기다 — 글자가 잘린다");
+            }
+
+            Assert.IsTrue(checkedAny, "씬에 카드가 하나도 없다 — 이 테스트가 헛돈다");
+#endif
+        }
+
     }
 }

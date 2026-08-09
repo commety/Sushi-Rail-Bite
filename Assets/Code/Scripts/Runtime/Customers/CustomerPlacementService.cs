@@ -10,7 +10,9 @@ namespace SushiDefense.Customers
     /// EditMode 로 검증된다 (<c>CLAUDE.md</c> §3.2).
     ///
     /// <para>
-    /// 배치 조건은 셋이다 — <b>자리가 비어 있다 ∧ 배치 한도 미만 ∧ 잔액 ≥ 영입 비용</b>.
+    /// 배치 조건은 셋이다 — <b>자리가 비어 있다 ∧ 인구수 합계가 한도를 넘지 않는다 ∧
+    /// 잔액 ≥ 영입 비용</b>. 한도가 세는 것은 머릿수가 아니라 <b>인구수</b>이므로,
+    /// 자리가 남아도 못 앉히는 손님이 있을 수 있다.
     /// </para>
     /// <para>
     /// <b>스테이지 진행 중에도 배치할 수 있다</b> (M1 Q4 확정). 배치 즉시 조율자에 등록되어
@@ -25,10 +27,52 @@ namespace SushiDefense.Customers
         private readonly RecruitWallet _wallet;
         private readonly Dictionary<int, CustomerLogic> _bySlot = new();
 
-        /// <summary>지금 배치돼 있는 손님 수.</summary>
+        /// <summary>
+        /// 지금 배치돼 있는 손님 <b>머릿수</b>.
+        ///
+        /// <para>
+        /// <b>한도 판정에 쓰이지 않는다</b> — 그것은 <see cref="PlacedPopulation"/> 이다.
+        /// 배치가 «한 번» 일어났음을 보는 쪽(소리·연출)이 이 값을 쓴다. 둘을 하나로 합치면
+        /// 인구수 2인 손님 하나에 값이 2 뛰는데, 「늘었나」만 보는 쪽은 여전히 한 번만
+        /// 반응해서 <b>테스트가 전부 초록인 채 의미만 어긋난다.</b>
+        /// </para>
+        /// </summary>
         public int PlacedCount => _bySlot.Count;
 
-        /// <summary>이 스테이지에 배치할 수 있는 손님 수의 상한.</summary>
+        /// <summary>
+        /// 배치된 손님들의 <b>인구수 합계</b>. 한도가 세는 값은 이것이다.
+        ///
+        /// <para>
+        /// 필드에 캐시하지 않고 매번 더한다. 자리는 서넛뿐이라 비용이 없고, 캐시하면
+        /// <see cref="Remove"/> 에서 빼는 것을 잊는 경로가 생긴다 — 그때 증상은 «자리를
+        /// 비웠는데 한도가 안 풀린다» 이고 원인이 여기 있다는 것이 드러나지 않는다.
+        /// </para>
+        /// </summary>
+        public int PlacedPopulation
+        {
+            get
+            {
+                // 카드 흐리기가 프레임마다 CanPlace 를 부르므로 이 순회도 그만큼 돈다.
+                // Dictionary 의 열거자는 구조체라 할당이 없다 — LINQ 로 바꾸지 않는다 (§4.3).
+                var total = 0;
+                foreach (var pair in _bySlot)
+                {
+                    total += pair.Value.State.Data.Population;
+                }
+
+                return total;
+            }
+        }
+
+        /// <summary>
+        /// 이 스테이지에 앉힐 수 있는 <b>인구수</b>의 상한.
+        ///
+        /// <para>
+        /// 뒤에 있는 직렬화 필드 이름은 <c>_maxPlacedCustomers</c> 그대로다. 이름이 의미와
+        /// 어긋나지만 <b>바꾸면 밸런스 애셋의 값이 경고 없이 기본값으로 돌아간다</b> —
+        /// 직렬화 키이기 때문이다.
+        /// </para>
+        /// </summary>
         public int MaxPlacedCustomers => _config.MaxPlacedCustomers;
 
         public CustomerPlacementService(ClaimCoordinator coordinator, StageConfig config,
@@ -49,12 +93,17 @@ namespace SushiDefense.Customers
         /// <b>잔액을 읽기만 한다.</b> 여기서 차감하면 <see cref="TryPlace"/> 가 검사와 확정에서
         /// 두 번 차감한다.
         /// </para>
+        /// <para>
+        /// 한도 항이 «넣고 나서도 넘지 않는가» 를 직접 묻는다. 예전 식은 자리 하나를 미리 뺀
+        /// <c>머릿수 &lt; 상한</c> 이었고, <b>인구수가 전부 1이면 두 식은 정확히 같다</b> —
+        /// 그래서 이 변경으로는 기존 테스트가 하나도 깨지지 않는다.
+        /// </para>
         /// </summary>
         public bool CanPlace(CustomerData data, int slotIndex)
         {
             return data != null
                    && !_bySlot.ContainsKey(slotIndex)
-                   && PlacedCount < MaxPlacedCustomers
+                   && PlacedPopulation + data.Population <= MaxPlacedCustomers
                    && _wallet.CanAfford(data.RecruitCost);
         }
 
@@ -74,7 +123,8 @@ namespace SushiDefense.Customers
             {
                 throw new InvalidOperationException(
                     $"자리 {slotIndex} 에 배치할 수 없습니다 " +
-                    $"(점유 중이거나, 배치 한도 {MaxPlacedCustomers} 초과이거나, " +
+                    $"(점유 중이거나, 인구수 {PlacedPopulation}+{data.Population} 가 " +
+                    $"한도 {MaxPlacedCustomers} 를 넘거나, " +
                     $"영입 비용 {data.RecruitCost} 에 잔액 {_wallet.Balance} 가 모자랍니다).");
             }
 

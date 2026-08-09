@@ -99,20 +99,25 @@ namespace SushiDefense.Tests.EditMode.UI
         }
 
         /// <summary>
-        /// 손님 카드가 답해야 할 것은 <b>무엇을 노리는가</b>와 <b>얼마나 드는가</b>다.
-        /// 비용을 모르면 얻고 나서 예산이 모자라 못 앉히는 상황을 고르는 시점에 예측할 수 없다.
+        /// 손님 카드가 답해야 할 것은 <b>무엇을 노리는가</b>다.
+        ///
+        /// <para>
+        /// <b>영입 비용은 M6.5 에서 우상단 동전으로 옮겼다</b> — 요구가 그 자리를 지정했다.
+        /// 행에도 남기면 같은 값이 카드에 두 번 나온다. 옮겨 간 자리는
+        /// <see cref="CostOf_Customer_ReturnsRecruitCost"/> 가 본다.
+        /// </para>
         /// </summary>
         [Test]
-        public void DetailOf_Customer_ContainsBandAndRecruitCost()
+        public void DetailOf_Customer_ContainsBandButNotRecruitCost()
         {
             SerializedFieldSetter.SetTargetingBand(_customer, 100, 300);
-            SerializedFieldSetter.SetInt(_customer, "_recruitCost", 20);
+            SerializedFieldSetter.SetInt(_customer, "_recruitCost", 77);
 
             var detail = CardCaption.DetailOf(_customer);
 
             StringAssert.Contains("100", detail);
             StringAssert.Contains("300", detail);
-            StringAssert.Contains("20", detail);
+            StringAssert.DoesNotContain("77", detail, "영입 비용이 행에도 남아 두 번 나온다");
         }
 
         /// <summary>
@@ -137,6 +142,66 @@ namespace SushiDefense.Tests.EditMode.UI
         {
             Assert.IsEmpty(CardCaption.DetailOf((SushiData)null));
             Assert.IsEmpty(CardCaption.DetailOf((CustomerData)null));
+        }
+
+        // ── 행 단위 스탯 (M6.5) ─────────────────────────────────
+
+        /// <summary>
+        /// 요구가 «스탯을 행 별로» 라 <b>줄이 나뉘어야 한다.</b> 한 줄로 이어 붙이면 128 px
+        /// 폭에서 잘리고, 어디서 잘릴지는 값에 따라 달라진다.
+        /// </summary>
+        [Test]
+        public void DetailOf_Customer_HasOneLinePerStat()
+        {
+            SerializedFieldSetter.SetTargetingBand(_customer, 100, 300);
+
+            var lines = CardCaption.DetailOf(_customer).Split('\n');
+
+            Assert.GreaterOrEqual(lines.Length, 4, "손님 스탯이 행으로 나뉘지 않았다");
+            foreach (var line in lines)
+            {
+                Assert.IsNotEmpty(line.Trim(), "빈 행이 섞여 있다");
+            }
+        }
+
+        /// <summary>
+        /// <b>초밥은 손님보다 행이 적다.</b> <c>SushiData</c> 에 가격·포화도 둘뿐이라 데이터에서
+        /// 이미 확정된 차이다 — 억지로 같은 줄 수를 만들면 빈 행이 생긴다.
+        /// </summary>
+        [Test]
+        public void DetailOf_Sushi_HasFewerLinesThanCustomer()
+        {
+            var sushiLines = CardCaption.DetailOf(_sushi).Split('\n').Length;
+            var customerLines = CardCaption.DetailOf(_customer).Split('\n').Length;
+
+            Assert.Less(sushiLines, customerLines);
+        }
+
+        // ── 영입 비용 (카드 우상단 동전) ────────────────────────
+
+        [Test]
+        public void CostOf_Customer_ReturnsRecruitCost()
+        {
+            SerializedFieldSetter.SetInt(_customer, "_recruitCost", 60);
+
+            Assert.AreEqual("60", CardCaption.CostOf(_customer));
+        }
+
+        /// <summary>
+        /// <b>초밥에는 영입 비용이 없다.</b> 반례가 없으면 상수를 돌려주는 구현이 통과하고,
+        /// 화면에는 값 없는 동전이 남는다.
+        /// </summary>
+        [Test]
+        public void CostOf_Sushi_ReturnsEmpty()
+        {
+            Assert.IsEmpty(CardCaption.CostOf(_sushi));
+        }
+
+        [Test]
+        public void CostOf_Null_ReturnsEmpty()
+        {
+            Assert.IsEmpty(CardCaption.CostOf((CustomerData)null));
+            Assert.IsEmpty(CardCaption.CostOf((SushiData)null));
         }
     }
 }

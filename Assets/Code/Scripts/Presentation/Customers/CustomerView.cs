@@ -47,6 +47,12 @@ namespace SushiDefense.Customers
         private CustomerState _shownState = CustomerState.Idle;
         private bool _shownWaiting;
 
+        /// <summary>
+        /// 배지에 마지막으로 쓴 초. <c>-1</c> 은 «아직 안 썼다» 이며, 소화가 끝날 때 여기로
+        /// 되돌린다 — 되돌리지 않으면 <b>다음 소화가 같은 초에서 시작할 때 숫자가 안 그려진다.</b>
+        /// </summary>
+        private int _shownDigestSeconds = -1;
+
         /// <summary>참조를 이미 챙겼나.</summary>
         private bool _resolved;
 
@@ -99,6 +105,8 @@ namespace SushiDefense.Customers
             {
                 _digestingBadge.Hide();
             }
+
+            _shownDigestSeconds = -1;
 
             if (logic == null)
             {
@@ -226,12 +234,44 @@ namespace SushiDefense.Customers
                 Apply(state, waiting);
             }
 
+            RefreshDigestCountdown(state);
+
             // 포화도는 상태·대기와 다른 축이라 변화 감지에 걸리지 않는다. 바가 스스로
             // 값이 바뀐 프레임에만 색을 쓰므로 매 프레임 물어도 할당이 없다 (§4.3).
             if (_saturationBar != null)
             {
                 _saturationBar.Refresh();
             }
+        }
+
+        /// <summary>
+        /// 소화 중이면 남은 초를 배지에 흘려보낸다.
+        ///
+        /// <para>
+        /// <b>초 단위로 잘라 바뀐 프레임에만 쓴다.</b> 매 프레임 문자열을 만들면 WebGL 에서
+        /// GC 스파이크가 그대로 히칭이 된다 (<c>CLAUDE.md</c> §4.3) —
+        /// <c>StageHudView.RefreshTime</c> 과 같은 형태다.
+        /// </para>
+        /// <para>
+        /// 올림인 이유도 같다: 0.3초 남았을 때 <c>0</c> 보다 <c>1</c> 이 낫고, 실제로 0 이
+        /// 되는 순간은 소화가 끝나는 시점뿐이다.
+        /// </para>
+        /// </summary>
+        private void RefreshDigestCountdown(CustomerState state)
+        {
+            if (_digestingBadge == null || state != CustomerState.Digesting)
+            {
+                return;
+            }
+
+            var seconds = Mathf.CeilToInt(Logic.State.RemainingDigestSeconds);
+            if (seconds == _shownDigestSeconds)
+            {
+                return;
+            }
+
+            _shownDigestSeconds = seconds;
+            _digestingBadge.Show(seconds);
         }
 
         /// <summary>
@@ -245,16 +285,14 @@ namespace SushiDefense.Customers
 
             // 배지는 소화에만 뜬다. 대기와 소화는 둘 다 "지금 안 먹는 상태" 라 뭉뚱그리기
             // 쉬운데, 그러면 배지가 거의 항상 떠 있어 아무것도 알려 주지 않는다.
-            if (_digestingBadge != null)
+            //
+            // 여기서는 «내리는 것» 만 한다. 띄우는 것은 남은 초를 함께 넘겨야 하므로
+            // RefreshDigestCountdown 의 몫이다 — 인자 없는 Show 를 남기면 «숫자 없이 뜨는
+            // 배지» 경로가 살아 어느 쪽이 불렸는지 화면에서만 드러난다.
+            if (_digestingBadge != null && state != CustomerState.Digesting)
             {
-                if (state == CustomerState.Digesting)
-                {
-                    _digestingBadge.Show();
-                }
-                else
-                {
-                    _digestingBadge.Hide();
-                }
+                _digestingBadge.Hide();
+                _shownDigestSeconds = -1;
             }
 
             if (_body == null)

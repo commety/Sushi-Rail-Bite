@@ -138,13 +138,21 @@ namespace SushiDefense.Tests.PlayMode.UI
             Assert.IsTrue(_panelRoot.activeSelf);
         }
 
-        /// <summary>손님 카드에는 <b>영입 비용</b>이 보여야 한다 — 사전이 답할 값이다.</summary>
+        /// <summary>
+        /// 손님 카드에는 <b>영입 비용</b>이 보여야 한다 — 사전이 답할 값이다.
+        ///
+        /// <para>
+        /// M6.5 에서 그 값이 수치 줄에서 <b>우상단 동전으로</b> 옮겨 갔다. 검증도 따라 옮긴다 —
+        /// 빼 버리면 사전 화면에서 비용이 보이는지 아무도 안 본다.
+        /// </para>
+        /// </summary>
         [Test]
         public void ShowEntries_CustomerCard_ShowsRecruitCost()
         {
             _view.ShowEntries(Array.Empty<SushiData>(), Customers("먹보"));
 
-            StringAssert.Contains("영입 45", _cards[0].DetailText);
+            Assert.AreEqual("45", _cards[0].CostText);
+            Assert.IsTrue(_cards[0].IsCoinShown, "동전이 꺼져 값이 안 보인다");
         }
 
         /// <summary>
@@ -229,6 +237,11 @@ namespace SushiDefense.Tests.PlayMode.UI
 
             NewChild(go, "NameLabel").AddComponent<TextMeshProUGUI>();
             NewChild(go, "DetailLabel").AddComponent<TextMeshProUGUI>();
+
+            // M6.5 에서 영입 비용이 우상단 동전으로 옮겨 갔다. 하네스에 이 둘이 없으면
+            // 비용이 갈 곳이 없어, 카드가 값을 그리는지 확인할 방법도 사라진다.
+            NewChild(go, "CostLabel").AddComponent<TextMeshProUGUI>();
+            NewChild(go, "Coin");
 
             go.AddComponent<Image>();
             go.AddComponent<Button>();

@@ -35,6 +35,9 @@ namespace SushiDefense.Customers
         private RectTransform _rect;
         private Vector2 _home;
 
+        /// <summary>집은 지점과 카드 원점의 차이. 카드가 커서로 순간이동하지 않게 한다.</summary>
+        private Vector2 _grabOffset;
+
         /// <summary>이 카드가 들고 있는 손님. 비어 있으면 <c>null</c>.</summary>
         public CustomerData Customer { get; private set; }
 
@@ -95,9 +98,26 @@ namespace SushiDefense.Customers
 
             IsDragging = true;
             _home = _rect.anchoredPosition;
+
+            // 집은 지점과 카드 원점의 차이를 붙잡아 둔다. 이것이 없으면 카드가 커서로
+            // 순간이동해 «집은 곳» 이 무시된다.
+            _grabOffset = LocalPointOf(eventData, out var local) ? _home - local : Vector2.zero;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 카드를 커서에 붙여 옮긴다.
+        ///
+        /// <para>
+        /// <b>화면 델타를 그대로 더하지 않는다.</b> <c>eventData.delta</c> 는 화면 픽셀이고
+        /// <c>anchoredPosition</c> 은 캔버스 단위라, 둘의 배율이 다르면 <b>끌수록 어긋남이
+        /// 누적된다</b> — 배율이 큰 전체화면에서 특히 크게 벌어진다. 기능은 커서 좌표로
+        /// 판정하므로 멀쩡한데 <b>그림만 손에서 떨어져 나가는</b> 형태다.
+        /// </para>
+        /// <para>
+        /// 매번 화면 좌표를 캔버스 좌표로 <b>변환해 대입</b>하면 배율과 무관하게 붙어 있는다.
+        /// 누적이 없으므로 오차도 쌓이지 않는다.
+        /// </para>
+        /// </summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (!IsDragging)
@@ -105,9 +125,28 @@ namespace SushiDefense.Customers
                 return;
             }
 
-            // 카드는 Canvas 좌표계에서 움직인다 — 여기에 월드 변환이 끼면 손가락과
-            // 카드가 어긋난다. 변환은 드롭 판정에서 한 번만 한다.
-            _rect.anchoredPosition += eventData.delta;
+            if (LocalPointOf(eventData, out var local))
+            {
+                _rect.anchoredPosition = local + _grabOffset;
+            }
+        }
+
+        /// <summary>
+        /// 포인터의 화면 좌표를 <b>부모의</b> 캔버스 좌표로 옮긴다. 부모 기준인 이유는
+        /// <c>anchoredPosition</c> 이 부모 안에서의 위치이기 때문이다.
+        /// </summary>
+        private bool LocalPointOf(PointerEventData eventData, out Vector2 local)
+        {
+            local = Vector2.zero;
+
+            var parent = _rect != null ? _rect.parent as RectTransform : null;
+            if (parent == null || eventData == null)
+            {
+                return false;
+            }
+
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                parent, eventData.position, eventData.pressEventCamera, out local);
         }
 
         /// <inheritdoc />
