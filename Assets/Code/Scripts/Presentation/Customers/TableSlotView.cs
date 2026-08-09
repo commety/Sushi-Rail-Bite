@@ -35,6 +35,9 @@ namespace SushiDefense.Customers
         /// <summary>앉아 있는 손님의 뷰. 비어 있으면 <c>null</c>.</summary>
         public CustomerView Occupant { get; private set; }
 
+        /// <summary>시각 표현을 이미 챙겼나. 명시 주입도 이 값을 세운다.</summary>
+        private bool _resolved;
+
         /// <summary>스테이지 정의에서 자리 정보를 받는다. 화면 위치도 함께 맞춘다.</summary>
         public void Bind(TableSlotDefinition definition)
         {
@@ -45,19 +48,44 @@ namespace SushiDefense.Customers
 
         private void Awake()
         {
-            // 씬을 스크립트로 조립할 때 오브젝트 참조를 일일이 물리지 않아도 되게,
-            // 비어 있으면 자기 자식에서 찾는다. 씬 전역 탐색이 아니다.
+            Resolve();
+            Vacate();
+        }
+
+        /// <summary>
+        /// 자리에 딸린 시각 표현을 챙긴다. 씬을 스크립트로 조립할 때 참조를 일일이 물리지
+        /// 않아도 되게, 비어 있으면 자기 자식에서 찾는다. 씬 전역 탐색이 아니다 (§4.3).
+        ///
+        /// <para>
+        /// <b><see cref="Awake"/> 에만 두지 않는다.</b> <see cref="Occupy"/> 는 참조가 비면
+        /// <b>조용히 아무 일도 하지 않는다</b> — 손님은 배치 서비스에 등록돼 «손님 n/3» 은
+        /// 오르는데 화면에는 아무것도 안 나타나고, 예외도 로그도 없다. 이 프로젝트의 씬은
+        /// 네 자리 모두 인스펙터 참조가 비어 있어 <b>이 폴백이 유일한 연결</b>이므로,
+        /// 여기가 실행 순서에 기대면 그 증상이 «아주 가끔» 나타난다
+        /// (<c>CustomerView.Resolve</c>·<c>SaturationBarView.Resolve</c> 와 같은 방어다).
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
             if (_seatVisual == null)
             {
                 _seatVisual = GetComponentInChildren<CustomerView>(true);
             }
-
-            Vacate();
         }
 
         /// <summary>인스펙터 없이 자리 시각 표현을 물린다. 테스트·부트스트랩용이다.</summary>
         public void Initialize(int slotIndex, float beltPosition, CustomerView seatVisual)
         {
+            // 명시 주입이 폴백을 이긴다. 이 줄이 없으면 <c>null</c> 을 넘겨 «시각 표현 없음»
+            // 을 만들려던 쪽이 자식에서 찾아낸 것을 도로 물게 된다.
+            _resolved = true;
             _slotIndex = slotIndex;
             _beltPosition = beltPosition;
             _seatVisual = seatVisual;
@@ -71,6 +99,7 @@ namespace SushiDefense.Customers
         /// </summary>
         public void Occupy(CustomerLogic logic, ClaimCoordinator coordinator)
         {
+            Resolve();
             Occupant = _seatVisual;
 
             if (_seatVisual == null)
@@ -89,6 +118,7 @@ namespace SushiDefense.Customers
         /// <summary>자리를 비운다.</summary>
         public void Vacate()
         {
+            Resolve();
             Occupant = null;
 
             if (_seatVisual == null)
