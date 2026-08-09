@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense;
@@ -7,6 +8,8 @@ using SushiDefense.Data;
 using SushiDefense.Scoring;
 using SushiDefense.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -23,6 +26,9 @@ namespace SushiDefense.Tests.PlayMode.Customers
     public sealed class CustomerHandViewTests
     {
         private const float DropRadius = 1.2f;
+
+        /// <summary>접혔을 때 컨테이너가 내려가는 자리. 손잡이만 남기는 값이다.</summary>
+        private const float CollapsedOffsetY = -144f;
 
         private readonly List<Object> _garbage = new();
 
@@ -313,6 +319,141 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsFalse(_hand.IsAvailableAt(1), "끊었는데도 옛 지갑이 카드를 켰다");
         }
 
+        // ── 접히는 손패 (M6.5) ───────────────────────────────────────────
+        //
+        // 카드가 128×192 가 되면서 손패가 화면을 먹는다. 평소에는 내려 두고 손이 오면 올린다.
+        // 움직이는 것은 **컨테이너**이고 카드는 제자리에 있는다 — 카드를 직접 옮기면
+        // 드래그가 돌아갈 자리(CustomerCardDrag._home)가 접힌 위치를 가리킨다.
+
+        [Test]
+        public void Fresh_IsCollapsed()
+        {
+            Assert.IsFalse(_hand.IsExpanded);
+        }
+
+        /// <summary>
+        /// <c>SetExpanded</c> 는 <b>상태만 바꾸고</b> 옮기는 것은 <c>Update</c> 다 — 옮기는
+        /// 경로를 하나로 두려는 것이라, 테스트도 프레임을 한 번 넘겨 그 경로를 지난다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SetExpanded_True_RaisesTheTray()
+        {
+            var tray = TrayOf(_hand);
+            yield return null;
+            var collapsed = tray.anchoredPosition.y;
+
+            _hand.SetExpanded(true);
+            yield return null;
+
+            Assert.IsTrue(_hand.IsExpanded);
+            Assert.Greater(tray.anchoredPosition.y, collapsed);
+        }
+
+        /// <summary>
+        /// 반례. «올라간다» 만 보면 <b>항상 올려 두는</b> 구현도 통과한다. 접힌 높이가
+        /// 구체값으로 정해져 있어야 화면에서 손잡이만 남는다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SetExpanded_False_LowersToPeekHeight()
+        {
+            var tray = TrayOf(_hand);
+            _hand.SetExpanded(true);
+            yield return null;
+
+            _hand.SetExpanded(false);
+            yield return null;
+
+            Assert.IsFalse(_hand.IsExpanded);
+            Assert.AreEqual(CollapsedOffsetY, tray.anchoredPosition.y, 0.001f);
+        }
+
+        /// <summary>
+        /// <b>이 단계에서 가장 중요한 테스트다.</b> 카드를 직접 움직이는 구현으로 되돌아가면
+        /// 여기서만 죽는다 — 화면으로는 «접힌다» 가 똑같이 보이고, 증상은 <b>펼친 채 끌어
+        /// 놓았을 때 카드가 화면 밖으로 돌아가는 것</b>으로만 드러난다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SetExpanded_DoesNotMoveTheCards()
+        {
+            var card = (RectTransform)_hand.transform.GetChild(0).GetChild(0);
+            yield return null;
+            var before = card.anchoredPosition;
+
+            _hand.SetExpanded(true);
+            yield return null;
+
+            Assert.AreEqual(before, card.anchoredPosition, "카드를 직접 움직였다");
+        }
+
+        /// <summary>
+        /// 펼친 채 카드를 끌어 놓아도 <b>제자리로 돌아온다.</b> 위 테스트와 짝이며, 이쪽은
+        /// 드래그 경로를 실제로 지난다.
+        /// </summary>
+        [Test]
+        public void DropAt_WhileExpanded_ReturnsCardToItsHome()
+        {
+            var drag = _hand.transform.GetChild(0).GetChild(0).GetComponent<CustomerCardDrag>();
+            var home = ((RectTransform)drag.transform).anchoredPosition;
+            _hand.Bind(new[] { _cheap });
+            _hand.SetExpanded(true);
+
+            var pointer = new PointerEventData(EventSystem.current) { position = Vector2.zero };
+            drag.OnBeginDrag(pointer);
+            drag.OnEndDrag(pointer);
+
+            Assert.AreEqual(home, ((RectTransform)drag.transform).anchoredPosition,
+                            "펼친 상태에서 끌면 카드가 엉뚱한 자리로 돌아간다");
+        }
+
+        [Test]
+        public void PointerEnter_Collapsed_Expands()
+        {
+            _hand.OnPointerEnter(null);
+
+            Assert.IsTrue(_hand.IsExpanded);
+        }
+
+        [Test]
+        public void PointerExit_Expanded_Collapses()
+        {
+            _hand.SetExpanded(true);
+
+            _hand.OnPointerExit(null);
+
+            Assert.IsFalse(_hand.IsExpanded);
+        }
+
+        /// <summary>
+        /// <b>호버는 터치에 없다.</b> 배포 타깃이 웹이라 모바일 브라우저가 사정권이고,
+        /// 탭으로도 여는 길이 없으면 그쪽에서는 손패가 영영 접힌 채로 남는다.
+        /// </summary>
+        [Test]
+        public void PointerClick_Toggles()
+        {
+            _hand.OnPointerClick(null);
+            Assert.IsTrue(_hand.IsExpanded);
+
+            _hand.OnPointerClick(null);
+            Assert.IsFalse(_hand.IsExpanded);
+        }
+
+        /// <summary>
+        /// 카드를 끌고 손패 밖으로 나가는 것은 <b>정상 조작</b>이다. 그때 접히면 카드가
+        /// 손가락 아래에서 함께 내려간다.
+        /// </summary>
+        [Test]
+        public void PointerExit_WhileDragging_StaysExpanded()
+        {
+            var drag = _hand.transform.GetChild(0).GetChild(0).GetComponent<CustomerCardDrag>();
+            _hand.Bind(new[] { _cheap });
+            _hand.SetExpanded(true);
+            drag.OnBeginDrag(new PointerEventData(EventSystem.current));
+
+            _hand.OnPointerExit(null);
+
+            Assert.IsTrue(_hand.IsExpanded, "끌고 나가는데 손패가 접혔다");
+        }
+
         // ── 우회로를 타지 않는 테스트 ────────────────────────────────────
 
         /// <summary>
@@ -336,16 +477,23 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
         // ── 조립 ───────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// 손패 하나. <b>카드는 컨테이너 아래</b>에 붙는다 — 접힘이 움직이는 것이 그 컨테이너라,
+        /// 카드를 루트에 직접 붙이면 «카드가 안 움직인다» 를 확인할 수가 없다.
+        /// </summary>
         private CustomerHandView NewHand(int cardCount)
         {
             var root = NewObject("CustomerHand");
             root.AddComponent<RectTransform>();
 
+            var tray = new GameObject("Tray", typeof(RectTransform));
+            tray.transform.SetParent(root.transform, false);
+
             var drags = new CustomerCardDrag[cardCount];
             for (var i = 0; i < cardCount; i++)
             {
                 var card = new GameObject($"Card{i}", typeof(RectTransform));
-                card.transform.SetParent(root.transform, false);
+                card.transform.SetParent(tray.transform, false);
 
                 new GameObject("Icon", typeof(RectTransform)).transform
                     .SetParent(card.transform, false);
@@ -358,7 +506,30 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
             var hand = root.AddComponent<CustomerHandView>();
             hand.InitializeCards(drags);
+
+            SetHandFields(hand, (RectTransform)tray.transform);
             return hand;
+        }
+
+        /// <summary>
+        /// 접힘 수치를 인스펙터 대신 직렬화로 밀어 넣는다. <b>전개 시간을 0 으로 둔다</b> —
+        /// 보간이 억제 장치라, 시간이 걸리는 값이면 «안 움직인다» 와 «아직 안 움직였다» 가
+        /// 구분되지 않는다 (<c>.claude/rules/tests.md</c> §3).
+        /// </summary>
+        private static void SetHandFields(CustomerHandView hand, RectTransform tray)
+        {
+#if UNITY_EDITOR
+            var serialized = new UnityEditor.SerializedObject(hand);
+            serialized.FindProperty("_tray").objectReferenceValue = tray;
+            serialized.FindProperty("_collapsedOffsetY").floatValue = CollapsedOffsetY;
+            serialized.FindProperty("_slideSeconds").floatValue = 0f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+#endif
+        }
+
+        private static RectTransform TrayOf(CustomerHandView hand)
+        {
+            return (RectTransform)hand.transform.Find("Tray");
         }
 
         private Camera NewCamera()
