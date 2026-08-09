@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -31,6 +32,7 @@ namespace SushiDefense.Tests.EditMode.Editor
             ["card-frame-disabled"] = new Vector2Int(48, 64),
             ["badge-digesting"] = new Vector2Int(16, 16),
             ["bar-cell"] = new Vector2Int(8, 8),
+            ["bar-slot"] = new Vector2Int(12, 12),
             ["button"] = new Vector2Int(32, 32),
             ["button-pressed"] = new Vector2Int(32, 32),
             ["panel"] = new Vector2Int(32, 32),
@@ -146,6 +148,57 @@ namespace SushiDefense.Tests.EditMode.Editor
             Assert.AreEqual(Vector4.zero, LoadSprite(name).border, name);
         }
 
+        /// <summary>
+        /// <b>늘어나는 영역은 단색이어야 한다.</b> 9-slice 는 가운데 몇 픽셀을 카드 안쪽 전체로
+        /// 늘리므로, 거기 무늬가 한 줄이라도 있으면 화면에서는 굵은 띠가 된다 — 카드 틀의
+        /// 원본 6줄이 176px 로 늘어나 설명 글자 뒤를 얼룩지게 만들던 것이 그 형태였다.
+        ///
+        /// <para>
+        /// <b>디스크의 PNG 를 직접 읽는다.</b> <c>AssetDatabase</c> 가 준 텍스처는 읽기 불가라
+        /// <c>GetPixels32</c> 가 던지고, 무엇보다 여기서 봐야 할 것은 임포트 결과가 아니라
+        /// <b>생성기가 찍은 그림</b> 자체다.
+        /// </para>
+        /// <para>
+        /// 픽셀을 세는 검사는 대개 그림을 조금만 손봐도 깨져서 피하지만, 이번은 <i>"가운데를
+        /// 단색으로"</i> 가 요구사항 자체라 그 영역에 그림을 넣을 자유가 애초에 없다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void StretchedRegion_IsFlat([ValueSource(nameof(SliceBorderNames))] string name)
+        {
+            var border = Mathf.RoundToInt(SliceBorders[name]);
+            var pixels = ReadPixels(name, out var width, out var height);
+
+            // GetPixels32 는 아래에서 위로 담는다 — 테두리를 빼는 계산이 두 축 모두 대칭이라
+            // 좌표계를 뒤집어도 검사 범위는 같다.
+            var first = pixels[border * width + border];
+
+            for (var y = border; y < height - border; y++)
+            {
+                for (var x = border; x < width - border; x++)
+                {
+                    Assert.AreEqual(first, pixels[y * width + x],
+                                    $"{name} 의 늘어나는 영역 ({x}, {y}) 이 다른 색이다 — "
+                                    + "9-slice 가 이 줄을 통째로 늘린다");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 포화도 칸의 배경판은 <b>칸보다 커야</b> 배경 역할을 한다. 두 크기를 각각 박지 않고
+        /// <b>관계</b>로 박는 이유는, 요구가 «12여야 한다» 가 아니라 «칸을 덮어야 한다» 이기
+        /// 때문이다 — 숫자를 두 곳에 적으면 한쪽만 바뀐다.
+        /// </summary>
+        [Test]
+        public void BarSlot_IsLargerThanTheCell()
+        {
+            var slot = Load("bar-slot");
+            var cell = Load("bar-cell");
+
+            Assert.Greater(slot.width, cell.width, "배경판이 칸보다 좁다 — 칸 옆이 배경에 그대로 놓인다");
+            Assert.Greater(slot.height, cell.height, "배경판이 칸보다 낮다");
+        }
+
         private static Sprite LoadSprite(string name)
         {
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{Dir}{name}.png");
@@ -176,6 +229,30 @@ namespace SushiDefense.Tests.EditMode.Editor
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             Assert.IsNotNull(texture, $"{path} 를 로드하지 못했습니다");
             return texture;
+        }
+
+        /// <summary>
+        /// 디스크의 PNG 를 임시 텍스처에 올려 픽셀을 읽는다. 임포트 설정(읽기 불가·압축)과
+        /// 무관하게 항상 성립한다. 텍스처는 <b>읽고 바로 버린다</b> — 남기면 테스트마다
+        /// 누수 경고가 쌓인다.
+        /// </summary>
+        private static Color32[] ReadPixels(string name, out int width, out int height)
+        {
+            var path = Dir + name + ".png";
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
+
+            try
+            {
+                Assert.IsTrue(texture.LoadImage(File.ReadAllBytes(path)), $"{path} 를 읽지 못했습니다");
+
+                width = texture.width;
+                height = texture.height;
+                return texture.GetPixels32();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
         }
 
         private static TextureImporter Importer(string name)
