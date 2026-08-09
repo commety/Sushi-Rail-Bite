@@ -1,8 +1,14 @@
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SushiDefense.Customers;
 using SushiDefense.Data;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.TestTools;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace SushiDefense.Tests.PlayMode.Customers
@@ -16,7 +22,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
     /// 끝난다 — 물리를 들이면 호출 시점 제약(RULE-04)과 씬에 관리할 것이 함께 따라온다.
     /// </para>
     /// </summary>
-    public sealed class CustomerTapRouterTests
+    public sealed class CustomerTapRouterTests : InputTestFixture
     {
         private readonly List<Object> _garbage = new();
 
@@ -24,9 +30,16 @@ namespace SushiDefense.Tests.PlayMode.Customers
         private TableSlotView[] _slots;
         private readonly List<CustomerLogic> _tapped = new();
 
-        [SetUp]
-        public void SetUp()
+        /// <summary>
+        /// <b>픽스처를 상속한다.</b> 그것 없이 <c>QueueStateEvent</c> 로 가상 마우스를 흔들면
+        /// 이벤트가 장치에 <b>아예 반영되지 않는다</b> — 실측했다(누름 0회, 레벨 <c>000</c>).
+        /// 네이티브 백엔드가 상태를 소유한 채라, 입력 시스템을 테스트 상태로 바꿔 주는 이
+        /// 픽스처를 지나야 큐가 살아난다.
+        /// </summary>
+        public override void Setup()
         {
+            base.Setup();
+
             _tapped.Clear();
 
             _slots = new[]
@@ -39,8 +52,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _router.Bind(_slots, NewCamera(), _tapped.Add);
         }
 
-        [TearDown]
-        public void TearDown()
+        public override void TearDown()
         {
             foreach (var item in _garbage)
             {
@@ -48,6 +60,9 @@ namespace SushiDefense.Tests.PlayMode.Customers
             }
 
             _garbage.Clear();
+
+            // 장치 해제는 픽스처가 한다 — 여기서 먼저 지우면 그쪽이 두 번 지운다.
+            base.TearDown();
         }
 
         [Test]
@@ -121,6 +136,96 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsNotNull(router.WorldCamera, "씬 진입점이 넘긴 null 이 카메라를 지웠다");
         }
 
+        // ── 바깥 껍데기 (실제 포인터를 흘려보낸다) ─────────────────────────
+        //
+        // 위 테스트들은 TapAt 을 직접 부르므로 입력 읽기와 좌표 변환을 지나친다. 그 우회로가
+        // 곧 사각지대다 — M5 에서 Enter·Esc 가 전멸했을 때 «코드도 테스트도 멀쩡한데 재생만
+        // 죽는» 형태였고, 아무도 못 잡은 이유가 정확히 이것이다 (tests.md §1).
+
+        /// <summary>
+        /// 눌렀다 떼면 <b>Update 경로를 지나</b> 정보 창이 열린다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Update_PressedAndReleasedOverSlot_Taps()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Set(mouse.position, ScreenPointOf(_slots[0]));
+
+            Press(mouse.leftButton);
+            yield return null;
+
+            Release(mouse.leftButton);
+            yield return null;
+
+            Assert.AreEqual(1, _router.TapCount, "포인터 경로가 TapAt 까지 닿지 않았다");
+            Assert.AreSame(_slots[0].Occupant.Logic, _tapped[0]);
+        }
+
+        /// <summary>
+        /// <b>카드를 자리에 떨어뜨리는 손짓과 자리를 눌러 보는 손짓은 끝나는 좌표가 같다.</b>
+        /// 뗀 시점만 보면 카드를 앉히는 순간 정보 창이 함께 뜬다 — 누른 지점이 uGUI 위였는지로
+        /// 가른다.
+        ///
+        /// <para>
+        /// 그래서 <b>누를 때만 uGUI 위</b>에 두고 뗄 때는 자리 위로 옮긴다. 둘 다 uGUI 위에
+        /// 두면 «뗀 시점을 보는» 잘못된 구현으로도 통과한다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Update_PressBeganOverUi_DoesNotTap()
+        {
+            var ui = NewFullScreenUi();
+            var mouse = InputSystem.AddDevice<Mouse>();
+
+            Set(mouse.position, ui.center);
+            Press(mouse.leftButton);
+            yield return null;
+
+            // 카드는 놓이는 순간 포인터 아래에서 사라진다. 뗄 때는 자리 위이므로,
+            // 뗀 시점만 보는 구현이면 여기서 정보 창이 열린다.
+            ui.panel.SetActive(false);
+            Set(mouse.position, ScreenPointOf(_slots[0]));
+            Release(mouse.leftButton);
+            yield return null;
+
+            Assert.AreEqual(0, _router.TapCount, "카드를 앉히는 손짓이 정보 창을 열었다");
+        }
+
+        // ── 입력 조립 ──────────────────────────────────────────────────────
+
+        private Vector2 ScreenPointOf(TableSlotView slot)
+        {
+            return _router.WorldCamera.WorldToScreenPoint(slot.transform.position);
+        }
+
+        /// <summary>
+        /// 화면을 덮는 uGUI 하나. <c>IsPointerOverGameObject</c> 가 참이 되게 하려면
+        /// <c>EventSystem</c> 과 레이캐스트를 받는 그래픽이 둘 다 필요하다.
+        /// </summary>
+        private (GameObject panel, Vector2 center) NewFullScreenUi()
+        {
+            var eventSystem = NewObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<InputSystemUIInputModule>();
+
+            var canvasGo = NewObject("Canvas");
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasGo.AddComponent<GraphicRaycaster>();
+
+            var panel = new GameObject("Blocker", typeof(RectTransform));
+            panel.transform.SetParent(canvasGo.transform, false);
+            panel.AddComponent<Image>();
+
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            return (panel, new Vector2(Screen.width * 0.5f, Screen.height * 0.5f));
+        }
+
         // ── 조립 ───────────────────────────────────────────────────────────
 
         private TableSlotView NewSlot(int index, Vector2 position, bool occupied)
@@ -159,9 +264,18 @@ namespace SushiDefense.Tests.PlayMode.Customers
             return new CustomerLogic(new CustomerRuntimeState(data, 0), 0f);
         }
 
+        /// <summary>
+        /// 2D 카메라. <b>기본값 그대로 쓰면 좌표 왕복이 깨진다</b> — 새 <c>Camera</c> 는
+        /// 원근이고 위치가 원점이라, 같은 원점 평면에 있는 자리를 투영하면 거리가 0 이라
+        /// 화면 좌표가 의미를 잃는다. 실제 씬처럼 직교로 두고 뒤로 물린다.
+        /// </summary>
         private Camera NewCamera()
         {
-            return NewObject("Tap Camera").AddComponent<Camera>();
+            var camera = NewObject("Tap Camera").AddComponent<Camera>();
+            camera.transform.position = new Vector3(0f, 0f, -10f);
+            camera.orthographic = true;
+            camera.orthographicSize = 5f;
+            return camera;
         }
 
         private GameObject NewObject(string name)

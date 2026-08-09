@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -37,6 +38,9 @@ namespace SushiDefense.Customers
 
         /// <summary>이번 누름이 uGUI 위에서 시작했나. 시작했으면 클릭으로 치지 않는다.</summary>
         private bool _pressBeganOverUi;
+
+        /// <summary>uGUI 레이캐스트 결과를 담을 버퍼. 매번 새로 만들지 않는다.</summary>
+        private readonly List<RaycastResult> _uiHits = new();
 
         /// <summary>지금까지 정보 창을 연 횟수. 검증용이다.</summary>
         public int TapCount { get; private set; }
@@ -107,7 +111,7 @@ namespace SushiDefense.Customers
 
             if (pointer.press.wasPressedThisFrame)
             {
-                _pressBeganOverUi = IsOverUi();
+                _pressBeganOverUi = IsOverUi(pointer.position.ReadValue());
             }
 
             if (!pointer.press.wasReleasedThisFrame || _pressBeganOverUi)
@@ -124,12 +128,32 @@ namespace SushiDefense.Customers
         }
 
         /// <summary>
-        /// 포인터가 uGUI 위인가. <c>EventSystem</c> 이 없는 판(테스트 하네스)에서는
-        /// «위가 아니다» 로 본다 — 없다는 이유로 클릭을 통째로 막으면 원인을 찾기 어렵다.
+        /// 이 화면 좌표가 uGUI 위인가.
+        ///
+        /// <para>
+        /// <b><c>IsPointerOverGameObject()</c> 를 쓰지 않는다.</b> 그것은 입력 모듈이 그 프레임에
+        /// 이미 돌았는지에 달려 있어 <b>스크립트 실행 순서에 의존</b>한다 — 우리 <c>Update</c> 가
+        /// 먼저 돌면 «uGUI 위가 아니다» 가 나오고, 그 순서는 씬마다 다르다. 직접 레이캐스트하면
+        /// 그 의존이 사라진다.
+        /// </para>
+        /// <para>
+        /// <c>EventSystem</c> 이 없는 판에서는 «위가 아니다» 로 본다 — 없다는 이유로 클릭을
+        /// 통째로 막으면 원인을 찾기 어렵다.
+        /// </para>
         /// </summary>
-        private static bool IsOverUi()
+        private bool IsOverUi(Vector2 screenPoint)
         {
-            return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            var events = EventSystem.current;
+            if (events == null)
+            {
+                return false;
+            }
+
+            // 목록을 재사용한다. 누를 때만 도는 경로라 매 프레임은 아니지만, 새로 만들면
+            // 클릭할 때마다 쓰레기가 는다 (§4.3).
+            _uiHits.Clear();
+            events.RaycastAll(new PointerEventData(events) { position = screenPoint }, _uiHits);
+            return _uiHits.Count > 0;
         }
 
         /// <summary>
