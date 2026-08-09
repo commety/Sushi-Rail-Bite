@@ -57,7 +57,7 @@ namespace SushiDefense.UI
         private RunProgression _progression;
         private PauseState _pause;
 
-        private int _shownPlacedCount = -1;
+        private int _shownPopulation = -1;
         private int _shownWaitingCount = -1;
         private int _shownSeconds = -1;
         private int _shownStageNumber = -1;
@@ -135,7 +135,7 @@ namespace SushiDefense.UI
                 OnBalanceChanged(_wallet.Balance);
             }
 
-            _shownPlacedCount = -1;
+            _shownPopulation = -1;
             _shownWaitingCount = -1;
             _shownSeconds = -1;
             _shownStageNumber = -1;
@@ -333,6 +333,16 @@ namespace SushiDefense.UI
             HudLabel.Write(_waitingLabel, WaitingText);
         }
 
+        /// <summary>
+        /// 배치 표시는 <b>머릿수가 아니라 인구수</b>다. 한도가 세는 값이 그것이라, 머릿수를
+        /// 보여 주면 «먹보를 앉혔는데 왜 다음 손님이 안 앉지» 에 화면이 답하지 못한다.
+        ///
+        /// <para>
+        /// 캐시 필드 이름은 바꿨다 — <c>private</c> 이라 안전하다. 같은 이유로
+        /// <c>StageConfig._maxPlacedCustomers</c> 는 못 바꾼다: 그쪽은 직렬화 키라 이름을
+        /// 바꾸면 밸런스 애셋의 값이 경고 없이 기본값으로 돌아간다.
+        /// </para>
+        /// </summary>
         private void RefreshPlacement()
         {
             if (_placement == null)
@@ -340,14 +350,14 @@ namespace SushiDefense.UI
                 return;
             }
 
-            var placed = _placement.PlacedCount;
-            if (placed == _shownPlacedCount)
+            var population = _placement.PlacedPopulation;
+            if (population == _shownPopulation)
             {
                 return;
             }
 
-            _shownPlacedCount = placed;
-            PlacementText = $"손님 {placed}/{_placement.MaxPlacedCustomers}";
+            _shownPopulation = population;
+            PlacementText = $"손님 {population}/{_placement.MaxPlacedCustomers}";
             HudLabel.Write(_placementLabel, PlacementText);
         }
 

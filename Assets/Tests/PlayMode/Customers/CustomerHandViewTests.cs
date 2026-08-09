@@ -212,6 +212,45 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.IsFalse(_hand.IsAvailableAt(1));
         }
 
+        // ── 한도는 인구수를 센다 ─────────────────────────────────────────
+        //
+        // 손패 코드는 이 규칙을 위해 한 줄도 바뀌지 않았다 — CanPlaceAnywhere 가
+        // 서비스에 되묻기 때문이다. 고친 데가 없다는 것은 회귀를 잡을 그물도 없다는
+        // 뜻이라, 여기 남긴다.
+
+        /// <summary>
+        /// <b>잔액과 자리를 일부러 풀어 둔다.</b> 둘 중 하나라도 막고 있으면 «한도가
+        /// 막았다» 가 확정되지 않는다 (<c>.claude/rules/tests.md</c> §3).
+        /// </summary>
+        [Test]
+        public void Refresh_PopulationTwoWithOneHeadroom_DimsTheCard()
+        {
+            var heavy = NewCustomer("먹보", recruitCost: 10, population: 2);
+            _hand.Bind(new[] { _cheap, heavy });
+            _placement.Place(_cheap, 0, 2f);
+
+            _hand.Refresh();
+
+            Assert.AreEqual(1, _placement.PlacedPopulation, "한도 2 중 1 을 썼다");
+            Assert.IsNull(_placement.OccupantOf(1), "자리는 남아 있다");
+            Assert.IsTrue(_wallet.CanAfford(10), "잔액도 남아 있다");
+            Assert.IsFalse(_hand.IsAvailableAt(1), "인구수 2 는 남은 1 에 못 들어간다");
+        }
+
+        /// <summary>
+        /// 반례. 위 테스트만 있으면 «자리가 하나 남으면 무조건 흐리게» 하는 구현도 통과한다.
+        /// </summary>
+        [Test]
+        public void Refresh_PopulationOneWithOneHeadroom_KeepsCardBright()
+        {
+            _hand.Bind(new[] { _cheap, _pricey });
+            _placement.Place(_cheap, 0, 2f);
+
+            _hand.Refresh();
+
+            Assert.IsTrue(_hand.IsAvailableAt(0), "인구수 1 은 남은 1 에 들어간다");
+        }
+
         // ── 잔액이 늘면 스스로 다시 평가한다 ──────────────────────────────
 
         /// <summary>
@@ -337,7 +376,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             return slot;
         }
 
-        private CustomerData NewCustomer(string displayName, int recruitCost)
+        private CustomerData NewCustomer(string displayName, int recruitCost, int population = 1)
         {
             var customer = NewAsset<CustomerData>();
 
@@ -349,6 +388,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
             serialized.FindProperty("_targetingMin").intValue = 100;
             serialized.FindProperty("_targetingMax").intValue = 300;
             serialized.FindProperty("_maxSaturation").intValue = 5;
+            serialized.FindProperty("_population").intValue = population;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 #endif
 
