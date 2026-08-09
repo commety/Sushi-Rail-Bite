@@ -340,8 +340,24 @@ namespace SushiDefense.Tests.PlayMode
 
 
         /// <summary>
-        /// HUD 라벨이 <b>Canvas 위에</b> 있는지 본다. 월드스페이스로 되돌아가면 브라우저 창
-        /// 크기가 바뀔 때 잘리는데, 코드로 세운 하네스는 그것을 못 잡는다 (§1).
+        /// 손님 옆에 붙는 둘을 뺀 <b>나머지 라벨은 전부 Canvas 위에</b> 있어야 한다. 월드스페이스로
+        /// 되돌아가면 브라우저 창 크기가 바뀔 때 잘리는데, 코드로 세운 하네스는 그것을 못 잡는다 (§1).
+        ///
+        /// <para>
+        /// <b>예외를 이름으로 못박는다.</b> «Canvas 밖도 허용» 으로 풀면 HUD 라벨 하나가
+        /// 월드스페이스로 새어 나가도 통과한다 — 느슨해진 가드는 진짜 위반을 놓친다
+        /// (<c>.claude/rules/scripts.md</c> §7). 새 월드스페이스 라벨을 더하려면 여기 이름을
+        /// 추가해야 하고, 그 순간 «정말 Canvas 밖이어야 하나» 를 한 번 더 묻게 된다.
+        /// </para>
+        /// <para>
+        /// 이 둘이 월드스페이스인 이유는 <b>손님 자리를 따라다녀야 하기 때문</b>이다
+        /// (<c>HudLabel</c> 의 클래스 주석). 전역 HUD 와 달리 화면 좌표에 고정할 수 없다.
+        /// </para>
+        /// <para>
+        /// <b>M6.5 이전에는 이 테스트가 모든 라벨을 검사했고 그래도 통과했다</b> — 씬에
+        /// 월드스페이스 TMP 라벨이 하나도 없었기 때문이다. 대역 라벨이 레거시 <c>TextMesh</c> 라
+        /// 화면에 안 나오던 상태였고, 그것을 고치자 이 가드가 비로소 자기 범위를 드러냈다.
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_HudLabelsLiveOnCanvas()
@@ -351,10 +367,48 @@ namespace SushiDefense.Tests.PlayMode
             var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
             Assert.IsNotEmpty(labels, "씬에 TMP 라벨이 하나도 없다");
 
+            var worldSpaceByDesign = new System.Collections.Generic.HashSet<string>
+            {
+                "BandLabel", "RemainingLabel"
+            };
+
+            var checkedAny = false;
             foreach (var label in labels)
             {
+                if (worldSpaceByDesign.Contains(label.name))
+                {
+                    continue;
+                }
+
+                checkedAny = true;
                 Assert.IsNotNull(label.GetComponentInParent<Canvas>(),
                                  $"{label.name} 이 Canvas 밖에 있다");
+            }
+
+            Assert.IsTrue(checkedAny, "예외 목록이 라벨을 전부 삼켰다 — 이 테스트가 아무것도 안 본다");
+        }
+
+        /// <summary>
+        /// 예외로 둔 둘이 <b>실제로 손님 아래에</b> 있는지 본다. 위 테스트의 예외 목록은
+        /// 이름만 보므로, 엉뚱한 곳의 라벨이 같은 이름을 달면 그대로 통과한다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_WorldSpaceLabelsBelongToCustomers()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var labels = _stage.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            foreach (var label in labels)
+            {
+                if (label.name != "BandLabel" && label.name != "RemainingLabel")
+                {
+                    continue;
+                }
+
+                // 자리는 손님이 앉을 때까지 꺼져 있고, 인자 없는 GetComponentInParent 는
+                // 비활성을 건너뛴다 — 그대로 두면 «손님 밖» 으로 오판한다.
+                Assert.IsNotNull(label.GetComponentInParent<CustomerView>(true),
+                                 $"{label.name} 이 손님 밖에 있다 — 월드스페이스일 이유가 없다");
             }
         }
 

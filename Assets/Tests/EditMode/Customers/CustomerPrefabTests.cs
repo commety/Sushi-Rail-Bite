@@ -142,6 +142,22 @@ namespace SushiDefense.Tests.EditMode.Customers
         }
 
         /// <summary>
+        /// 배지 안의 숫자 라벨. 이름은 <c>DigestingBadgeView</c> 의 상수와 맺은 약속이라
+        /// 하나만 틀려도 <b>배지는 뜨는데 숫자만 빈다</b> — 예외는 나지 않는다.
+        /// </summary>
+        [Test]
+        public void Prefab_DigestingBadge_HasRemainingLabel()
+        {
+            var label = _prefab.transform.Find("DigestingBadge/RemainingLabel");
+
+            Assert.IsNotNull(label, "RemainingLabel 자식이 없다");
+            Assert.IsNotNull(label.GetComponent<TMP_Text>(),
+                             "RemainingLabel 이 TMP_Text 가 아니다 — 남은 초가 안 나온다");
+            Assert.IsNotNull(label.GetComponent<TMP_Text>().font,
+                             "폰트가 비었다 — 숫자가 두부가 된다");
+        }
+
+        /// <summary>
         /// <b>대역 문구가 화면에 나오는지</b> 본다.
         ///
         /// <para>
