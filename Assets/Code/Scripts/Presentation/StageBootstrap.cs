@@ -57,6 +57,8 @@ namespace SushiDefense
         [SerializeField] private AudioDirector _audioDirector;
         [SerializeField] private EffectDirector _effectDirector;
         [SerializeField] private CustomerHandView _hand;
+        [SerializeField] private CustomerInspectorView _inspectorView;
+        [SerializeField] private CustomerTapRouter _tapRouter;
 
         /// <summary>
         /// 지금 돌고 있는 스테이지의 정의. 스테이지가 넘어가면 이 값이 바뀐다.
@@ -131,6 +133,12 @@ namespace SushiDefense
         /// 인스테이지 메뉴의 로직. 화면이 씬에 없으면 <c>null</c> 이다. 런 수명이다.
         /// </summary>
         public StageMenuPresenter Menu { get; private set; }
+
+        /// <summary>
+        /// 앉아 있는 손님을 눌러 보는 정보 창의 로직. 화면이 씬에 없으면 <c>null</c> 이다.
+        /// 런 수명이며, <b>판을 멈추지 않는다</b>.
+        /// </summary>
+        public CustomerInspectorPresenter Inspector { get; private set; }
 
         /// <summary>
         /// 이 판이 멈춰 있나. <b>시간을 흘릴지 말지의 유일한 진실</b>이다.
@@ -279,6 +287,34 @@ namespace SushiDefense
             BuildTransition();
             BuildDeckPanel();
             BuildStageMenu();
+            BuildInspector();
+        }
+
+        /// <summary>
+        /// 손님 정보 창을 세운다. 화면이 없으면 조용히 건너뛴다 — 덱·메뉴와 같은 판단이며,
+        /// 정보 조회는 판이 돌아가는 데 필요한 것이 아니라 그 위에 얹히는 것이다.
+        ///
+        /// <para>
+        /// <b>클릭 라우터는 자리 목록만 받는다.</b> 배치 서비스를 거치지 않는 이유는 자리가
+        /// 이미 앉은 손님의 뷰를 들고 있기 때문이고, 둘 다 물으면 «누가 앉아 있나» 의 답이
+        /// 두 곳에서 나온다.
+        /// </para>
+        /// </summary>
+        private void BuildInspector()
+        {
+            if (_inspectorView == null)
+            {
+                return;
+            }
+
+            Inspector = new CustomerInspectorPresenter(_inspectorView, Windows);
+
+            if (_tapRouter != null)
+            {
+                // 카메라를 넘기지 않는 것은 씬 진입점이 들고 있지 않기 때문이며,
+                // 라우터가 null 을 그대로 대입하지 않는다는 것이 그쪽의 계약이다.
+                _tapRouter.Bind(_slots, null, Inspector.Open);
+            }
         }
 
         /// <summary>
@@ -451,6 +487,9 @@ namespace SushiDefense
                 case StageWindow.Deck:
                     Deck?.Close();
                     break;
+                case StageWindow.CustomerInfo:
+                    Inspector?.Close();
+                    break;
             }
         }
 
@@ -621,6 +660,16 @@ namespace SushiDefense
                 _hand = GetComponentInChildren<CustomerHandView>(true);
             }
 
+            if (_inspectorView == null)
+            {
+                _inspectorView = GetComponentInChildren<CustomerInspectorView>(true);
+            }
+
+            if (_tapRouter == null)
+            {
+                _tapRouter = GetComponentInChildren<CustomerTapRouter>(true);
+            }
+
             if (_slots == null || _slots.Length == 0)
             {
                 _slots = GetComponentsInChildren<TableSlotView>(true);
@@ -657,6 +706,11 @@ namespace SushiDefense
         /// </summary>
         private void Update()
         {
+            // 정보 창은 멈춤 게이트 **앞**이다. 멈춘 동안에도 열려 있을 수 있고, 그때 값이
+            // 안 변하는 것은 판이 안 도니 당연하다 — 게이트 뒤에 두면 «멈추면 정보 창이
+            // 굳는다» 가 아니라 «멈추기 직전 값에서 영영 멈춘다» 가 된다.
+            Inspector?.Tick();
+
             // 멈춤은 이 한 줄을 건너뛰는 것이다. 벨트·손님·시계·판정이 전부 여기를 지나므로
             // 멈춤을 위해 새 경로를 만들 필요가 없다 (README D4).
             if (Pause != null && Pause.IsPaused)
@@ -694,6 +748,7 @@ namespace SushiDefense
 
             Deck = null;
             Menu = null;
+            Inspector = null;
             Pause = null;
 
             if (Windows != null)

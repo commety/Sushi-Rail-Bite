@@ -101,6 +101,18 @@ namespace SushiDefense.Tests.EditMode.UI
             AssertCovers("설정 소리 전체화면");
         }
 
+        /// <summary>
+        /// 손님 정보 창의 문구. <b>재굽기가 필요 없다</b> — M6 에서 폰트를 전체 커버리지로
+        /// 굽는 방식으로 바꾼 덕에 이 글자들이 이미 들어 있다. 이 테스트는 그 사실을 고정하는
+        /// 그물이지 새 작업을 부르는 신호가 아니다.
+        /// </summary>
+        [Test]
+        public void Font_CoversInspectorLabels()
+        {
+            AssertCovers("손님 정보 유형 범위 대역 먹는 시간 포화도 소화 영입 비용 인구수 "
+                         + "상태 대기 중 닫기 기본 소식 먹보");
+        }
+
         [Test]
         public void Font_CoversCodexLabels()
         {
