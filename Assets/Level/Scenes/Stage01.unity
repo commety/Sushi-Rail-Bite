@@ -242,7 +242,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 10, y: 2, z: 10, w: 2}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -434,9 +434,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 4111142055731116073, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8645111924147190450, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
@@ -3264,7 +3261,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 10, y: 2, z: 10, w: 2}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -3708,7 +3705,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 10, y: 2, z: 10, w: 2}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -4225,9 +4222,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 4111142055731116073, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8645111924147190450, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
@@ -4872,11 +4866,11 @@ RectTransform:
   - {fileID: 1452118225}
   m_Father: {fileID: 480935491}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -8, y: 48}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 480, y: 200}
   m_SizeDelta: {x: 200, y: 280}
-  m_Pivot: {x: 1, y: 0}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1228865263
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4890,6 +4884,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Presentation::SushiDefense.UI.CustomerInspectorView
   _panel: {fileID: 0}
+  _worldCamera: {fileID: 0}
+  _gap: 40
+  _edgeMargin: 8
   _nameLabel: {fileID: 0}
   _statsLabel: {fileID: 0}
   _stateLabel: {fileID: 0}
@@ -5378,9 +5375,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4111142055731116073, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8645111924147190450, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
 --- !u!4 &1298954585 stripped
 Transform:
@@ -5837,7 +5831,7 @@ MonoBehaviour:
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
   m_wordSpacing: 0
-  m_lineSpacing: 0
+  m_lineSpacing: 3
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
@@ -5863,7 +5857,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 10, y: 4, z: 10, w: 4}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -6624,9 +6618,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4111142055731116073, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8645111924147190450, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ec54e4d5e89d8430a899ab829a527580, type: 3}
 --- !u!4 &1690792790 stripped
 Transform:
@@ -7248,7 +7239,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 10, y: 2, z: 10, w: 2}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

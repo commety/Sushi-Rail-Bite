@@ -22,8 +22,30 @@ namespace SushiDefense.UI
         private const string SaturationLabelName = "SaturationLabel";
         private const string RemainingLabelName = "RemainingLabel";
 
+        /// <summary>
+        /// 창의 피벗. 손님 <b>위로 자라야</b> 하므로 아래변 가운데다 — 위쪽 피벗을 주면
+        /// 창이 손님을 덮는다.
+        /// </summary>
+        private static readonly Vector2 PanelPivot = new(0.5f, 0f);
+
         /// <summary>켜고 끌 대상. 비어 있으면 이 오브젝트다.</summary>
         [SerializeField] private GameObject _panel;
+
+        /// <summary>
+        /// 월드 좌표를 화면으로 옮길 카메라. 비어 있으면 주 카메라로 대신한다 —
+        /// 씬 진입점이 카메라를 들고 있지 않아 인스펙터로 물릴 수도 없다.
+        /// </summary>
+        [SerializeField] private Camera _worldCamera;
+
+        /// <summary>
+        /// 손님과 창 아래변 사이. 연출 수치라 SO 가 아니라 여기 있다 (M5 D7).
+        /// 몸통이 1 월드 유닛이고 화면에서 1 유닛 ≈ 54 캔버스 단위라, 머리 위로 나오려면
+        /// 27 보다 커야 한다.
+        /// </summary>
+        [SerializeField, Min(0f)] private float _gap = 40f;
+
+        /// <summary>화면 가장자리에서 띄울 여백.</summary>
+        [SerializeField, Min(0f)] private float _edgeMargin = 8f;
 
         [SerializeField] private TMP_Text _nameLabel;
         [SerializeField] private TMP_Text _statsLabel;
@@ -68,6 +90,52 @@ namespace SushiDefense.UI
             Apply(false);
         }
 
+        /// <summary>
+        /// 이 월드 좌표 <b>위에</b> 창을 세운다. 화면 밖으로 나가면 안으로 민다.
+        ///
+        /// <para>
+        /// <b>여는 순간 한 번만 부른다.</b> 따라다니게 하면 매 프레임
+        /// <c>WorldToScreenPoint</c> 가 <c>Update</c> 경로 비용이 되는데(§4.3), 벨트는 움직여도
+        /// 손님은 자리에 앉아 있어 따라갈 대상이 없다.
+        /// </para>
+        /// <para>
+        /// <b>인터페이스에 없다.</b> 프레젠터는 좌표를 모르고 글자만 넘긴다 — 좌표가 계약에
+        /// 들어가면 «어디에 뜨나» 가 순수 C# 쪽으로 새어 나간다 (<c>CLAUDE.md</c> §3.6).
+        /// </para>
+        /// </summary>
+        public void AnchorTo(Vector3 worldPoint)
+        {
+            Resolve();
+
+            var rect = Target.transform as RectTransform;
+            if (rect == null || rect.parent is not RectTransform parent)
+            {
+                return;
+            }
+
+            var world = _worldCamera != null ? _worldCamera : Camera.main;
+            if (world == null)
+            {
+                return;
+            }
+
+            AlignToParent(rect, parent);
+
+            // ScreenSpaceOverlay 면 canvas.worldCamera 가 null 이고, 그 null 이 맞는 인자다.
+            // Camera.main 을 넘기면 좌표가 통째로 어긋난다.
+            var canvas = GetComponentInParent<Canvas>();
+            var uiCamera = canvas != null ? canvas.worldCamera : null;
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, world.WorldToScreenPoint(worldPoint), uiCamera, out var local))
+            {
+                return;
+            }
+
+            rect.anchoredPosition = PanelAnchorMath.ClampInside(
+                local + new Vector2(0f, _gap), rect.rect.size, rect.pivot, parent.rect, _edgeMargin);
+        }
+
         private void Awake()
         {
             Resolve();
@@ -99,6 +167,13 @@ namespace SushiDefense.UI
                 _panel = gameObject;
             }
 
+            // 탭 전에도 씬의 모양이 재생 중과 같아야 한다 — 어긋나 있으면 에디터에서 본
+            // 자리와 실제로 뜨는 자리가 달라 배치를 두 번 맞추게 된다.
+            if (Target.transform is RectTransform rect && rect.parent is RectTransform parent)
+            {
+                AlignToParent(rect, parent);
+            }
+
             _nameLabel = HudLabel.Resolve(transform, _nameLabel, NameLabelName);
             _statsLabel = HudLabel.Resolve(transform, _statsLabel, StatsLabelName);
             _stateLabel = HudLabel.Resolve(transform, _stateLabel, StateLabelName);
@@ -112,8 +187,28 @@ namespace SushiDefense.UI
         /// </summary>
         private void Apply(bool showing)
         {
-            var target = _panel != null ? _panel : gameObject;
-            target.SetActive(showing);
+            Target.SetActive(showing);
+        }
+
+        /// <summary>켜고 끄고 옮길 대상. 비어 있으면 이 오브젝트다.</summary>
+        private GameObject Target => _panel != null ? _panel : gameObject;
+
+        /// <summary>
+        /// 앵커를 <b>부모의 피벗에 맞춘다.</b> 그래야
+        /// <see cref="RectTransformUtility.ScreenPointToLocalPointInRectangle"/> 이 준 로컬
+        /// 좌표가 곧 <c>anchoredPosition</c> 이 된다 — 어긋나면 «조금 빗나간 위치» 라
+        /// 눈으로는 원인을 못 찾는다.
+        ///
+        /// <para>
+        /// <b>배치가 아니라 이 창의 동작 계약</b>이라 씬에 맡기지 않고 코드가 못박는다.
+        /// 멱등이므로 여러 번 불려도 된다.
+        /// </para>
+        /// </summary>
+        private static void AlignToParent(RectTransform rect, RectTransform parent)
+        {
+            rect.anchorMin = parent.pivot;
+            rect.anchorMax = parent.pivot;
+            rect.pivot = PanelPivot;
         }
     }
 }

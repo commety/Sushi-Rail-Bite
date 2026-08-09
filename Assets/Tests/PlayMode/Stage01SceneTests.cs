@@ -381,6 +381,165 @@ namespace SushiDefense.Tests.PlayMode
             }
         }
 
+        /// <summary>
+        /// <b>가려진 창은 눌리지 않는다.</b> 실플레이에서 메뉴를 연 채 보상 창의 «건너뛰기»
+        /// 가 그대로 먹혔고, 그 바람에 다음 판이 시작되며 멈춤까지 풀렸다.
+        ///
+        /// <para>
+        /// <b>씬을 지나는 경로로 본다.</b> 규칙 자체는 <c>StageWindowArbiterTests</c> 가
+        /// EditMode 로 덮지만, 조정자의 알림이 실제 화면의 <c>CanvasGroup</c> 까지 닿는지는
+        /// 이 경로만 안다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_MenuOverReward_MakesTheRewardUninteractive()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var reward = _stage.GetComponentInChildren<RewardSelectionView>(true);
+            Assert.IsNotNull(reward, "씬에 보상 화면이 없다");
+
+            _stage.Rewards.Open(_stage.Run);
+            yield return null;
+            Assert.IsTrue(reward.GetComponent<CanvasGroup>() == null
+                          || reward.GetComponent<CanvasGroup>().interactable,
+                          "전제: 혼자 떠 있을 때는 조작할 수 있다");
+
+            _stage.Menu.Open();
+            yield return null;
+            Assert.IsFalse(reward.GetComponent<CanvasGroup>().interactable,
+                           "메뉴가 위에 떴는데 보상 창이 그대로 눌린다");
+
+            _stage.Menu.Close();
+            yield return null;
+            Assert.IsTrue(reward.GetComponent<CanvasGroup>().interactable,
+                          "메뉴가 닫혔는데 보상 창이 가려진 채 남았다 — 런이 여기서 멈춘다");
+        }
+
+        /// <summary>
+        /// <b>멈춘 판에는 손님을 앉히지 못한다.</b> 메뉴를 열어 놓고 앉힐 수 있으면 제한
+        /// 시간을 세워 둔 채 판을 짜는 것이 된다.
+        ///
+        /// <para>
+        /// <c>Play_Scene_ClickOnSlot_PlacesCustomer</c> 와 <b>같은 진입점</b>을 쓴다 — 그쪽이
+        /// 통과하므로 여기서 실패하면 원인은 멈춤 게이트 하나로 좁혀진다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DropWhilePaused_PlacesNothing()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            var slot = Object.FindAnyObjectByType<TableSlotView>();
+
+            _stage.Menu.Open();
+            yield return null;
+
+            Assert.IsTrue(_stage.Pause.IsPaused, "전제: 메뉴를 열면 멈춘다");
+            Assert.IsFalse(hand.DropAt(_stage.Run.Customers.Members[0], slot.transform.position),
+                           "멈췄는데 손님이 앉았다");
+            Assert.AreEqual(0, _stage.Placement.PlacedCount);
+        }
+
+        /// <summary>
+        /// <b>클리어한 판에도 앉히지 못한다.</b> 이쪽은 실패와 경로가 다르다 — 보상 창은
+        /// 멈추지 않는 창이라, 판정이 날 때 멈추지 않으면 보상 화면 위에서 손님이 앉고
+        /// <b>끝난 판에 영입 재화가 나간다.</b>
+        ///
+        /// <para>
+        /// 실패 경로는 메뉴 창이 스스로 멈추므로 <b>판정 시 멈춤이 없어도 통과한다</b> —
+        /// 그 줄을 지키는 것은 이 테스트뿐이다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DropAfterClear_PlacesNothing()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            var slot = Object.FindAnyObjectByType<TableSlotView>();
+
+            _stage.Revenue.Add(_stage.StageConfig.TargetRevenue);
+            _stage.Stage.Tick(0.1f);
+            yield return null;
+
+            Assert.IsTrue(_stage.Pause.IsPaused, "판정이 났는데 멈추지 않았다");
+            Assert.IsFalse(hand.DropAt(_stage.Run.Customers.Members[0], slot.transform.position),
+                           "클리어한 판에 손님이 앉았다");
+        }
+
+        /// <summary>
+        /// 실패 창 위에서도 마찬가지다. 실패 창은 메뉴 창의 재사용이라 같은 멈춤을 지나지만,
+        /// <b>«재개할 수 없다» 는 점이 달라</b> 여기서 앉으면 끝난 판에 재화가 나간다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_DropAfterFailure_PlacesNothing()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var hand = _stage.GetComponentInChildren<CustomerHandView>(true);
+            var slot = Object.FindAnyObjectByType<TableSlotView>();
+
+            _stage.Stage.Tick(_stage.StageConfig.TimeLimitSeconds + 1f);
+            yield return null;
+
+            Assert.IsTrue(_stage.Pause.IsPaused, "전제: 판정이 나면 멈춘다");
+            Assert.IsFalse(hand.DropAt(_stage.Run.Customers.Members[0], slot.transform.position),
+                           "실패한 판에 손님이 앉았다");
+        }
+
+        /// <summary>
+        /// 정보 창의 글이 <b>창 변에 붙지 않는다.</b> 카드에서 고친 것과 같은 증상인데,
+        /// 이 라벨들은 프리팹이 아니라 <b>씬에 살아서</b> 그때 함께 고쳐지지 않았다.
+        ///
+        /// <para>
+        /// 값이 아니라 «0 이 아니다» 를 본다 — 눈으로 조정해도 안 깨지고, 되돌리면 깨진다
+        /// (<c>CardPrefabTests</c> 와 같은 판단이다).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_InspectorLabels_HaveHorizontalPadding()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+
+            foreach (var name in new[]
+                     {
+                         "NameLabel", "StatsLabel",
+                         "StateLabel", "SaturationLabel", "RemainingLabel"
+                     })
+            {
+                var margin = view.transform.Find(name).GetComponent<TMPro.TMP_Text>().margin;
+
+                Assert.Greater(margin.x, 0f, $"{name} 의 왼쪽 여백이 없다");
+                Assert.Greater(margin.z, 0f, $"{name} 의 오른쪽 여백이 없다");
+            }
+        }
+
+        /// <summary>
+        /// 여러 줄인 스탯 라벨만 행간이 붙는다. <b>상한도 본다</b> — 일곱 줄이 라벨 높이를
+        /// 넘으면 줄바꿈이 꺼져 있어 아래 줄이 상자 밖으로 새어 나간다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_InspectorStats_HaveLineSpacingThatFits()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var label = _stage.GetComponentInChildren<CustomerInspectorView>(true)
+                              .transform.Find("StatsLabel").GetComponent<TMPro.TMP_Text>();
+            const int Rows = 7;
+            var pitch = label.font.faceInfo.ascentLine - label.font.faceInfo.descentLine
+                        + label.lineSpacing;
+            var usable = ((RectTransform)label.transform).rect.height
+                         - label.margin.y - label.margin.w;
+
+            Assert.Greater(label.lineSpacing, 0f, "행간이 기본값이다 — 줄이 서로 붙는다");
+            Assert.LessOrEqual((Rows - 1) * pitch + pitch, usable,
+                               $"스탯 {Rows}줄이 라벨 높이를 넘는다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_HasCustomerTapRouter()
         {
@@ -393,6 +552,12 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// <b>씬을 지나 정보 창이 열리는지</b> 본다. 앞의 셋은 «있다» 만 보므로 배선이 끊겨도
         /// 통과한다 — 자리에 손님을 앉히고 그 좌표를 눌러 끝까지 간다.
+        ///
+        /// <para>
+        /// <b>창이 옮겨졌는지도 여기서 본다.</b> 자리별 기하 검사는 <c>AnchorTo</c> 를 직접
+        /// 부르므로 부트스트랩의 배선을 지나친다 — 누름에서 자리 잡기까지 이어지는지는
+        /// 이 경로만 안다 (<c>.claude/rules/tests.md</c> §1 «안쪽 진입점만 부르는 테스트»).
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_TappingASeatedCustomer_OpensTheInspector()
@@ -404,12 +569,18 @@ namespace SushiDefense.Tests.PlayMode
                                    slot.BeltPosition);
             slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
 
+            var panel = (RectTransform)_stage.GetComponentInChildren<CustomerInspectorView>(true)
+                                             .transform;
+            var parked = panel.anchoredPosition;
+
             var router = _stage.GetComponentInChildren<CustomerTapRouter>(true);
             var opened = router.TapAt(slot.transform.position);
             yield return null;
 
             Assert.IsTrue(opened, "자리를 눌렀는데 손님을 못 찾았다");
             Assert.IsTrue(_stage.Inspector.IsOpen, "정보 창이 안 열렸다");
+            Assert.AreNotEqual(parked, panel.anchoredPosition,
+                               "창이 씬에 적힌 자리에 그대로 있다 — 누름이 자리 잡기까지 못 갔다");
         }
 
         /// <summary>
@@ -463,25 +634,82 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// 정보 창이 <b>메뉴·덱 아이콘을 가리지 않는지</b> 본다. 처음 배치에서 패널이 두
         /// 아이콘 위에 정확히 겹쳐, 창이 뜨면 둘 다 누를 수 없었다.
+        ///
+        /// <para>
+        /// <b>자리마다 확인한다.</b> 창이 런타임에 손님을 따라 서게 됐으므로(M6.6) 씬에 적힌
+        /// 자리를 재는 것은 아무것도 지키지 않는다. 자리 하나만 보면 «오른쪽 끝에서만
+        /// 겹친다» 를 놓친다 — 클램프가 실제로 위험한 곳이 거기다.
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_InspectorPanel_DoesNotCoverTheIcons()
         {
             yield return WaitSeconds(0.2f);
 
-            var panel = (RectTransform)_stage.GetComponentInChildren<CustomerInspectorView>(true)
-                                             .transform;
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+            var panel = (RectTransform)view.transform;
+            var slots = _stage.GetComponentsInChildren<TableSlotView>(true);
 
-            foreach (var button in _stage.GetComponentsInChildren<Button>(true))
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            foreach (var slot in slots)
             {
-                if (button.name != "OpenButton" && button.name != "ToggleButton")
-                {
-                    continue;
-                }
+                view.AnchorTo(slot.transform.position);
+                yield return null;
 
-                Assert.IsFalse(Overlaps(panel, (RectTransform)button.transform),
-                               $"정보 창이 {button.name} 을 덮는다");
+                foreach (var button in _stage.GetComponentsInChildren<Button>(true))
+                {
+                    if (button.name != "OpenButton" && button.name != "ToggleButton")
+                    {
+                        continue;
+                    }
+
+                    Assert.IsFalse(Overlaps(panel, (RectTransform)button.transform),
+                                   $"자리 {slot.SlotIndex} 에서 정보 창이 {button.name} 을 덮는다");
+                }
             }
+        }
+
+        /// <summary>
+        /// 창이 <b>실제로 손님을 따라 서는지</b> 본다. 겹침 검사만으로는 창이 여전히 우하단에
+        /// 붙어 있어도 통과한다 — 아이콘 위가 아니기만 하면 되기 때문이다.
+        ///
+        /// <para>
+        /// <b>카메라를 물려 주지 않는다.</b> 씬은 <c>_worldCamera</c> 가 빈 채로 재생되고
+        /// <c>Camera.main</c> 폴백을 탄다 — 여기서 카메라를 주입하면 그 분기가 죽어도 초록이
+        /// 된다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_Inspector_StandsBesideEachSeat()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+            var panel = (RectTransform)view.transform;
+            var canvas = (RectTransform)panel.parent;
+            var slots = _stage.GetComponentsInChildren<TableSlotView>(true);
+            var seen = new System.Collections.Generic.List<Vector2>();
+
+            foreach (var slot in slots)
+            {
+                view.AnchorTo(slot.transform.position);
+                yield return null;
+
+                var min = panel.anchoredPosition - Vector2.Scale(panel.pivot, panel.rect.size);
+                var max = min + panel.rect.size;
+
+                Assert.GreaterOrEqual(min.x, canvas.rect.xMin, $"자리 {slot.SlotIndex}: 창이 왼쪽으로 새 나갔다");
+                Assert.LessOrEqual(max.x, canvas.rect.xMax, $"자리 {slot.SlotIndex}: 창이 오른쪽으로 새 나갔다");
+                Assert.GreaterOrEqual(min.y, canvas.rect.yMin, $"자리 {slot.SlotIndex}: 창이 아래로 새 나갔다");
+                Assert.LessOrEqual(max.y, canvas.rect.yMax, $"자리 {slot.SlotIndex}: 창이 위로 새 나갔다");
+
+                seen.Add(panel.anchoredPosition);
+            }
+
+            // 자리가 서로 다른 x 에 있으므로 창도 서로 달라야 한다. 같은 값이 반복되면
+            // 좌표가 배선을 지나지 못하고 어딘가 고정값으로 떨어진 것이다.
+            CollectionAssert.AllItemsAreUnique(seen, "자리가 달라도 창이 같은 자리에 선다");
         }
 
         private static bool Overlaps(RectTransform a, RectTransform b)
@@ -556,7 +784,7 @@ namespace SushiDefense.Tests.PlayMode
             }
 
             Assert.IsTrue(checkedAny,
-                          "Canvas 밖 라벨이 하나도 없다 — 대역·소화 라벨이 사라졌거나 이 테스트가 헛돈다");
+                          "Canvas 밖 라벨이 하나도 없다 — 소화 배지의 숫자가 사라졌거나 이 테스트가 헛돈다");
         }
 
         /// <summary>
@@ -773,10 +1001,18 @@ namespace SushiDefense.Tests.PlayMode
             }
         }
 
+        /// <summary>
+        /// 자리에 앉으면 <b>화면에 표시가 뜨는지</b> 본다. 머리 위 라벨을 걷어냈으므로(M6.6)
+        /// 남은 표시가 실제로 안 보이면 손님이 어떤 상태인지 알 방법이 통째로 사라진다.
+        ///
+        /// <para>
+        /// <b>씬의 인스턴스를 본다.</b> 프리팹이 멀쩡해도 씬에서 오버라이드로 꺼 두면
+        /// 프리팹 테스트는 전부 초록이다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
         [UnityTest]
-        public IEnumerator Play_Scene_OccupiedSeatShowsBand()
+        public IEnumerator Play_Scene_OccupiedSeatShowsSaturation()
         {
-            // 대역이 화면에 보이는지 — 이 마일스톤의 목적이 가독성이므로 선택이 아니다.
             var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
             var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
             slot.Occupy(logic, _stage.Coordinator);
@@ -784,7 +1020,31 @@ namespace SushiDefense.Tests.PlayMode
             yield return null;
 
             Assert.IsNotNull(slot.Occupant, "자리에 손님 시각 표현이 없다 — 씬 조립을 확인하라");
-            Assert.IsNotEmpty(slot.Occupant.BandText, "손님 옆에 대역이 표시되지 않는다");
+
+            var bar = slot.Occupant.GetComponentInChildren<SushiDefense.Customers.SaturationBarView>(true);
+            Assert.IsNotNull(bar, "포화도 바가 없다");
+            Assert.IsTrue(bar.gameObject.activeInHierarchy, "포화도 바가 꺼져 있다");
+            Assert.Greater(bar.ShownVisibleCells, 0, "포화도 칸이 하나도 안 켜졌다");
+        }
+
+        /// <summary>
+        /// 씬의 손님에게 <b>상시 라벨이 붙어 있지 않은지</b> 본다. 프리팹에서 지워도
+        /// 씬 인스턴스에 하나 얹혀 있으면 화면에는 그대로 나온다 — M6 에서 카드 크기가
+        /// 정확히 그 형태로 어긋나 있었다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SeatedCustomer_HasNoAlwaysOnLabel()
+        {
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+            slot.Occupy(logic, _stage.Coordinator);
+
+            yield return null;
+
+            var labels = slot.Occupant.GetComponentsInChildren<TMPro.TMP_Text>(true);
+
+            Assert.AreEqual(1, labels.Length, "손님 위 라벨은 소화 배지의 숫자 하나뿐이어야 한다");
+            Assert.AreEqual("RemainingLabel", labels[0].name);
         }
 
         [UnityTest]

@@ -179,5 +179,85 @@ namespace SushiDefense.Tests.EditMode.UI
 
             Assert.IsTrue(_arbiter.TryOpen(StageWindow.CustomerInfo));
         }
+
+        // ── 가려짐 ─────────────────────────────────────────────
+
+        /// <summary>
+        /// 혼자 떠 있는 창은 가려지지 않는다. <b>반례를 함께 박는다</b> — 항상 <c>false</c> 를
+        /// 돌려주는 구현도 이것만으로는 통과한다.
+        /// </summary>
+        [Test]
+        public void IsCovered_OnlyWindow_ReturnsFalse()
+        {
+            _arbiter.TryOpen(StageWindow.Reward);
+
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Reward));
+
+            _arbiter.TryOpen(StageWindow.Menu);
+
+            Assert.IsTrue(_arbiter.IsCovered(StageWindow.Reward), "위에 창이 떴는데 안 가려졌다");
+        }
+
+        /// <summary>
+        /// 위에 뜬 창 자신은 가려지지 않는다 — 조작 대상은 <b>가장 위 하나</b>다.
+        /// </summary>
+        [Test]
+        public void IsCovered_TopWindow_ReturnsFalse()
+        {
+            _arbiter.TryOpen(StageWindow.Reward);
+            _arbiter.TryOpen(StageWindow.Menu);
+
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Menu));
+        }
+
+        /// <summary>
+        /// 위의 창이 닫히면 <b>다시 드러난다.</b> 이 경로가 없으면 보상 창이 가려진 채 남아
+        /// 영영 눌리지 않는다 — 닫을 방법이 그 창의 버튼뿐이라 런이 멈춘다.
+        /// </summary>
+        [Test]
+        public void IsCovered_AfterTopCloses_ReturnsFalseAgain()
+        {
+            _arbiter.TryOpen(StageWindow.Reward);
+            _arbiter.TryOpen(StageWindow.Menu);
+            _arbiter.Close(StageWindow.Menu);
+
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Reward));
+        }
+
+        /// <summary>
+        /// 바뀔 때만 알린다. <b>값과 순서를 함께 본다</b> — «두 번 왔다» 만 세면 두 번 다
+        /// <c>true</c> 인 구현도 통과한다.
+        /// </summary>
+        [Test]
+        public void CoverageChanged_CoveredThenRevealed_ReportsBoth()
+        {
+            var log = new List<(StageWindow Window, bool Covered)>();
+            _arbiter.CoverageChanged += (w, c) => log.Add((w, c));
+
+            _arbiter.TryOpen(StageWindow.Reward);
+            Assert.IsEmpty(log, "혼자 떴을 뿐인데 알림이 갔다");
+
+            _arbiter.TryOpen(StageWindow.Menu);
+            _arbiter.Close(StageWindow.Menu);
+
+            Assert.AreEqual(new[] { (StageWindow.Reward, true), (StageWindow.Reward, false) }, log);
+        }
+
+        /// <summary>
+        /// 같은 상태로는 다시 알리지 않는다. 이미 떠 있는 창을 다시 열어 보는 것은 흔한
+        /// 경로이고, 그때마다 알리면 받는 쪽이 매번 <c>CanvasGroup</c> 을 건드린다.
+        /// </summary>
+        [Test]
+        public void CoverageChanged_ReopeningTheSameTop_DoesNotRepeat()
+        {
+            var log = new List<(StageWindow Window, bool Covered)>();
+            _arbiter.TryOpen(StageWindow.Reward);
+            _arbiter.TryOpen(StageWindow.Menu);
+            _arbiter.CoverageChanged += (w, c) => log.Add((w, c));
+
+            _arbiter.TryOpen(StageWindow.Menu);
+
+            Assert.IsEmpty(log);
+        }
     }
 }

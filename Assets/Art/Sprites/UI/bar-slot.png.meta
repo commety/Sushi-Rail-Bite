@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: aac363cdd2d544b6da00780c5d22a56d
+guid: 3709293aca2ee48e6b381db84395c441
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 8032661254159833103
-    second: card-frame-disabled_0
+      213: -9193356537599334751
+    second: bar-slot_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,23 +113,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: card-frame-disabled_0
+      name: bar-slot_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 48
-        height: 64
+        width: 12
+        height: 12
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f089d3f0adeb97f60800000000000000
-      internalID: 8032661254159833103
+      spriteID: 1a660e200f2aa6080800000000000000
+      internalID: -9193356537599334751
       vertices: []
       indices: 
       edges: []
@@ -138,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: a7631805b5a664b4592d9c33f041d9e1
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      card-frame-disabled_0: 8032661254159833103
+      bar-slot_0: -9193356537599334751
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -211,7 +211,7 @@ namespace SushiDefense
             Wallet = new RecruitWallet(ActiveStage.InitialRecruitBudget);
             Coordinator = new ClaimCoordinator(Belt, ActiveStage, Revenue, Wallet);
             Placement = new CustomerPlacementService(Coordinator, ActiveStage,
-                                                     new SequenceNumberIssuer(), Wallet);
+                                                     new SequenceNumberIssuer(), Wallet, Pause);
             Stage = new StageController(Coordinator, Revenue, ActiveStage);
             Stage.OutcomeDecided += OnOutcomeDecided;
 
@@ -282,6 +282,7 @@ namespace SushiDefense
 
             Windows = new StageWindowArbiter();
             Windows.CloseRequested += OnWindowCloseRequested;
+            Windows.CoverageChanged += OnWindowCoverageChanged;
 
             BuildRewards();
             BuildTransition();
@@ -313,8 +314,23 @@ namespace SushiDefense
             {
                 // 카메라를 넘기지 않는 것은 씬 진입점이 들고 있지 않기 때문이며,
                 // 라우터가 null 을 그대로 대입하지 않는다는 것이 그쪽의 계약이다.
-                _tapRouter.Bind(_slots, null, Inspector.Open, Inspector.Close);
+                _tapRouter.Bind(_slots, null, OpenInspectorAt, Inspector.Close);
             }
+        }
+
+        /// <summary>
+        /// 창을 <b>먼저 세우고</b> 띄운다. 순서를 바꾸면 한 프레임 동안 직전 손님 자리에
+        /// 창이 보인다.
+        ///
+        /// <para>
+        /// 람다가 아니라 메서드 그룹으로 넘긴다 — 나중에 구독을 풀 일이 생겨도 같은 대상을
+        /// 가리킬 수 있고, 매번 새 델리게이트를 만들지 않는다.
+        /// </para>
+        /// </summary>
+        private void OpenInspectorAt(CustomerLogic customer, Vector2 worldPoint)
+        {
+            _inspectorView.AnchorTo(worldPoint);
+            Inspector.Open(customer);
         }
 
         /// <summary>
@@ -494,6 +510,44 @@ namespace SushiDefense
         }
 
         /// <summary>
+        /// 가려진 창의 조작을 막는다. <b>보이지만 눌리지 않는 상태</b>로 둔다.
+        ///
+        /// <para>
+        /// 숨기지 않는 이유: 보상 창은 밑에 깔린 채로 <b>무엇을 고르는 중이었는지</b> 보여야
+        /// 하고, 위의 창이 닫히면 그대로 다시 조작할 수 있어야 한다.
+        /// </para>
+        /// <para>
+        /// <c>blocksRaycasts</c> 는 <b>건드리지 않는다.</b> 끄면 클릭이 창을 통과해 뒤의
+        /// 판으로 떨어진다 — 가려진 창 위를 눌렀을 때 손님이 앉으면 더 나쁘다.
+        /// </para>
+        /// </summary>
+        private void OnWindowCoverageChanged(StageWindow window, bool covered)
+        {
+            var view = window switch
+            {
+                StageWindow.Menu => (Component)_stageMenuView,
+                StageWindow.Deck => _deckPanelView,
+                StageWindow.Reward => _rewardView,
+                StageWindow.CustomerInfo => _inspectorView,
+                _ => null
+            };
+
+            if (view == null)
+            {
+                return;
+            }
+
+            // 씬에 미리 놓아 두지 않아도 되게 여기서 챙긴다. 요구했다가 빠지면 «가렸는데
+            // 그대로 눌린다» 가 조용히 돌아온다.
+            if (!view.TryGetComponent<CanvasGroup>(out var group))
+            {
+                group = view.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            group.interactable = !covered;
+        }
+
+        /// <summary>
         /// 같은 판을 다시 연다. <c>Retry</c> 와 같은 것이며, 이름이 둘이 되지 않도록
         /// 명시적 구현으로 넘긴다 — 재시작 경로가 하나여야 덱·명부 유지 규칙도 한 곳에 남는다.
         /// </summary>
@@ -577,6 +631,11 @@ namespace SushiDefense
         /// </summary>
         private void OnOutcomeDecided(StageOutcome outcome)
         {
+            // 판정이 나면 멈춘다. 시계는 컨트롤러가 이미 세우지만, 멈춤은 «시간» 이 아니라
+            // «판을 조작할 수 있는지» 를 뜻하기도 한다 — 이 줄이 없으면 보상 화면 위에서
+            // 손님을 앉혀 끝난 판에 영입 재화가 나간다. 다음 판은 Build 가 다시 흐르게 한다.
+            Pause?.Pause();
+
             // 판이 끝나면 정보 창을 내린다. 보상은 «밑에 깔리는» 창이라 조정자가 아무것도
             // 밀어내지 않고, 정보 창은 아이콘으로 토글되지도 않아 스스로 닫힐 길이 없다 —
             // 그대로 두면 보상 화면 위에 남고 다음 판까지 따라간다.
@@ -759,6 +818,7 @@ namespace SushiDefense
             if (Windows != null)
             {
                 Windows.CloseRequested -= OnWindowCloseRequested;
+                Windows.CoverageChanged -= OnWindowCoverageChanged;
                 Windows = null;
             }
 

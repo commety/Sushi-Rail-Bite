@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SushiDefense.Customers
@@ -138,9 +139,33 @@ namespace SushiDefense.Customers
 
             if (_cells == null || _cells.Length == 0)
             {
-                // 씬 전역 탐색이 아니다 — 자기 하위의 칸만 모은다 (§4.3).
-                _cells = GetComponentsInChildren<SpriteRenderer>(true);
+                _cells = CollectCells();
             }
+        }
+
+        /// <summary>
+        /// 칸은 <b>바의 직접 자식</b>이다. 씬 전역 탐색이 아니다 (§4.3).
+        ///
+        /// <para>
+        /// <b>하위 전체를 훑지 않는다.</b> 칸에 장식(배경판)이 달리면 그것까지 칸으로 세어
+        /// <b>개수가 두 배가 되고</b>, 장식이 칸과 함께 틴트돼 금색으로 물든다 — 칸 수가
+        /// 바뀌면 <see cref="SaturationGauge.VisibleCells"/> 가 보는 용량이 달라져
+        /// 소식가와 먹보의 칸 수까지 어긋난다. 예외는 나지 않는다.
+        /// </para>
+        /// </summary>
+        private SpriteRenderer[] CollectCells()
+        {
+            var found = new List<SpriteRenderer>(transform.childCount);
+
+            for (var i = 0; i < transform.childCount; i++)
+            {
+                if (transform.GetChild(i).TryGetComponent<SpriteRenderer>(out var cell))
+                {
+                    found.Add(cell);
+                }
+            }
+
+            return found.ToArray();
         }
     }
 }

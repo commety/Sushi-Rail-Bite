@@ -37,11 +37,26 @@ namespace SushiDefense.UI
 
         private readonly List<StageWindow> _open = new();
 
+        /// <summary>지금 가려진 것으로 알린 창들. 같은 알림을 두 번 보내지 않기 위한 기록이다.</summary>
+        private readonly List<StageWindow> _covered = new();
+
         /// <summary>
         /// 이 창을 내려 달라. <b>목록에서 빠진 뒤에</b> 발생하므로, 받은 쪽이 곧바로
         /// <see cref="Close"/> 를 불러도 되돌아오지 않는다.
         /// </summary>
         public event Action<StageWindow> CloseRequested;
+
+        /// <summary>
+        /// 이 창이 가려졌거나 다시 드러났다 — <c>(창, 가려졌나)</c>.
+        ///
+        /// <para>
+        /// <b>우선순위는 «누가 살아남나» 만 정하는 것이 아니었다.</b> 밑에 깔린 창이 화면에
+        /// 남아 있으면 그 버튼도 그대로 눌린다 — 실플레이에서 메뉴를 연 채 보상 창의
+        /// «건너뛰기» 가 먹혔고, 그 결과 다음 판이 시작되며 멈춤까지 풀렸다. 조정자는
+        /// 규칙을 아는 유일한 곳이므로 <b>여기서 알리고</b>, 실제로 끄는 것은 그 창이 한다.
+        /// </para>
+        /// </summary>
+        public event Action<StageWindow, bool> CoverageChanged;
 
         /// <summary>지금 떠 있는 창 수. 검증용이다.</summary>
         public int OpenCount => _open.Count;
@@ -50,6 +65,92 @@ namespace SushiDefense.UI
         public bool IsOpen(StageWindow window)
         {
             return _open.Contains(window);
+        }
+
+        /// <summary>
+        /// 이 창이 다른 창에 가려져 있나. <b>가려진 창은 조작할 수 없다.</b>
+        ///
+        /// <para>
+        /// 떠 있는 창 중 <b>우선순위가 가장 높은 것 하나만</b> 조작 대상이다. 겹침이 생기는
+        /// 경우가 «보상 위에 하나» 뿐이라 지금은 보상만 가려지지만, 규칙을 그렇게 적으면
+        /// 겹치는 창이 하나 늘 때 여기도 함께 고쳐야 한다.
+        /// </para>
+        /// </summary>
+        public bool IsCovered(StageWindow window)
+        {
+            return _open.Count > 1 && _open.Contains(window) && window != Topmost();
+        }
+
+        /// <summary>떠 있는 창 중 가장 위. 하나도 없으면 가장 아래 값을 돌려준다.</summary>
+        private StageWindow Topmost()
+        {
+            var top = Lowest;
+            for (var i = 0; i < _open.Count; i++)
+            {
+                if (i == 0 || _open[i] > top)
+                {
+                    top = _open[i];
+                }
+            }
+
+            return top;
+        }
+
+        /// <summary>
+        /// 가려짐이 바뀐 창에만 알린다.
+        ///
+        /// <para>
+        /// <b>목록이 바뀌는 모든 경로 끝에서 부른다.</b> 여는 쪽만 부르면 위에 있던 창이
+        /// 닫혔을 때 밑의 창이 <b>가려진 채로 남아</b> 영영 눌리지 않는다.
+        /// </para>
+        /// <para>
+        /// <b>기록을 먼저 고치고 나중에 알린다</b> — <see cref="Evict"/> 와 같은 규칙이다.
+        /// 알리는 도중에 받은 쪽이 창을 여닫으면 순회하던 목록이 바뀐다.
+        /// </para>
+        /// </summary>
+        private void RefreshCoverage()
+        {
+            // 닫힌 창의 기록을 먼저 지운다. 남겨 두면 다시 열렸을 때 «이미 가려짐» 으로
+            // 보여 알림이 빠진다.
+            for (var i = _covered.Count - 1; i >= 0; i--)
+            {
+                if (!_open.Contains(_covered[i]))
+                {
+                    _covered.RemoveAt(i);
+                }
+            }
+
+            List<StageWindow> changed = null;
+            for (var i = 0; i < _open.Count; i++)
+            {
+                if (_covered.Contains(_open[i]) != IsCovered(_open[i]))
+                {
+                    changed ??= new List<StageWindow>();
+                    changed.Add(_open[i]);
+                }
+            }
+
+            if (changed == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < changed.Count; i++)
+            {
+                if (_covered.Contains(changed[i]))
+                {
+                    _covered.Remove(changed[i]);
+                }
+                else
+                {
+                    _covered.Add(changed[i]);
+                }
+            }
+
+            for (var i = 0; i < changed.Count; i++)
+            {
+                CoverageChanged?.Invoke(changed[i], _covered.Contains(changed[i]));
+            }
         }
 
         /// <summary>
@@ -80,6 +181,7 @@ namespace SushiDefense.UI
             if (window == Underlay)
             {
                 _open.Add(window);
+                RefreshCoverage();
                 return true;
             }
 
@@ -92,6 +194,7 @@ namespace SushiDefense.UI
 
             Evict();
             _open.Add(window);
+            RefreshCoverage();
             return true;
         }
 
@@ -102,6 +205,7 @@ namespace SushiDefense.UI
         public void Close(StageWindow window)
         {
             _open.Remove(window);
+            RefreshCoverage();
         }
 
         /// <summary>

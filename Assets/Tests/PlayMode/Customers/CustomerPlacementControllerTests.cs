@@ -45,7 +45,8 @@ namespace SushiDefense.Tests.PlayMode.Customers
             var wallet = new RecruitWallet(100000);
             _coordinator = new ClaimCoordinator(_belt, _config, new RevenueLedger(), wallet);
             _service = new CustomerPlacementService(_coordinator, _config,
-                                                    new SequenceNumberIssuer(), wallet);
+                                                    new SequenceNumberIssuer(), wallet,
+                                                    new SushiDefense.Stages.PauseState());
 
             _seatVisual = NewObject("SeatVisual").AddComponent<CustomerView>();
             _slot = NewObject("TableSlot").AddComponent<TableSlotView>();

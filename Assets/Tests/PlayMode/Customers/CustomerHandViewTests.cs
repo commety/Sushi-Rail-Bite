@@ -63,7 +63,8 @@ namespace SushiDefense.Tests.PlayMode.Customers
             _wallet = new RecruitWallet(_config.InitialRecruitBudget);
             _coordinator = new ClaimCoordinator(belt, _config, new RevenueLedger(), _wallet);
             _placement = new CustomerPlacementService(_coordinator, _config,
-                                                      new SequenceNumberIssuer(), _wallet);
+                                                      new SequenceNumberIssuer(), _wallet,
+                                                      new SushiDefense.Stages.PauseState());
 
             _controller = NewObject("Placement").AddComponent<CustomerPlacementController>();
             _controller.Bind(_placement, _coordinator);

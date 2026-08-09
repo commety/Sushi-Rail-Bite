@@ -45,6 +45,8 @@ SLICE_BORDERS = {
     "button": (6, 6, 6, 6),
     "button-pressed": (6, 6, 6, 6),
     "panel": (8, 8, 8, 8),
+    "card-frame": (8, 8, 8, 8),
+    "card-frame-disabled": (8, 8, 8, 8),
 }
 
 
@@ -102,7 +104,16 @@ class Canvas:
 # ── 스프라이트 ─────────────────────────────────────────────────────────────
 
 def card_frame(disabled: bool) -> Canvas:
-    """48x64 카드 틀. 등급별로 나누지 않는다 — 틀은 하나다 (README D3)."""
+    """48x64 카드 틀. 등급별로 나누지 않는다 — 틀은 하나다 (README D3).
+
+    **가운데는 비워 둔다.** 9-slice 테두리가 8 이라 `y 8~55` 가 카드 안쪽 전체(176px)로
+    늘어나므로, 여기 그린 것은 무엇이든 화면에서 굵은 띠가 되어 설명 글자를 덮는다.
+    한때 아래쪽에 대비용 한 단이 깔려 있었는데, 카드가 커지면서 그 위쪽 6줄이 늘어나
+    **글자를 읽히게 하려던 것이 정확히 반대로 작동했다.** 대비가 필요하면 그 자리는
+    카드 프리팹의 글자 영역이 진다.
+
+    모서리 못은 테두리 영역(0~7) 안이라 늘어나지 않는다 — 그래서 남는다.
+    """
     border = RAIL_LIGHT if disabled else WOOD_LIGHT
     inner = RAIL if disabled else WOOD_DARK
     fill = PLATE_DARK if disabled else PLATE
@@ -113,12 +124,7 @@ def card_frame(disabled: bool) -> Canvas:
     c.frame(1, 1, 46, 62, inner)
     c.rect(3, 3, 42, 58, fill)
 
-    # 아래쪽 수치 줄 자리를 한 단 어둡게 깔아 텍스트 대비를 만든다.
-    c.rect(3, 50, 42, 11, PLATE_DARK if not disabled else RAIL_LIGHT)
-    c.rect(3, 50, 42, 1, inner)
-
-    # 네 모서리 못은 **수치 줄보다 뒤에** 찍는다 — 먼저 찍으면 아래 둘이 덮인다.
-    # 못 놓는 카드는 금색을 뺀다: 색만으로도 구분되게.
+    # 못은 색만으로도 구분되게 — 못 놓는 카드는 금색을 뺀다.
     for cx, cy in ((3, 3), (43, 3), (3, 59), (43, 59)):
         c.rect(cx, cy, 2, 2, accent)
     return c
@@ -146,6 +152,25 @@ def bar_cell() -> Canvas:
     # 네 귀퉁이를 깎아 칸이 이어져도 개수가 세어진다.
     for x, y in ((0, 0), (7, 0), (0, 7), (7, 7)):
         c.set(x, y, (0, 0, 0), 0)
+    return c
+
+
+def bar_slot() -> Canvas:
+    """12x12 포화도 칸 배경판. 칸(8x8)보다 사방 2px 크다.
+
+    손님 옆 세로바는 **테이블 스프라이트를 벗어날 수 없다** — 테이블이 자리 기준 좌우
+    ±1 유닛을 덮는데 손님 몸통은 ±0.5 뿐이고, 벗어나려 |x| > 1 로 밀면 이웃 자리에 닿는다.
+    그래서 위치가 아니라 **배경으로** 푼다: 뒤가 나무든 벽이든 금색 칸이 같게 읽힌다.
+
+    **불투명이어야 한다.** 판이 칸 간격보다 커서 서로 겹치는데, 반투명이면 겹친 자리만
+    두 번 어두워져 줄무늬가 생긴다. 겹치는 것은 의도다 — 그래야 칸이 이어질 때 판도
+    한 줄기 기둥이 된다.
+
+    **9-slice 가 아니다.** 원본 비율 그대로 균일 배율로 쓰므로 테두리를 물릴 일이 없다.
+    """
+    c = Canvas(12, 12)
+    c.rect(0, 0, 12, 12, RAIL_DARK)
+    c.rect(1, 1, 10, 10, RAIL)
     return c
 
 
@@ -222,6 +247,7 @@ SPRITES = {
     "card-frame-disabled": lambda: card_frame(True),
     "badge-digesting": badge_digesting,
     "bar-cell": bar_cell,
+    "bar-slot": bar_slot,
     "button": lambda: button(False),
     "button-pressed": lambda: button(True),
     "panel": panel,
