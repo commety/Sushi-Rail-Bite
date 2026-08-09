@@ -35,35 +35,64 @@ namespace SushiDefense.UI
         }
 
         /// <summary>
-        /// 초밥 카드의 수치 줄 — <b>얼마짜리인가</b>와 <b>얼마나 배부른가</b>.
+        /// 카드 우상단 동전에 들어갈 값. <b>손님만 비용이 있다.</b>
+        ///
+        /// <para>
+        /// 초밥 쪽이 빈 문자열을 돌려주는 것은 실수가 아니라 계약이다 — 부르는 쪽이 그것으로
+        /// 동전을 끈다. 여기서 <c>"0"</c> 을 돌려주면 초밥 카드에 공짜라는 값이 붙는다.
+        /// </para>
+        /// </summary>
+        public static string CostOf(CustomerData customer)
+        {
+            return customer == null ? string.Empty : customer.RecruitCost.ToString();
+        }
+
+        /// <inheritdoc cref="CostOf(CustomerData)" />
+        public static string CostOf(SushiData sushi)
+        {
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// 초밥 카드의 수치 <b>행</b> — <b>얼마짜리인가</b>와 <b>얼마나 배부른가</b>.
         ///
         /// <para>
         /// 가격은 이 게임의 핵심 규칙(선호 대역)의 입력이고, 포화도는 한 손님이 몇 개나
         /// 먹을 수 있는지를 정한다. 둘 다 없으면 카드가 그림과 이름뿐이 된다.
         /// </para>
+        /// <para>
+        /// <b>손님보다 행이 적다.</b> <c>SushiData</c> 가 가진 것이 둘뿐이라 데이터에서 이미
+        /// 확정된 차이이며, 줄 수를 맞추려 하면 빈 행이 생긴다.
+        /// </para>
         /// </summary>
         public static string DetailOf(SushiData sushi)
         {
-            return sushi == null ? string.Empty : $"{sushi.Price} · 포화 {sushi.SaturationAmount}";
+            return sushi == null
+                ? string.Empty
+                : $"가격 {sushi.Price}\n포화 {sushi.SaturationAmount}";
         }
 
         /// <summary>
-        /// 손님 카드의 수치 줄 — <b>무엇을 노리는가</b>와 <b>얼마나 드는가</b>.
+        /// 손님 카드의 수치 <b>행</b> — 배치 결정을 좌우하는 값들.
         ///
-        /// <para>
-        /// 영입 비용을 함께 적는 것은 <c>RewardOffer.DisplayName</c> 이 이미 내린 판단이다 —
-        /// 비용을 모르면 얻고 나서 예산이 모자라 못 앉히는 상황을 고르는 시점에 예측할 수 없다.
-        /// </para>
         /// <para>
         /// 대역은 하한과 상한을 <b>둘 다</b> 적는다. 한쪽만 쓰면 좁은 손님과 넓은 손님이
         /// 카드에서 같아 보이는데, 폭이 배정 순위를 가르는 값이라 플레이어가 알아야 한다.
+        /// </para>
+        /// <para>
+        /// <b>영입 비용은 여기 없다.</b> 카드 우상단 동전이 지므로(<see cref="CostOf(CustomerData)"/>)
+        /// 여기 또 적으면 같은 값이 카드에 두 번 나온다.
         /// </para>
         /// </summary>
         public static string DetailOf(CustomerData customer)
         {
             return customer == null
                 ? string.Empty
-                : $"{customer.TargetingMin}~{customer.TargetingMax} · 영입 {customer.RecruitCost}";
+                : $"범위 {customer.Reach}\n"
+                  + $"대역 {customer.TargetingMin}~{customer.TargetingMax}\n"
+                  + $"포화도 {customer.MaxSaturation}\n"
+                  + $"소화 {customer.DigestSeconds}초\n"
+                  + $"인구수 {customer.Population}";
         }
 
         private static string Fallback(string displayName, string assetName)

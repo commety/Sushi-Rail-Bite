@@ -73,5 +73,34 @@ namespace SushiDefense.Tests.EditMode.Customers
         {
             Assert.IsNotNull(_variant.GetComponent<CanvasGroup>());
         }
+
+        /// <summary>
+        /// <b>여기서만 크기를 단언한다.</b> 다른 곳에서 레이아웃 값을 박지 않는 것은 그것이
+        /// 사람이 만질 연출 수치이기 때문인데, 이 테스트가 보는 것은 값 자체가 아니라
+        /// <b>배리언트가 틀과 어긋났는가</b>다.
+        ///
+        /// <para>
+        /// 배리언트는 크기를 <b>오버라이드로</b> 들고 있어서, 틀을 128×192 로 키워도 손패만
+        /// 옛 크기로 남는다. 그러면 같은 카드가 화면마다 다른 크기로 나오는데 — 카드 틀을
+        /// 하나로 유지하는 이유가 정확히 그것을 막는 것이다 (M6 D3).
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Variant_RootSize_MatchesTheCardPrefab()
+        {
+            var basePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BasePath);
+
+            Assert.AreEqual(((RectTransform)basePrefab.transform).sizeDelta,
+                            ((RectTransform)_variant.transform).sizeDelta,
+                            "손패 카드만 옛 크기로 남았다");
+        }
+
+        /// <summary>틀에서 물려받은 비용 자리도 살아 있어야 한다.</summary>
+        [Test]
+        public void Variant_KeepsCostLabelAndCoin()
+        {
+            Assert.IsNotNull(_variant.transform.Find("CostLabel"), "CostLabel 이 없다");
+            Assert.IsNotNull(_variant.transform.Find("Coin"), "Coin 이 없다");
+        }
     }
 }

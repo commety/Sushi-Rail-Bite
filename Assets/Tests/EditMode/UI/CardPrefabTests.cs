@@ -104,5 +104,51 @@ namespace SushiDefense.Tests.EditMode.UI
             Assert.IsNotNull(label, "DetailLabel 자식이 없다");
             Assert.IsNotNull(label.GetComponent<TMP_Text>());
         }
+
+        [Test]
+        public void Prefab_HasCostLabelChild()
+        {
+            var label = _prefab.transform.Find("CostLabel");
+
+            Assert.IsNotNull(label, "CostLabel 자식이 없다");
+            Assert.IsNotNull(label.GetComponent<TMP_Text>());
+        }
+
+        /// <summary>
+        /// 동전은 <b>카드의 직접 자식</b>이어야 한다. <see cref="CardView"/> 는
+        /// <c>transform.Find</c> 로 한 겹만 찾으므로, 한 단계라도 깊어지면 조용히 못 찾고
+        /// 값 없는 동전이 초밥 카드에 남는다.
+        /// </summary>
+        [Test]
+        public void Prefab_HasCoinChild()
+        {
+            Assert.IsNotNull(_prefab.transform.Find("Coin"), "Coin 자식이 없다");
+        }
+
+        /// <summary>
+        /// <b>비용 라벨도 직접 자식이다.</b> 동전 밑에 넣고 싶어지는 자리인데, 그러면 위와
+        /// 같은 이유로 영영 안 찾힌다.
+        /// </summary>
+        [Test]
+        public void Prefab_CostLabel_IsNotUnderTheCoin()
+        {
+            var label = _prefab.transform.Find("CostLabel");
+
+            Assert.AreSame(_prefab.transform, label.parent);
+        }
+
+        /// <summary>
+        /// 폰트가 비면 한글·숫자가 두부(□)가 된다. WebGL 은 OS 폰트에 접근할 수 없고,
+        /// 에디터에서는 시스템 폰트가 메워 주므로 <b>빌드해야만 드러난다.</b>
+        /// </summary>
+        [Test]
+        public void Prefab_EveryLabel_HasFont()
+        {
+            foreach (var name in new[] { "NameLabel", "DetailLabel", "CostLabel" })
+            {
+                var label = _prefab.transform.Find(name).GetComponent<TMP_Text>();
+                Assert.IsNotNull(label.font, $"{name} 의 폰트가 비었다");
+            }
+        }
     }
 }

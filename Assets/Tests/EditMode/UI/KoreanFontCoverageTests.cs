@@ -119,6 +119,13 @@ namespace SushiDefense.Tests.EditMode.UI
             AssertCovers("백과사전 포화 영입");
         }
 
+        /// <summary>카드의 스탯 행 문구 (M6.5). 행 단위로 나뉘면서 라벨이 늘었다.</summary>
+        [Test]
+        public void Font_CoversCardStatRows()
+        {
+            AssertCovers("가격 포화 범위 대역 포화도 소화 초 인구수");
+        }
+
         [Test]
         public void Font_CoversSushiDisplayNames()
         {
