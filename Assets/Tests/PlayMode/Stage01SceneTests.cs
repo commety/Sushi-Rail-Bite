@@ -1063,6 +1063,44 @@ namespace SushiDefense.Tests.PlayMode
                             "잔액 = 초기 예산 − 영입 비용 + 매출/10");
         }
 
+        /// <summary>
+        /// 자리에 앉은 손님이 <b>자기 그림</b>으로 나오는지 본다.
+        ///
+        /// <para>
+        /// <c>CustomerViewTests</c> 는 뷰에 아이콘을 직접 물려 주므로, 밸런스 애셋의 아이콘
+        /// 참조가 통째로 끊겨도 전부 초록이다 (<c>.claude/rules/tests.md</c> §1 — 하네스가
+        /// 지나치는 우회로). 실제로 손님 그림을 4방향으로 다시 그리며 옛 파일이 지워졌을 때
+        /// 세 유형의 아이콘이 끊긴 채 커밋됐고, 화면에는 <b>프리팹의 기본 그림</b>이 남았다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_PlacedCustomerWearsItsOwnArt()
+        {
+            // 서비스(`Placement.Place`)가 아니라 **컨트롤러**를 부른다. 서비스만 부르면
+            // 자리가 점유되지 않아 «손님 n/3» 은 오르는데 화면에는 아무것도 안 나타난다 —
+            // 그 우회로가 곧 이 테스트가 막으려는 사각지대다.
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var controller = Object.FindAnyObjectByType<
+                SushiDefense.Customers.CustomerPlacementController>();
+
+            // **기본 손님으로 확인하지 않는다.** 프리팹의 기본 그림이 마침 기본 손님의
+            // 아이콘이라, 아이콘 대입을 통째로 지워도 이 단언이 통과한다 — 실제로 그렇게
+            // 짰다가 주입에서 아무도 안 죽는 것을 보고 알았다.
+            var data = LoadCustomer("Customer.BigEater");
+            var prefabSprite = PrefabDefaultBodySprite();
+
+            Assert.IsNotNull(data.Icon, $"{data.name} 에 그림이 물려 있지 않다");
+            Assert.AreNotSame(prefabSprite, data.Icon,
+                              "이 손님의 그림이 프리팹 기본값과 같아 검증이 공허해진다");
+            Assert.IsTrue(controller.TryPlace(data, slot), "배치가 거부됐다");
+
+            yield return null;
+
+            Assert.IsNotNull(slot.Occupant, "자리에 시각 표현이 없다");
+            Assert.AreSame(data.Icon, slot.Occupant.ShownSprite,
+                           "자리가 손님의 그림 대신 프리팹 기본 그림을 그리고 있다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_SushiViewsFollowModels()
         {
@@ -1533,6 +1571,18 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         private static SushiDefense.Data.CustomerData DefaultCustomer() => LoadCustomer("Customer.Standard");
+
+        /// <summary>손님 프리팹이 들고 태어나는 그림. 자리가 빌 때 되돌아가는 값이다.</summary>
+        private static Sprite PrefabDefaultBodySprite()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Code/Scripts/Presentation/Customers/Customer.prefab");
+            return prefab.GetComponent<SpriteRenderer>().sprite;
+#else
+            return null;
+#endif
+        }
 
         /// <summary>
         /// 밸런스 애셋을 이름으로 연다. 순수 로직 테스트에서는 금지된 방식이지만
