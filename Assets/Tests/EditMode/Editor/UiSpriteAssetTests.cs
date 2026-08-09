@@ -38,12 +38,22 @@ namespace SushiDefense.Tests.EditMode.Editor
             ["icon-menu"] = new Vector2Int(16, 16),
         };
 
-        /// <summary>9-slice 로 늘어나는 것들. 나머지는 테두리가 0 이어야 한다.</summary>
+        /// <summary>
+        /// 9-slice 로 늘어나는 것들. 나머지는 테두리가 0 이어야 한다.
+        ///
+        /// <para>
+        /// 카드 틀이 M6.5 에서 여기 들어왔다. 원본이 48×64 인데 카드가 128×192 가 되면서
+        /// <b>그냥 늘리면 픽셀 아트의 각이 죽는다</b> — 테두리를 주면 모서리는 원본 픽셀
+        /// 그대로 남고 가운데만 늘어난다.
+        /// </para>
+        /// </summary>
         private static readonly Dictionary<string, float> SliceBorders = new()
         {
             ["button"] = 6f,
             ["button-pressed"] = 6f,
             ["panel"] = 8f,
+            ["card-frame"] = 8f,
+            ["card-frame-disabled"] = 8f,
         };
 
         private static IEnumerable<string> Names => Expected.Keys;
@@ -106,11 +116,18 @@ namespace SushiDefense.Tests.EditMode.Editor
             Assert.AreEqual(SpriteMeshType.FullRect, settings.spriteMeshType, $"{name} 메시 타입");
         }
 
+        /// <summary>
+        /// <b>임포터 필드가 아니라 로드된 스프라이트를 읽는다.</b> 임포터의
+        /// <c>spriteBorder</c> 는 Single 모드용 입력이고, 이 스프라이트들은 Multiple 모드라
+        /// 실제 값이 <b>스프라이트 시트 항목</b> 쪽에 산다 — 둘이 어긋나면 임포터만 보는
+        /// 검사는 «테두리를 넣었는데 화면은 그대로» 를 놓친다. <c>Image</c> 가 쓰는 것은
+        /// 여기 <see cref="Sprite.border"/> 다.
+        /// </summary>
         [Test]
         public void StretchedSprites_HaveNineSliceBorders(
             [ValueSource(nameof(SliceBorderNames))] string name)
         {
-            var border = Importer(name).spriteBorder;
+            var border = LoadSprite(name).border;
             var expected = SliceBorders[name];
 
             Assert.AreEqual(expected, border.x, 0.001f, $"{name} 왼쪽");
@@ -126,7 +143,15 @@ namespace SushiDefense.Tests.EditMode.Editor
         [Test]
         public void FixedSprites_HaveNoBorder([ValueSource(nameof(FixedNames))] string name)
         {
-            Assert.AreEqual(Vector4.zero, Importer(name).spriteBorder, name);
+            Assert.AreEqual(Vector4.zero, LoadSprite(name).border, name);
+        }
+
+        private static Sprite LoadSprite(string name)
+        {
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{Dir}{name}.png");
+
+            Assert.IsNotNull(sprite, $"{name} 의 스프라이트를 로드하지 못했다");
+            return sprite;
         }
 
         private static IEnumerable<string> SliceBorderNames => SliceBorders.Keys;
