@@ -20,6 +20,7 @@ namespace SushiDefense.Data
         [SerializeField, Min(1)] private int _maxSaturation = 1;
         [SerializeField, Min(0f)] private float _digestSeconds;
         [SerializeField, Min(0)] private int _recruitCost;
+        [SerializeField, Min(1)] private int _population = 1;
         [SerializeField] private Sprite _icon;
 
         /// <summary>덱·저장에서 이 손님을 가리키는 안정적 키.</summary>
@@ -75,12 +76,30 @@ namespace SushiDefense.Data
         /// <summary>이 손님을 배치할 때 영입 재화에서 빠지는 비용.</summary>
         public int RecruitCost => _recruitCost;
 
+        /// <summary>
+        /// 이 손님이 배치 한도에서 차지하는 몫.
+        ///
+        /// <para>
+        /// <b>자리 수가 아니다.</b> 인구수가 2여도 앉는 자리는 하나이며, 화면에 «반쯤 앉은
+        /// 손님» 은 없다. 그래서 이름이 <c>SeatCost</c> 가 아니다 — 자리를 뜻하는 이름을 붙이면
+        /// 다음 사람이 반드시 자리 점유로 구현한다.
+        /// </para>
+        /// <para>
+        /// <b>여기서는 세지 않는다.</b> 합계와 한도 비교는 <c>Runtime</c> 의
+        /// <c>CustomerPlacementService</c> 한 곳이다 — <c>Runtime.Data</c> 는 계약이지 계산이
+        /// 아니고, 산술이 흩어지면 한도를 고칠 때 절반만 고쳐진다.
+        /// </para>
+        /// </summary>
+        public int Population => _population;
+
         /// <summary>테이블·UI 에 그릴 스프라이트.</summary>
         public Sprite Icon => _icon;
 
         /// <summary>
         /// 음수·0 방어. <c>[Min]</c> 은 인스펙터 입력만 막으므로 여기서 한 번 더 조인다.
         /// 최대 포화도가 0 이면 손님이 아무것도 못 먹으므로 1 이 하한이다.
+        /// 인구수도 1 이 하한이다 — 0 이면 배치 한도가 이 손님을 세지 않아 한 자리에 무한히
+        /// 앉힐 수 있게 된다.
         /// 타겟팅 대역은 <c>min ≤ max</c> 가 유일한 구조 불변식이다 — <b>대역이 좁다·넓다,
         /// 덱 가격대와 맞다·아니다는 검증하지 않는다.</b> 그건 밸런스이지 오류가 아니다.
         /// </summary>
@@ -96,6 +115,7 @@ namespace SushiDefense.Data
             _maxSaturation = Mathf.Max(1, _maxSaturation);
             _digestSeconds = Mathf.Max(0f, _digestSeconds);
             _recruitCost = Mathf.Max(0, _recruitCost);
+            _population = Mathf.Max(1, _population);
         }
     }
 }
