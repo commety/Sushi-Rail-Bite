@@ -393,6 +393,12 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// <b>씬을 지나 정보 창이 열리는지</b> 본다. 앞의 셋은 «있다» 만 보므로 배선이 끊겨도
         /// 통과한다 — 자리에 손님을 앉히고 그 좌표를 눌러 끝까지 간다.
+        ///
+        /// <para>
+        /// <b>창이 옮겨졌는지도 여기서 본다.</b> 자리별 기하 검사는 <c>AnchorTo</c> 를 직접
+        /// 부르므로 부트스트랩의 배선을 지나친다 — 누름에서 자리 잡기까지 이어지는지는
+        /// 이 경로만 안다 (<c>.claude/rules/tests.md</c> §1 «안쪽 진입점만 부르는 테스트»).
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_TappingASeatedCustomer_OpensTheInspector()
@@ -404,12 +410,18 @@ namespace SushiDefense.Tests.PlayMode
                                    slot.BeltPosition);
             slot.Occupy(_stage.Placement.OccupantOf(slot.SlotIndex), _stage.Coordinator);
 
+            var panel = (RectTransform)_stage.GetComponentInChildren<CustomerInspectorView>(true)
+                                             .transform;
+            var parked = panel.anchoredPosition;
+
             var router = _stage.GetComponentInChildren<CustomerTapRouter>(true);
             var opened = router.TapAt(slot.transform.position);
             yield return null;
 
             Assert.IsTrue(opened, "자리를 눌렀는데 손님을 못 찾았다");
             Assert.IsTrue(_stage.Inspector.IsOpen, "정보 창이 안 열렸다");
+            Assert.AreNotEqual(parked, panel.anchoredPosition,
+                               "창이 씬에 적힌 자리에 그대로 있다 — 누름이 자리 잡기까지 못 갔다");
         }
 
         /// <summary>
@@ -463,25 +475,82 @@ namespace SushiDefense.Tests.PlayMode
         /// <summary>
         /// 정보 창이 <b>메뉴·덱 아이콘을 가리지 않는지</b> 본다. 처음 배치에서 패널이 두
         /// 아이콘 위에 정확히 겹쳐, 창이 뜨면 둘 다 누를 수 없었다.
+        ///
+        /// <para>
+        /// <b>자리마다 확인한다.</b> 창이 런타임에 손님을 따라 서게 됐으므로(M6.6) 씬에 적힌
+        /// 자리를 재는 것은 아무것도 지키지 않는다. 자리 하나만 보면 «오른쪽 끝에서만
+        /// 겹친다» 를 놓친다 — 클램프가 실제로 위험한 곳이 거기다.
+        /// </para>
         /// </summary>
         [UnityTest]
         public IEnumerator Play_Scene_InspectorPanel_DoesNotCoverTheIcons()
         {
             yield return WaitSeconds(0.2f);
 
-            var panel = (RectTransform)_stage.GetComponentInChildren<CustomerInspectorView>(true)
-                                             .transform;
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+            var panel = (RectTransform)view.transform;
+            var slots = _stage.GetComponentsInChildren<TableSlotView>(true);
 
-            foreach (var button in _stage.GetComponentsInChildren<Button>(true))
+            Assert.IsNotEmpty(slots, "전제: 씬에 자리가 있다");
+
+            foreach (var slot in slots)
             {
-                if (button.name != "OpenButton" && button.name != "ToggleButton")
-                {
-                    continue;
-                }
+                view.AnchorTo(slot.transform.position);
+                yield return null;
 
-                Assert.IsFalse(Overlaps(panel, (RectTransform)button.transform),
-                               $"정보 창이 {button.name} 을 덮는다");
+                foreach (var button in _stage.GetComponentsInChildren<Button>(true))
+                {
+                    if (button.name != "OpenButton" && button.name != "ToggleButton")
+                    {
+                        continue;
+                    }
+
+                    Assert.IsFalse(Overlaps(panel, (RectTransform)button.transform),
+                                   $"자리 {slot.SlotIndex} 에서 정보 창이 {button.name} 을 덮는다");
+                }
             }
+        }
+
+        /// <summary>
+        /// 창이 <b>실제로 손님을 따라 서는지</b> 본다. 겹침 검사만으로는 창이 여전히 우하단에
+        /// 붙어 있어도 통과한다 — 아이콘 위가 아니기만 하면 되기 때문이다.
+        ///
+        /// <para>
+        /// <b>카메라를 물려 주지 않는다.</b> 씬은 <c>_worldCamera</c> 가 빈 채로 재생되고
+        /// <c>Camera.main</c> 폴백을 탄다 — 여기서 카메라를 주입하면 그 분기가 죽어도 초록이
+        /// 된다 (<c>.claude/rules/tests.md</c> §1).
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_Inspector_StandsBesideEachSeat()
+        {
+            yield return WaitSeconds(0.2f);
+
+            var view = _stage.GetComponentInChildren<CustomerInspectorView>(true);
+            var panel = (RectTransform)view.transform;
+            var canvas = (RectTransform)panel.parent;
+            var slots = _stage.GetComponentsInChildren<TableSlotView>(true);
+            var seen = new System.Collections.Generic.List<Vector2>();
+
+            foreach (var slot in slots)
+            {
+                view.AnchorTo(slot.transform.position);
+                yield return null;
+
+                var min = panel.anchoredPosition - Vector2.Scale(panel.pivot, panel.rect.size);
+                var max = min + panel.rect.size;
+
+                Assert.GreaterOrEqual(min.x, canvas.rect.xMin, $"자리 {slot.SlotIndex}: 창이 왼쪽으로 새 나갔다");
+                Assert.LessOrEqual(max.x, canvas.rect.xMax, $"자리 {slot.SlotIndex}: 창이 오른쪽으로 새 나갔다");
+                Assert.GreaterOrEqual(min.y, canvas.rect.yMin, $"자리 {slot.SlotIndex}: 창이 아래로 새 나갔다");
+                Assert.LessOrEqual(max.y, canvas.rect.yMax, $"자리 {slot.SlotIndex}: 창이 위로 새 나갔다");
+
+                seen.Add(panel.anchoredPosition);
+            }
+
+            // 자리가 서로 다른 x 에 있으므로 창도 서로 달라야 한다. 같은 값이 반복되면
+            // 좌표가 배선을 지나지 못하고 어딘가 고정값으로 떨어진 것이다.
+            CollectionAssert.AllItemsAreUnique(seen, "자리가 달라도 창이 같은 자리에 선다");
         }
 
         private static bool Overlaps(RectTransform a, RectTransform b)
