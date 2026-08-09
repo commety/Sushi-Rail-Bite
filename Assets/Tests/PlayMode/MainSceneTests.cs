@@ -27,6 +27,11 @@ namespace SushiDefense.Tests.PlayMode
         public IEnumerator SetUp()
         {
 #if UNITY_EDITOR
+            // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
+            // 되돌리지 않으면 «첫 입력 전에는 조용하다» 를 보는 단언이 실행 순서에 따라
+            // 깨진다.
+            SushiDefense.Audio.AudioUnlockGate.ResetOnLoad();
+
             var parameters = new UnityEngine.SceneManagement.LoadSceneParameters(
                 UnityEngine.SceneManagement.LoadSceneMode.Single);
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, parameters);

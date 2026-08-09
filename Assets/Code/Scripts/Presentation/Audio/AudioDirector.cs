@@ -5,6 +5,7 @@ using SushiDefense.Run;
 using SushiDefense.Stages;
 using SushiDefense.UI;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SushiDefense.Audio
 {
@@ -197,6 +198,26 @@ namespace SushiDefense.Audio
             SilenceUntilUnlocked();
         }
 
+        /// <summary>
+        /// <b>이미 열린 페이지로 들어왔으면 기다리지 않는다.</b> 잠금은 페이지 단위인데
+        /// 진행자는 씬마다 새로 태어나므로, 여기서 한 번 확인하지 않으면 화면을 옮길 때마다
+        /// <b>다시 클릭하기 전까지 음악이 없다</b> — 메인 → 스테이지 → 메인 세 구간 모두에서
+        /// 그랬다.
+        ///
+        /// <para>
+        /// <c>Awake</c> 가 아니라 <c>Start</c> 인 이유: 씬 진입점이 <see cref="Bind"/> 로
+        /// 참조를 물리는 시점이 <c>Awake</c> 와 같은 프레임이라, 더 이른 곳에서 시작하면
+        /// 뱅크가 아직 없을 수 있다.
+        /// </para>
+        /// </summary>
+        private void Start()
+        {
+            if (_gate.TryConsumeUnlockMoment())
+            {
+                StartBgm();
+            }
+        }
+
         private void OnDestroy()
         {
             Unbind();
@@ -238,6 +259,8 @@ namespace SushiDefense.Audio
         /// </summary>
         private void Update()
         {
+            UnlockOnAnyInput();
+
             if (_placement == null)
             {
                 return;
@@ -260,6 +283,49 @@ namespace SushiDefense.Audio
             // 자리에 앉히려면 클릭이 있어야 한다 — 배치가 곧 첫 제스처다.
             NotifyUserInput();
             Play(_bank != null ? _bank.CustomerPlaced : null, CustomerPlacedCue);
+        }
+
+        /// <summary>
+        /// <b>버튼만이 제스처인 것은 아니다.</b> 잠금을 푸는 길이 버튼 클릭과 손님 배치
+        /// 둘뿐이었을 때는, 제목 화면에서 <b>빈 곳을 아무리 눌러도 음악이 시작되지 않았다</b> —
+        /// 플레이어에게는 «음악이 안 나오는 게임» 으로 보인다.
+        ///
+        /// <para>
+        /// 브라우저가 요구하는 것은 «제스처» 이지 «버튼» 이 아니므로, 아무 입력이나 받는다.
+        /// <b>완전한 자동 재생은 불가능하다</b> — 그것은 우리가 고칠 수 있는 종류의 것이
+        /// 아니다.
+        /// </para>
+        /// <para>
+        /// 열린 뒤에는 <b>장치를 읽지도 않는다.</b> 매 프레임 도는 경로라 잠금이 풀린 뒤에도
+        /// 계속 확인하면 값을 쓰지도 않을 검사를 평생 돌리게 된다.
+        /// </para>
+        /// </summary>
+        private void UnlockOnAnyInput()
+        {
+            if (_gate.IsUnlocked || !AnyInputThisFrame())
+            {
+                return;
+            }
+
+            NotifyUserInput();
+        }
+
+        private static bool AnyInputThisFrame()
+        {
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.press.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.anyKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            var touch = Touchscreen.current;
+            return touch != null && touch.primaryTouch.press.wasPressedThisFrame;
         }
 
         private void OnSushiEaten(CustomerLogic customer, SushiItem sushi)

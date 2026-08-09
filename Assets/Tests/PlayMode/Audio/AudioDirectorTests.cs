@@ -38,6 +38,9 @@ namespace SushiDefense.Tests.PlayMode.Audio
         [SetUp]
         public void SetUp()
         {
+            // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
+            AudioUnlockGate.ResetOnLoad();
+
             _bank = NewBank();
 
             var go = NewObject("AudioDirector");

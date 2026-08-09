@@ -36,6 +36,8 @@ namespace SushiDefense.Tests.PlayMode.Audio
         [SetUp]
         public void SetUp()
         {
+            AudioUnlockGate.ResetOnLoad();
+
             var audioGo = NewObject("AudioDirector");
             var sfx = audioGo.AddComponent<AudioSource>();
             var bgm = audioGo.AddComponent<AudioSource>();

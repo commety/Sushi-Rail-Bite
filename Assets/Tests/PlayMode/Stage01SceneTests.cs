@@ -36,6 +36,11 @@ namespace SushiDefense.Tests.PlayMode
         public IEnumerator SetUp()
         {
 #if UNITY_EDITOR
+            // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
+            // 되돌리지 않으면 «첫 입력 전에는 조용하다» 를 보는 단언이 실행 순서에 따라
+            // 깨진다.
+            SushiDefense.Audio.AudioUnlockGate.ResetOnLoad();
+
             var parameters = new UnityEngine.SceneManagement.LoadSceneParameters(
                 UnityEngine.SceneManagement.LoadSceneMode.Single);
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, parameters);
@@ -848,6 +853,49 @@ namespace SushiDefense.Tests.PlayMode
             var director = _stage.GetComponentInChildren<SushiDefense.Audio.AudioDirector>(true);
             Assert.IsNotNull(director, "씬에 AudioDirector 가 없다");
             Assert.IsFalse(director.IsBgmPlaying, "첫 입력 전에 배경음이 울리면 안 된다");
+
+            // **참조가 비어도 여기까지는 전부 통과한다.** 실제로 두 소스가 씬에서 통째로
+            // 비어 있었고, 스테이지에서는 배경음도 효과음도 한 번도 나지 않았다 — 예외도
+            // 로그도 없어 «메인에서 스테이지로 넘어가면 조용해진다» 로만 드러났다.
+            Assert.IsNotNull(AudioSourceOf(director, "_sfxSource"),
+                             "효과음 소스가 비어 있다 — 스테이지에서 효과음이 하나도 안 난다");
+            Assert.IsNotNull(AudioSourceOf(director, "_bgmSource"),
+                             "배경음 소스가 비어 있다 — 스테이지 음악이 영영 안 나온다");
+        }
+
+        private static AudioSource AudioSourceOf(SushiDefense.Audio.AudioDirector director,
+                                                 string field)
+        {
+            return (AudioSource)typeof(SushiDefense.Audio.AudioDirector)
+                .GetField(field, System.Reflection.BindingFlags.Instance
+                                 | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(director);
+        }
+
+        /// <summary>
+        /// HUD 글자가 <b>검정</b>인지 본다. 배경이 밝은 나무 바닥이 되면서 흰 글자는 거의
+        /// 읽히지 않았다 (M7 — 기획자 요청).
+        ///
+        /// <para>
+        /// 색은 씬에만 있고 코드 어디에도 없어서, 다른 어떤 테스트도 이것을 보지 않는다.
+        /// 라벨을 하나 더 만들면서 색을 빠뜨리는 것이 실제로 가능한 실수다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_HudLabels_AreBlack()
+        {
+            yield return null;
+
+            var hud = _stage.GetComponentInChildren<SushiDefense.UI.StageHudView>(true);
+            Assert.IsNotNull(hud, "씬에 StageHudView 가 없다");
+
+            var labels = hud.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            Assert.IsNotEmpty(labels);
+
+            foreach (var label in labels)
+            {
+                Assert.AreEqual(Color.black, label.color, $"{label.name} 이 검정이 아니다");
+            }
         }
 
         [UnityTest]
