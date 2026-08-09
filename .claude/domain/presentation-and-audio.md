@@ -48,6 +48,27 @@ globs: ["Assets/Code/Scripts/Presentation/**/*.cs", "Assets/Code/Scripts/Editor/
 > `AudioDirector` 가 `Awake` 와 `Bind` 양쪽에서 끈다 — 단, **이미 열린 뒤에는 멈추지 않는다.**
 > `Bind` 는 스테이지마다 불리는데 거기서 멈추면 판이 바뀔 때마다 배경음이 끊긴다.
 
+### 배경음은 뱅크에 두 칸 (M7)
+
+화면마다 다른 것은 **배경음 하나뿐**이라, 뱅크를 둘로 쪼개는 대신 칸을 하나 늘렸다
+(`Bgm` / `MainBgm`). 쪼갰다면 효과음 볼륨·간격이 두 곳으로 갈라져 한쪽만 고치는 사고가
+난다.
+
+어느 칸을 틀지는 씬이 정한다 — `AudioDirector._bgmTrack` (`BgmTrack.Stage` / `.Main`).
+**씬에 있는 유일한 오디오 설정이며**, 곡과 볼륨은 그대로 애셋에 남는다.
+
+> `Main.unity` 의 `AudioDirector` 는 오랫동안 `_bgmSource` 가 비어 있었다. 그 상태에서는
+> `StartBgm` 이 조용히 돌아 나가 **메인 화면에 아무 음악도 없다** — 예외도 로그도 없다.
+> `MainSceneTests.MainScene_PlaysItsOwnBgm` 이 그 둘(소스 없음 / 곡 잘못 고름)을 함께 막는다.
+
+### 클립을 갈아 끼울 때는 참조가 끊긴다
+
+`.wav` 를 같은 이름의 `.mp3` 로 바꿔 넣으면 **GUID 가 새로 발급된다.** 뱅크는 GUID 로
+클립을 물고 있으므로 넷이 통째로 끊겼고, 게임은 그냥 조용해졌다. 끊긴 참조는 `null` 로
+역직렬화되어 예외도 로그도 남기지 않는다.
+
+`AudioBankAssetTests.EveryCue_HasClip` 이 유일한 그물이다. 큐를 늘리면 그 목록도 늘린다.
+
 ## 3. 연출 수치와 밸런스 수치의 구분선
 
 *"사람이 밸런싱하며 만질 값인가"* 하나로 가른다.
@@ -66,7 +87,7 @@ globs: ["Assets/Code/Scripts/Presentation/**/*.cs", "Assets/Code/Scripts/Editor/
 
 | | 대상 | 강제하는 것 |
 |---|---|---|
-| `PixelArtImportSettings` | `Assets/Art/Sprites/` · `Assets/Level/Placeholder/` | Point · 밉맵 끔 · 무압축 · PPU 32 · FullRect |
+| `PixelArtImportSettings` | `Assets/Art/Sprites/` · `Assets/Art/Animations/` · `Assets/Level/Placeholder/` | Point · 밉맵 끔 · 무압축 · PPU 32 · FullRect (+ **시트만** 32×32 로 자르기) |
 | `AudioImportSettings` | `Assets/Audio/Music/` · `Assets/Audio/Sound/` | Music=CompressedInMemory / Sound=DecompressOnLoad, Vorbis, Preload |
 
 - **`Assets/Art/Fonts/` 는 대상 밖이다.** 폰트 아틀라스가 픽셀 규칙에 걸리면 TMP 폰트가 깨진다
@@ -74,6 +95,8 @@ globs: ["Assets/Code/Scripts/Presentation/**/*.cs", "Assets/Code/Scripts/Editor/
 - 두 규칙에 **공통 추상을 만들지 않았다** — 세 번째 사례가 나오면 그때 뽑는다 (R4)
 - 텍스처 규칙은 최대 해상도를 **강제하지 않는다.** 배경이 정당하게 클 수 있고, 캡은 사람이
   의도한 해상도를 조용히 반토막 낸다
+- **자르기 모드는 시트에만 쓴다.** 낱장까지 못박으면 사람이 스프라이트 에디터에서 나눠 둔
+  것을 매번 되돌린다 → [`stage-scenery.md`](stage-scenery.md) §5
 
 ## 5. 한글은 정적 서브셋으로 굽는다
 
