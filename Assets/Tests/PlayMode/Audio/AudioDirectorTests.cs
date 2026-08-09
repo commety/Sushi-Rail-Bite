@@ -146,6 +146,40 @@ namespace SushiDefense.Tests.PlayMode.Audio
         }
 
         [Test]
+        public void BgmCue_DefaultTrack_IsTheStageBgm()
+        {
+            Assert.AreSame(_bank.Bgm, _director.BgmCue);
+        }
+
+        [Test]
+        public void BgmCue_MainTrack_IsTheMainBgm()
+        {
+            SetTrack(BgmTrack.Main);
+
+            Assert.AreSame(_bank.MainBgm, _director.BgmCue);
+        }
+
+        [Test]
+        public void NotifyUserInput_MainTrack_PlaysTheMainClip()
+        {
+            // "둘이 다르다" 만 보면 큐만 갈리고 실제 재생은 스테이지 곡인 구현도 통과한다.
+            SetTrack(BgmTrack.Main);
+
+            _director.NotifyUserInput();
+
+            Assert.AreSame(_bank.MainBgm.Clip, BgmSource().clip);
+            Assert.AreNotSame(_bank.Bgm.Clip, BgmSource().clip);
+        }
+
+        [Test]
+        public void BgmCue_NoBank_IsNullInsteadOfThrowing()
+        {
+            SetField(_director, "_bank", null);
+
+            Assert.IsNull(_director.BgmCue);
+        }
+
+        [Test]
         public void NotifyUserInput_Twice_DoesNotRestartBgm()
         {
             Bind();
@@ -229,6 +263,20 @@ namespace SushiDefense.Tests.PlayMode.Audio
             ((System.Delegate)field.GetValue(target))?.DynamicInvoke(args);
         }
 
+        private void SetTrack(BgmTrack track)
+        {
+            typeof(AudioDirector)
+                .GetField("_bgmTrack", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(_director, track);
+        }
+
+        private AudioSource BgmSource()
+        {
+            return (AudioSource)typeof(AudioDirector)
+                .GetField("_bgmSource", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(_director);
+        }
+
         private static void SetField(Object target, string name, Object value)
         {
             var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -248,6 +296,7 @@ namespace SushiDefense.Tests.PlayMode.Audio
             SetCue(bank, "_stageCleared", 0.8f, 0f);
             SetCue(bank, "_stageFailed", 0.8f, 0f);
             SetCue(bank, "_bgm", 0.35f, 0f);
+            SetCue(bank, "_mainBgm", 0.3f, 0f);
 
             var max = typeof(AudioBankSO).GetField("_maxConcurrentSfx",
                 BindingFlags.Instance | BindingFlags.NonPublic);

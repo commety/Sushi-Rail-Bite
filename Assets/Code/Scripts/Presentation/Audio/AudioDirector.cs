@@ -40,6 +40,12 @@ namespace SushiDefense.Audio
 
         [SerializeField] private AudioSource _bgmSource;
 
+        /// <summary>
+        /// 이 화면이 트는 곡. 씬마다 다른 <b>유일한</b> 오디오 설정이라 여기 있다 —
+        /// 나머지 일곱 큐는 뱅크 하나를 그대로 공유한다.
+        /// </summary>
+        [SerializeField] private BgmTrack _bgmTrack = BgmTrack.Stage;
+
         private readonly AudioUnlockGate _gate = new();
 
         private SoundBudget _budget;
@@ -66,6 +72,13 @@ namespace SushiDefense.Audio
 
         /// <summary>첫 사용자 입력이 들어왔는가.</summary>
         public bool IsUnlocked => _gate.IsUnlocked;
+
+        /// <summary>
+        /// 이 화면이 틀 곡. 뱅크가 없으면 <c>null</c> 이며, 부르는 쪽은 아무것도 하지 않는다 —
+        /// 소리는 로직의 전제 조건이 아니다.
+        /// </summary>
+        public AudioCue BgmCue =>
+            _bank == null ? null : _bgmTrack == BgmTrack.Main ? _bank.MainBgm : _bank.Bgm;
 
         /// <summary>
         /// 이 판의 사건 출처를 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 는
@@ -299,13 +312,14 @@ namespace SushiDefense.Audio
 
         private void StartBgm()
         {
-            if (_bgmSource == null || _bank == null || !_bank.Bgm.HasClip)
+            var cue = BgmCue;
+            if (_bgmSource == null || cue == null || !cue.HasClip)
             {
                 return;
             }
 
-            _bgmSource.clip = _bank.Bgm.Clip;
-            _bgmSource.volume = _bank.Bgm.Volume;
+            _bgmSource.clip = cue.Clip;
+            _bgmSource.volume = cue.Volume;
             _bgmSource.loop = true;
             _bgmSource.Play();
             BgmStartCount++;

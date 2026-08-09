@@ -194,6 +194,35 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         /// <summary>
+        /// 메인 화면이 <b>자기 곡</b>을 트는지 본다.
+        ///
+        /// <para>
+        /// 두 가지가 조용히 어긋날 수 있다. 배경음 소스가 비면 <c>StartBgm</c> 이 그냥
+        /// 돌아 나가고, 곡 선택이 스테이지로 남아 있으면 <b>메인에서 스테이지 배경음이
+        /// 흐른다</b> — 둘 다 예외도 로그도 없다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void MainScene_PlaysItsOwnBgm()
+        {
+            var director = Object.FindAnyObjectByType<AudioDirector>();
+
+            director.NotifyUserInput();
+
+            Assert.AreEqual(1, director.BgmStartCount,
+                            "배경음이 시작되지 않았다 — _bgmSource 가 비었는지 확인하라");
+            Assert.IsNotNull(director.BgmCue, "뱅크가 비어 있다");
+
+            var bank = (SushiDefense.Data.AudioBankSO)typeof(AudioDirector)
+                .GetField("_bank", System.Reflection.BindingFlags.Instance
+                                   | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(director);
+            Assert.AreSame(bank.MainBgm.Clip, director.BgmCue.Clip,
+                           "메인 화면이 스테이지 배경음을 틀고 있다");
+            Assert.AreNotSame(bank.Bgm.Clip, director.BgmCue.Clip);
+        }
+
+        /// <summary>
         /// 씬의 카드가 <b>프리팹과 같은 크기</b>인지 본다.
         ///
         /// <para>

@@ -24,4 +24,4 @@ MonoBehaviour:
   _digestSeconds: 3
   _recruitCost: 60
   _population: 2
-  _icon: {fileID: 21300000, guid: 301e7bd61f4344eaca662e15c2816a76, type: 3}
+  _icon: {fileID: 21300000, guid: 104289c553f474529af363a8c992b69c, type: 3}

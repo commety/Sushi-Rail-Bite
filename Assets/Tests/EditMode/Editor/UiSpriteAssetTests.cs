@@ -44,9 +44,15 @@ namespace SushiDefense.Tests.EditMode.Editor
         /// 9-slice 로 늘어나는 것들. 나머지는 테두리가 0 이어야 한다.
         ///
         /// <para>
-        /// 카드 틀이 M6.5 에서 여기 들어왔다. 원본이 48×64 인데 카드가 128×192 가 되면서
-        /// <b>그냥 늘리면 픽셀 아트의 각이 죽는다</b> — 테두리를 주면 모서리는 원본 픽셀
-        /// 그대로 남고 가운데만 늘어난다.
+        /// <b>카드 틀이 여기서 빠졌다.</b> M6.5 에서 테두리를 넣었지만 <c>Card.prefab</c> 의
+        /// <c>Image</c> 가 <c>Simple</c> 이라 <b>그 테두리를 아무도 읽지 않았고</b>, 사람이
+        /// 스프라이트 에디터에서 테두리를 도로 지웠다 (커밋 <c>30df7e1</c>). 지금 이 목록에
+        /// 남겨 두면 «쓰지도 않는 값» 을 지키느라 테스트가 붉게 남는다.
+        /// </para>
+        /// <para>
+        /// 카드 틀은 그대로 <see cref="FixedNames"/> 로 넘어가 <b>테두리가 0 인지</b>를
+        /// 검사받는다 — 목록에서 빼는 것이 곧 검사에서 빠지는 것은 아니다. 나중에
+        /// <c>Image</c> 를 <c>Sliced</c> 로 바꾸기로 하면 여기에 다시 넣는다.
         /// </para>
         /// </summary>
         private static readonly Dictionary<string, float> SliceBorders = new()
@@ -54,8 +60,6 @@ namespace SushiDefense.Tests.EditMode.Editor
             ["button"] = 6f,
             ["button-pressed"] = 6f,
             ["panel"] = 8f,
-            ["card-frame"] = 8f,
-            ["card-frame-disabled"] = 8f,
         };
 
         private static IEnumerable<string> Names => Expected.Keys;

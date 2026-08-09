@@ -39,8 +39,12 @@ namespace SushiDefense.Tests.EditMode.Data
         }
 
         /// <summary>
-        /// <b>이제 여덟 큐 전부를 덮는다.</b> <c>UiClick</c> 의 클립이 M6 step-11 에서
-        /// 만들어지면서 마지막 빈자리가 채워졌다.
+        /// <b>이제 아홉 큐 전부를 덮는다.</b> 메인 화면 배경음이 늘면서 하나가 더 붙었다.
+        ///
+        /// <para>
+        /// 이 단언은 <b>실제로 깨진 적이 있다.</b> 음원을 <c>.wav</c> 에서 <c>.mp3</c> 로
+        /// 바꿔 넣으면서 넷의 참조가 끊겼고, 게임은 그냥 조용해졌다 — 예외도 로그도 없다.
+        /// </para>
         /// </summary>
         [Test]
         public void EveryCue_HasClip()
@@ -52,6 +56,7 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.IsTrue(_bank.StageCleared.HasClip, nameof(_bank.StageCleared));
             Assert.IsTrue(_bank.StageFailed.HasClip, nameof(_bank.StageFailed));
             Assert.IsTrue(_bank.Bgm.HasClip, nameof(_bank.Bgm));
+            Assert.IsTrue(_bank.MainBgm.HasClip, nameof(_bank.MainBgm));
             Assert.IsTrue(_bank.UiClick.HasClip, nameof(_bank.UiClick));
         }
 
@@ -63,10 +68,10 @@ namespace SushiDefense.Tests.EditMode.Data
             {
                 _bank.SushiEaten.Clip, _bank.CustomerPlaced.Clip, _bank.RewardPicked.Clip,
                 _bank.StageAdvanced.Clip, _bank.StageCleared.Clip, _bank.StageFailed.Clip,
-                _bank.Bgm.Clip, _bank.UiClick.Clip
+                _bank.Bgm.Clip, _bank.MainBgm.Clip, _bank.UiClick.Clip
             };
 
-            Assert.AreEqual(8, clips.Count, "큐 여덟이 서로 다른 클립을 써야 한다");
+            Assert.AreEqual(9, clips.Count, "큐 아홉이 서로 다른 클립을 써야 한다");
         }
 
         /// <summary>
@@ -104,6 +109,7 @@ namespace SushiDefense.Tests.EditMode.Data
             Assert.AreEqual(0f, _bank.StageFailed.CooldownSeconds, 1e-6f);
             Assert.AreEqual(0f, _bank.RewardPicked.CooldownSeconds, 1e-6f);
             Assert.AreEqual(0f, _bank.Bgm.CooldownSeconds, 1e-6f);
+            Assert.AreEqual(0f, _bank.MainBgm.CooldownSeconds, 1e-6f);
         }
 
         [Test]

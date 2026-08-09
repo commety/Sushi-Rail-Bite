@@ -32,6 +32,7 @@ namespace SushiDefense.Data
         [SerializeField] private AudioCue _stageCleared = new();
         [SerializeField] private AudioCue _stageFailed = new();
         [SerializeField] private AudioCue _bgm = new();
+        [SerializeField] private AudioCue _mainBgm = new();
         [SerializeField] private AudioCue _uiClick = new();
 
         [SerializeField, Min(MinimumConcurrentSfx)]
@@ -67,6 +68,17 @@ namespace SushiDefense.Data
         /// </para>
         /// </summary>
         public AudioCue Bgm => _bgm;
+
+        /// <summary>
+        /// 메인 화면 배경음.
+        ///
+        /// <para>
+        /// 뱅크를 둘로 쪼개는 대신 칸을 하나 늘렸다. 쪼개면 <b>효과음 볼륨·간격이 두 곳으로
+        /// 갈라져</b> 한쪽만 고치는 사고가 난다 — 화면마다 다른 것은 배경음 하나뿐인데
+        /// 나머지 일곱까지 복제할 이유가 없다.
+        /// </para>
+        /// </summary>
+        public AudioCue MainBgm => _mainBgm;
 
         /// <summary>
         /// 버튼·카드를 눌렀을 때.
@@ -109,6 +121,7 @@ namespace SushiDefense.Data
             _stageCleared.Clamp();
             _stageFailed.Clamp();
             _bgm.Clamp();
+            _mainBgm.Clamp();
             _uiClick.Clamp();
         }
     }

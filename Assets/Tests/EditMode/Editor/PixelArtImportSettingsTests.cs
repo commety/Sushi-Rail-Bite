@@ -132,5 +132,82 @@ namespace SushiDefense.Tests.EditMode.Editor
             Assert.AreEqual(TextureImporterType.Sprite,
                             PixelArtImportSettings.PlanFor(SpritePath).TextureType);
         }
+
+        [Test]
+        public void AppliesTo_AnimationSheetPath_ReturnsTrue()
+        {
+            // 애니메이션 시트도 픽셀 아트다. 이 줄이 빠져 있던 동안 시트만 기본 설정으로
+            // 들어와 흐릿했고, 화면에 안 나오는 애셋이라 아무도 눈치채지 못했다.
+            Assert.IsTrue(PixelArtImportSettings.AppliesTo(
+                "Assets/Art/Animations/customer-standard-idle.png"));
+        }
+
+        [Test]
+        public void IsSheet_AnimationFolder_ReturnsTrue()
+        {
+            Assert.IsTrue(PixelArtImportSettings.IsSheet(
+                "Assets/Art/Animations/customer-standard-idle.png"));
+        }
+
+        [Test]
+        public void IsSheet_TilesetByName_ReturnsTrue()
+        {
+            // 타일 세트는 낱장 타일과 같은 폴더에 산다 — 경로만으로는 갈리지 않는다.
+            // 원본 두 장이 구분자가 다르므로 <b>둘 다</b> 본다 — 하나만 보면 구분자를 박은
+            // 구현이 통과하고, 나머지 한 장이 조용히 안 잘린다.
+            Assert.IsTrue(PixelArtImportSettings.IsSheet(
+                "Assets/Art/Sprites/Tilemap/belt_tileset.png"));
+            Assert.IsTrue(PixelArtImportSettings.IsSheet(
+                "Assets/Art/Sprites/Tilemap/sushi_outgoing-tileset.png"));
+        }
+
+        [Test]
+        public void IsSheet_SingleTileInTheSameFolder_ReturnsFalse()
+        {
+            Assert.IsFalse(PixelArtImportSettings.IsSheet(
+                "Assets/Art/Sprites/Tilemap/map-tile-1.png"));
+        }
+
+        [Test]
+        public void IsSheet_PlainSprite_ReturnsFalse()
+        {
+            Assert.IsFalse(PixelArtImportSettings.IsSheet(SpritePath));
+        }
+
+        [Test]
+        public void PlanFor_AnimationSheet_ImportsAsMultiple()
+        {
+            // Single 로 들어오면 128×32 스프라이트 한 장이 되어 클립을 만들 프레임이 없다.
+            Assert.AreEqual(SpriteImportMode.Multiple,
+                            PixelArtImportSettings.PlanFor(
+                                "Assets/Art/Animations/customer-standard-idle.png").SpriteMode);
+        }
+
+        [Test]
+        public void PlanFor_PlainSprite_ImportsAsSingle()
+        {
+            Assert.AreEqual(SpriteImportMode.Single,
+                            PixelArtImportSettings.PlanFor(SpritePath).SpriteMode);
+        }
+
+        [Test]
+        public void IsSheet_UiSprite_ReturnsFalse()
+        {
+            // 사람이 스프라이트 에디터에서 나눠 둔 UI 스프라이트를 임포터가 도로 합치면
+            // 하위 스프라이트가 사라지고, 그것을 물고 있던 프리팹이 그림 없이 뜬다.
+            Assert.IsFalse(PixelArtImportSettings.IsSheet("Assets/Art/Sprites/UI/bar-cell.png"));
+            Assert.IsFalse(PixelArtImportSettings.IsSheet("Assets/Art/Sprites/UI/card-frame.png"));
+        }
+
+        [Test]
+        public void PlanFor_AnimationSheet_KeepsEveryOtherPixelArtRule()
+        {
+            // 시트라고 필터·PPU 가 달라지면 낱장과 크기·선명도가 어긋난다.
+            var plan = PixelArtImportSettings.PlanFor(
+                "Assets/Art/Animations/customer-standard-idle.png");
+
+            Assert.AreEqual(FilterMode.Point, plan.FilterMode);
+            Assert.AreEqual(32, plan.PixelsPerUnit);
+        }
     }
 }

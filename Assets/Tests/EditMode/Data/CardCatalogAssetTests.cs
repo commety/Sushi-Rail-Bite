@@ -51,6 +51,35 @@ namespace SushiDefense.Tests.EditMode.Data
             CollectionAssert.DoesNotContain(_catalog.AllCustomers, null);
         }
 
+        /// <summary>
+        /// 모든 카드가 <b>자기 그림</b>을 갖는지 본다. 손님은 유형을 실루엣으로만 구별하므로
+        /// (<c>.claude/domain/customer-kinds.md</c> §1) 그림이 비면 자리 셋이 똑같아진다.
+        ///
+        /// <para>
+        /// <b>이 단언은 실제로 깨진 적이 있다.</b> 손님 그림을 4방향으로 다시 그리면서 옛
+        /// 파일이 지워졌고, 세 손님의 아이콘 참조가 통째로 끊겼다. 끊긴 참조는
+        /// <c>null</c> 로 역직렬화되므로 예외도 로그도 없이 <b>프리팹의 placeholder 블록이
+        /// 그대로 남는다</b> — 화면을 보기 전에는 아무도 모른다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void EveryCard_HasItsOwnIcon()
+        {
+            var icons = new HashSet<UnityEngine.Sprite>();
+
+            foreach (var sushi in _catalog.AllSushi)
+            {
+                Assert.IsNotNull(sushi.Icon, $"{sushi.name} 에 그림이 없다");
+                Assert.IsTrue(icons.Add(sushi.Icon), $"{sushi.name} 이 남의 그림을 쓴다");
+            }
+
+            foreach (var customer in _catalog.AllCustomers)
+            {
+                Assert.IsNotNull(customer.Icon, $"{customer.name} 에 그림이 없다");
+                Assert.IsTrue(icons.Add(customer.Icon), $"{customer.name} 이 남의 그림을 쓴다");
+            }
+        }
+
         [Test]
         public void Catalog_HasNoDuplicate()
         {
