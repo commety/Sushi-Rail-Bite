@@ -189,6 +189,40 @@ namespace SushiDefense.Tests.EditMode.UI
         /// "한 번도 저장 안 함" 중 하나가 통과한다.
         /// </summary>
         [Test]
+        public void SetBgmVolume_AppliesImmediatelyAndLeavesSfxAlone()
+        {
+            // 갈래를 나눈 이유 자체다. 하나로 이어져 있으면 배경음만 줄일 수 없다.
+            _presenter.Open();
+
+            _presenter.SetBgmVolume(0.3f);
+
+            Assert.AreEqual(0.3f, _applier.LastBgm, 0.0001f);
+            Assert.AreEqual(1f, _applier.LastSfx, 0.0001f);
+            Assert.AreEqual(1f, _applier.LastVolume, 0.0001f, "전체 볼륨까지 따라 내려갔다");
+        }
+
+        [Test]
+        public void SetSfxVolume_AppliesImmediatelyAndLeavesBgmAlone()
+        {
+            _presenter.Open();
+
+            _presenter.SetSfxVolume(0.4f);
+
+            Assert.AreEqual(0.4f, _applier.LastSfx, 0.0001f);
+            Assert.AreEqual(1f, _applier.LastBgm, 0.0001f);
+        }
+
+        [Test]
+        public void SetBgmVolume_ShowsTheClampedValueOnTheView()
+        {
+            _presenter.Open();
+
+            _presenter.SetBgmVolume(2f);
+
+            Assert.AreEqual(1f, _view.LastBgm, 0.0001f);
+        }
+
+        [Test]
         public void SetMasterVolume_DoesNotSaveYet()
         {
             _presenter.Open();
@@ -491,12 +525,19 @@ namespace SushiDefense.Tests.EditMode.UI
 
             public float LastVolume { get; private set; } = float.NaN;
 
+            public float LastBgm { get; private set; } = float.NaN;
+
+            public float LastSfx { get; private set; } = float.NaN;
+
             public bool LastFullscreen { get; private set; }
 
-            public void ShowSettings(float masterVolume, bool fullscreen)
+            public void ShowSettings(float masterVolume, float bgmVolume, float sfxVolume,
+                                     bool fullscreen)
             {
                 ShowCount++;
                 LastVolume = masterVolume;
+                LastBgm = bgmVolume;
+                LastSfx = sfxVolume;
                 LastFullscreen = fullscreen;
             }
 
@@ -557,6 +598,10 @@ namespace SushiDefense.Tests.EditMode.UI
 
             public float LastVolume { get; private set; } = float.NaN;
 
+            public float LastBgm { get; private set; } = float.NaN;
+
+            public float LastSfx { get; private set; } = float.NaN;
+
             public bool LastFullscreen { get; private set; }
 
             public bool RefuseFullscreen { get; set; }
@@ -569,6 +614,8 @@ namespace SushiDefense.Tests.EditMode.UI
             {
                 ApplyCount++;
                 LastVolume = settings.MasterVolume;
+                LastBgm = settings.BgmVolume;
+                LastSfx = settings.SfxVolume;
                 LastFullscreen = settings.Fullscreen;
 
                 if (!RefuseFullscreen)

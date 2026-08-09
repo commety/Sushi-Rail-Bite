@@ -4,7 +4,7 @@ using SushiDefense.Settings;
 namespace SushiDefense.UI
 {
     /// <summary>
-    /// 설정 화면의 로직 — 마스터 볼륨과 전체화면. <b>Unity API 를 모른다</b>
+    /// 설정 화면의 로직 — 볼륨 셋(전체·배경음·효과음)과 전체화면. <b>Unity API 를 모른다</b>
     /// (<c>CLAUDE.md</c> §3.6).
     ///
     /// <para>
@@ -121,6 +121,20 @@ namespace SushiDefense.UI
             ApplyAndShow();
         }
 
+        /// <summary>배경음 볼륨을 정한다. 마스터와 같은 규칙이다 — 즉시 들리고, 닫을 때 저장된다.</summary>
+        public void SetBgmVolume(float value)
+        {
+            _settings.SetBgmVolume(value);
+            ApplyAndShow();
+        }
+
+        /// <summary>효과음 볼륨을 정한다.</summary>
+        public void SetSfxVolume(float value)
+        {
+            _settings.SetSfxVolume(value);
+            ApplyAndShow();
+        }
+
         /// <summary>
         /// 전체화면을 정한다. <b>화면에는 고른 값을 그대로 표시한다</b> — 엔진 값을 되읽으면
         /// 비동기 전환 때문에 토글이 제자리로 튄다 (<see cref="_observedFullscreen"/>).
@@ -184,7 +198,8 @@ namespace SushiDefense.UI
 
         private void Show()
         {
-            _view.ShowSettings(_settings.MasterVolume, _settings.Fullscreen);
+            _view.ShowSettings(_settings.MasterVolume, _settings.BgmVolume,
+                               _settings.SfxVolume, _settings.Fullscreen);
         }
     }
 }

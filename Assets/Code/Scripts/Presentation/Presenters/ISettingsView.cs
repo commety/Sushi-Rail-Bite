@@ -24,7 +24,7 @@ namespace SushiDefense.UI
         /// 참인지 알 수 없다 (<c>SettingsApplier</c> 의 클래스 주석).
         /// </para>
         /// </summary>
-        void ShowSettings(float masterVolume, bool fullscreen);
+        void ShowSettings(float masterVolume, float bgmVolume, float sfxVolume, bool fullscreen);
 
         /// <summary>화면을 내린다.</summary>
         void Hide();

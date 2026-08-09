@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using SushiDefense.Audio;
 using SushiDefense.Navigation;
@@ -196,6 +197,63 @@ namespace SushiDefense.Tests.PlayMode
             director.PlayUiClick();
             Assert.AreEqual(1, director.PlayedCount,
                             "클릭음이 눌렸다 — _bank 또는 _sfxSource 가 비었는지 확인하라");
+        }
+
+        /// <summary>
+        /// 설정 패널의 슬라이더 <b>셋</b>이 모두 물려 있는지 본다.
+        ///
+        /// <para>
+        /// <c>SettingsPresenterTests</c> 는 뷰를 스텁으로 갈아 끼우므로 씬의 참조가 통째로
+        /// 비어 있어도 초록이다 — 슬라이더가 안 물린 화면은 <b>움직여도 아무 일이 없고
+        /// 멀쩡히 보인다.</b>
+        /// </para>
+        /// </summary>
+        [Test]
+        public void MainScene_SettingsPanel_HasEveryVolumeSlider()
+        {
+            var view = Object.FindAnyObjectByType<SettingsView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(view, "씬에 SettingsView 가 없다");
+
+            foreach (var field in new[] { "_volumeSlider", "_bgmSlider", "_sfxSlider" })
+            {
+                Assert.IsNotNull(SliderOf(view, field), $"{field} 가 비어 있다 — 움직여도 아무 일이 없다");
+            }
+
+            foreach (var field in new[] { "_volumeLabel", "_bgmLabel", "_sfxLabel" })
+            {
+                Assert.IsNotNull(LabelOf(view, field), $"{field} 가 비어 있다 — 값이 안 보인다");
+            }
+        }
+
+        [Test]
+        public void MainScene_SettingsSliders_DoNotOverlap()
+        {
+            // 겹쳐 놓으면 위의 것만 잡히고 아래 것은 영영 못 만진다. 「셋 다 물려 있다」는
+            // 이 사고를 잡지 못한다.
+            var view = Object.FindAnyObjectByType<SettingsView>(FindObjectsInactive.Include);
+            var ys = new[] { "_volumeSlider", "_bgmSlider", "_sfxSlider" }
+                .Select(f => ((RectTransform)SliderOf(view, f).transform).anchoredPosition.y)
+                .ToArray();
+
+            Assert.AreEqual(3, ys.Distinct().Count(), "슬라이더가 같은 높이에 겹쳐 있다");
+        }
+
+        private static UnityEngine.UI.Slider SliderOf(SettingsView view, string field)
+        {
+            return (UnityEngine.UI.Slider)FieldOf(view, field);
+        }
+
+        private static TMPro.TMP_Text LabelOf(SettingsView view, string field)
+        {
+            return (TMPro.TMP_Text)FieldOf(view, field);
+        }
+
+        private static Object FieldOf(SettingsView view, string field)
+        {
+            return (Object)typeof(SettingsView)
+                .GetField(field, System.Reflection.BindingFlags.Instance
+                                 | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(view);
         }
 
         /// <summary>

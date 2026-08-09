@@ -260,6 +260,7 @@ namespace SushiDefense.Audio
         private void Update()
         {
             UnlockOnAnyInput();
+            RefreshBgmVolume();
 
             if (_placement == null)
             {
@@ -308,6 +309,31 @@ namespace SushiDefense.Audio
             }
 
             NotifyUserInput();
+        }
+
+        /// <summary>
+        /// 설정에서 배경음 볼륨을 끄는 동안 <b>지금 울리는 곡</b>에도 반영한다. 시작할 때만
+        /// 곱하면 슬라이더를 움직여도 다음 곡부터 적용되어, 플레이어에게는 설정이 고장 난
+        /// 것으로 보인다.
+        ///
+        /// <para>
+        /// <b>값이 달라진 프레임에만 쓴다.</b> 매 프레임 대입하면 소스가 계속 갱신되고,
+        /// 배포 타깃(WebGL)에서 그만큼 손해다 (<c>CustomerView.LateUpdate</c> 와 같은 방식).
+        /// </para>
+        /// </summary>
+        private void RefreshBgmVolume()
+        {
+            var cue = BgmCue;
+            if (_bgmSource == null || cue == null)
+            {
+                return;
+            }
+
+            var target = cue.Volume * VolumeMix.Bgm;
+            if (!Mathf.Approximately(_bgmSource.volume, target))
+            {
+                _bgmSource.volume = target;
+            }
         }
 
         private static bool AnyInputThisFrame()
@@ -372,7 +398,7 @@ namespace SushiDefense.Audio
                 return;
             }
 
-            _sfxSource.PlayOneShot(cue.Clip, cue.Volume);
+            _sfxSource.PlayOneShot(cue.Clip, cue.Volume * VolumeMix.Sfx);
             PlayedCount++;
         }
 
@@ -385,7 +411,7 @@ namespace SushiDefense.Audio
             }
 
             _bgmSource.clip = cue.Clip;
-            _bgmSource.volume = cue.Volume;
+            _bgmSource.volume = cue.Volume * VolumeMix.Bgm;
             _bgmSource.loop = true;
             _bgmSource.Play();
             BgmStartCount++;

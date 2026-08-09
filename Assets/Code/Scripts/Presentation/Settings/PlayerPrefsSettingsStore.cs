@@ -25,6 +25,10 @@ namespace SushiDefense.Settings
         /// </summary>
         private const string MasterVolumeKey = "SushiRailBite.Settings.MasterVolume";
 
+        private const string BgmVolumeKey = "SushiRailBite.Settings.BgmVolume";
+
+        private const string SfxVolumeKey = "SushiRailBite.Settings.SfxVolume";
+
         private const string FullscreenKey = "SushiRailBite.Settings.Fullscreen";
 
         /// <inheritdoc />
@@ -39,6 +43,16 @@ namespace SushiDefense.Settings
             {
                 // 손상된 값이 와도 모델이 자른다 — 저장소가 판정하지 않는다.
                 into.SetMasterVolume(PlayerPrefs.GetFloat(MasterVolumeKey));
+            }
+
+            if (PlayerPrefs.HasKey(BgmVolumeKey))
+            {
+                into.SetBgmVolume(PlayerPrefs.GetFloat(BgmVolumeKey));
+            }
+
+            if (PlayerPrefs.HasKey(SfxVolumeKey))
+            {
+                into.SetSfxVolume(PlayerPrefs.GetFloat(SfxVolumeKey));
             }
 
             if (PlayerPrefs.HasKey(FullscreenKey))
@@ -56,6 +70,8 @@ namespace SushiDefense.Settings
             }
 
             PlayerPrefs.SetFloat(MasterVolumeKey, from.MasterVolume);
+            PlayerPrefs.SetFloat(BgmVolumeKey, from.BgmVolume);
+            PlayerPrefs.SetFloat(SfxVolumeKey, from.SfxVolume);
             PlayerPrefs.SetInt(FullscreenKey, from.Fullscreen ? 1 : 0);
             PlayerPrefs.Save();
         }

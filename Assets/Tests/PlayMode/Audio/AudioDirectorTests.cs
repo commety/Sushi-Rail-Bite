@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -9,6 +10,7 @@ using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace SushiDefense.Tests.PlayMode.Audio
 {
@@ -40,6 +42,7 @@ namespace SushiDefense.Tests.PlayMode.Audio
         {
             // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
             AudioUnlockGate.ResetOnLoad();
+            VolumeMix.ResetOnLoad();
 
             _bank = NewBank();
 
@@ -172,6 +175,45 @@ namespace SushiDefense.Tests.PlayMode.Audio
 
             Assert.AreSame(_bank.MainBgm.Clip, BgmSource().clip);
             Assert.AreNotSame(_bank.Bgm.Clip, BgmSource().clip);
+        }
+
+        [Test]
+        public void NotifyUserInput_BgmVolumeHalved_StartsAtHalfTheCueVolume()
+        {
+            VolumeMix.Bgm = 0.5f;
+
+            _director.NotifyUserInput();
+
+            Assert.AreEqual(_bank.Bgm.Volume * 0.5f, BgmSource().volume, 0.001f);
+        }
+
+        [UnityTest]
+        public IEnumerator BgmVolume_ChangedWhilePlaying_FollowsWithoutRestarting()
+        {
+            // 시작할 때만 곱하면 슬라이더를 움직여도 다음 곡부터 적용되어, 플레이어에게는
+            // 설정이 고장 난 것으로 보인다.
+            _director.NotifyUserInput();
+            var started = _director.BgmStartCount;
+
+            VolumeMix.Bgm = 0.25f;
+            yield return null;
+
+            Assert.AreEqual(_bank.Bgm.Volume * 0.25f, BgmSource().volume, 0.001f);
+            Assert.AreEqual(started, _director.BgmStartCount, "볼륨을 바꿨더니 곡이 다시 시작됐다");
+        }
+
+        [Test]
+        public void SushiEaten_SfxSilenced_StillCountsAsPlayed()
+        {
+            // 효과음 볼륨은 «낼지 말지» 가 아니라 «얼마나 크게» 다. 0 이라고 예산에서
+            // 빼면 볼륨을 되올렸을 때 겹침 규칙이 달라진다.
+            VolumeMix.Sfx = 0f;
+            Bind();
+            _director.NotifyUserInput();
+
+            RaiseEaten();
+
+            Assert.AreEqual(1, _director.PlayedCount);
         }
 
         [Test]

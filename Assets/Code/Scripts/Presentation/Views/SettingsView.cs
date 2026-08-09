@@ -31,15 +31,27 @@ namespace SushiDefense.UI
 
         private const string VolumeLabelName = "VolumeLabel";
 
+        private const string BgmLabelName = "BgmLabel";
+
+        private const string SfxLabelName = "SfxLabel";
+
         /// <summary>패널 위쪽 고정 제목.</summary>
         private const string HeaderText = "설정";
 
-        private const string VolumeCaption = "소리";
+        private const string VolumeCaption = "전체";
+
+        private const string BgmCaption = "배경음";
+
+        private const string SfxCaption = "효과음";
 
         [SerializeField] private GameObject _panelRoot;
         [SerializeField] private TMP_Text _headerLabel;
         [SerializeField] private TMP_Text _volumeLabel;
         [SerializeField] private Slider _volumeSlider;
+        [SerializeField] private TMP_Text _bgmLabel;
+        [SerializeField] private Slider _bgmSlider;
+        [SerializeField] private TMP_Text _sfxLabel;
+        [SerializeField] private Slider _sfxSlider;
         [SerializeField] private Toggle _fullscreenToggle;
         [SerializeField] private Button _closeButton;
 
@@ -48,8 +60,14 @@ namespace SushiDefense.UI
         /// <summary>화면이 떠 있나. 표시 상태이지 판정이 아니다.</summary>
         public bool IsShowing { get; private set; }
 
-        /// <summary>지금 표시 중인 볼륨 문구. 검증용이다.</summary>
+        /// <summary>지금 표시 중인 전체 볼륨 문구. 검증용이다.</summary>
         public string VolumeText { get; private set; } = string.Empty;
+
+        /// <summary>지금 표시 중인 배경음 문구. 검증용이다.</summary>
+        public string BgmText { get; private set; } = string.Empty;
+
+        /// <summary>지금 표시 중인 효과음 문구. 검증용이다.</summary>
+        public string SfxText { get; private set; } = string.Empty;
 
         /// <summary>입력을 받을 프레젠터를 물린다. 씬 진입점이 부른다.</summary>
         public void Bind(SettingsPresenter presenter)
@@ -67,13 +85,19 @@ namespace SushiDefense.UI
         /// </para>
         /// </summary>
         public void Initialize(GameObject panelRoot, TMP_Text volumeLabel,
-                               Slider volumeSlider, Toggle fullscreenToggle, Button closeButton)
+                               Slider volumeSlider, Toggle fullscreenToggle, Button closeButton,
+                               TMP_Text bgmLabel = null, Slider bgmSlider = null,
+                               TMP_Text sfxLabel = null, Slider sfxSlider = null)
         {
             Unsubscribe();
 
             _panelRoot = panelRoot;
             _volumeLabel = volumeLabel;
             _volumeSlider = volumeSlider;
+            _bgmLabel = bgmLabel;
+            _bgmSlider = bgmSlider;
+            _sfxLabel = sfxLabel;
+            _sfxSlider = sfxSlider;
             _fullscreenToggle = fullscreenToggle;
             _closeButton = closeButton;
 
@@ -81,23 +105,36 @@ namespace SushiDefense.UI
         }
 
         /// <inheritdoc />
-        public void ShowSettings(float masterVolume, bool fullscreen)
+        public void ShowSettings(float masterVolume, float bgmVolume, float sfxVolume,
+                                 bool fullscreen)
         {
             IsShowing = true;
 
-            if (_volumeSlider != null)
-            {
-                _volumeSlider.SetValueWithoutNotify(masterVolume);
-            }
+            SetSlider(_volumeSlider, masterVolume);
+            SetSlider(_bgmSlider, bgmVolume);
+            SetSlider(_sfxSlider, sfxVolume);
 
             if (_fullscreenToggle != null)
             {
                 _fullscreenToggle.SetIsOnWithoutNotify(fullscreen);
             }
 
-            VolumeText = Caption(masterVolume);
+            VolumeText = Caption(VolumeCaption, masterVolume);
+            BgmText = Caption(BgmCaption, bgmVolume);
+            SfxText = Caption(SfxCaption, sfxVolume);
+
             HudLabel.Write(_volumeLabel, VolumeText);
+            HudLabel.Write(_bgmLabel, BgmText);
+            HudLabel.Write(_sfxLabel, SfxText);
             SetPanelActive(true);
+        }
+
+        private static void SetSlider(Slider slider, float value)
+        {
+            if (slider != null)
+            {
+                slider.SetValueWithoutNotify(value);
+            }
         }
 
         /// <inheritdoc />
@@ -118,6 +155,8 @@ namespace SushiDefense.UI
             var labelRoot = _panelRoot != null ? _panelRoot.transform : transform;
             _headerLabel = HudLabel.Resolve(labelRoot, _headerLabel, HeaderLabelName);
             _volumeLabel = HudLabel.Resolve(labelRoot, _volumeLabel, VolumeLabelName);
+            _bgmLabel = HudLabel.Resolve(labelRoot, _bgmLabel, BgmLabelName);
+            _sfxLabel = HudLabel.Resolve(labelRoot, _sfxLabel, SfxLabelName);
 
             // 헤더는 고정 문구라 한 번만 쓴다. 열 때마다 쓰면 문자열이 하나씩 생긴다 (§4.3).
             HudLabel.Write(_headerLabel, HeaderText);
@@ -152,6 +191,16 @@ namespace SushiDefense.UI
                 _volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
             }
 
+            if (_bgmSlider != null)
+            {
+                _bgmSlider.onValueChanged.AddListener(OnBgmChanged);
+            }
+
+            if (_sfxSlider != null)
+            {
+                _sfxSlider.onValueChanged.AddListener(OnSfxChanged);
+            }
+
             if (_fullscreenToggle != null)
             {
                 _fullscreenToggle.onValueChanged.AddListener(OnFullscreenChanged);
@@ -170,6 +219,16 @@ namespace SushiDefense.UI
                 _volumeSlider.onValueChanged.RemoveListener(OnVolumeChanged);
             }
 
+            if (_bgmSlider != null)
+            {
+                _bgmSlider.onValueChanged.RemoveListener(OnBgmChanged);
+            }
+
+            if (_sfxSlider != null)
+            {
+                _sfxSlider.onValueChanged.RemoveListener(OnSfxChanged);
+            }
+
             if (_fullscreenToggle != null)
             {
                 _fullscreenToggle.onValueChanged.RemoveListener(OnFullscreenChanged);
@@ -186,6 +245,16 @@ namespace SushiDefense.UI
             _presenter?.SetMasterVolume(value);
         }
 
+        private void OnBgmChanged(float value)
+        {
+            _presenter?.SetBgmVolume(value);
+        }
+
+        private void OnSfxChanged(float value)
+        {
+            _presenter?.SetSfxVolume(value);
+        }
+
         private void OnFullscreenChanged(bool value)
         {
             _presenter?.SetFullscreen(value);
@@ -199,10 +268,10 @@ namespace SushiDefense.UI
         /// <summary>
         /// 백분율로 보여 준다. <c>0.7</c> 보다 <c>70%</c> 가 슬라이더 위치와 대조하기 쉽다.
         /// </summary>
-        private static string Caption(float masterVolume)
+        private static string Caption(string name, float volume)
         {
-            var percent = Mathf.RoundToInt(masterVolume * 100f);
-            return VolumeCaption + " " + percent.ToString(CultureInfo.InvariantCulture) + "%";
+            var percent = Mathf.RoundToInt(volume * 100f);
+            return name + " " + percent.ToString(CultureInfo.InvariantCulture) + "%";
         }
 
         private void SetPanelActive(bool active)
