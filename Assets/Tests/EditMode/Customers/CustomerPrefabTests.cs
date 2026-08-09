@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using SushiDefense.Customers;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 
@@ -138,6 +139,45 @@ namespace SushiDefense.Tests.EditMode.Customers
             var bar = _prefab.transform.Find("SaturationBar");
 
             Assert.Greater(badge.localPosition.y, bar.localPosition.y);
+        }
+
+        /// <summary>
+        /// <b>대역 문구가 화면에 나오는지</b> 본다.
+        ///
+        /// <para>
+        /// <c>CustomerView</c> 는 라벨을 <see cref="TMP_Text"/> 로 찾는데, 이 자식에 레거시
+        /// <c>TextMesh</c> 만 있으면 <b>찾기가 조용히 <c>null</c> 을 돌려주고 글자가 어디에도
+        /// 쓰이지 않는다.</b> 그런데 <c>CustomerViewTests</c>·<c>Stage01SceneTests</c> 는 둘 다
+        /// <c>BandText</c> <i>프로퍼티</i>를 보므로 전부 초록이다 — 계산은 맞고 화면만 빈다
+        /// (<c>.claude/rules/tests.md</c> §1 «애셋 등록·설정»).
+        /// </para>
+        /// <para>
+        /// 실제로 M6 내내 그 상태였다. 프로퍼티가 아니라 <b>애셋의 컴포넌트 타입</b>을 보는
+        /// 테스트가 여기 말고는 없다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void Prefab_BandLabel_IsTmpText()
+        {
+            var label = _prefab.transform.Find("BandLabel");
+
+            Assert.IsNotNull(label, "BandLabel 자식이 없다");
+            Assert.IsNotNull(label.GetComponent<TMP_Text>(),
+                             "BandLabel 이 TMP_Text 가 아니다 — 대역 문구가 화면에 안 나온다");
+        }
+
+        /// <summary>
+        /// <b>폰트가 비면 두부(□)가 된다.</b> WebGL 은 OS 폰트에 접근할 수 없어 TMP 가
+        /// 기본 폰트(LiberationSans, 한글 없음)로 폴백하는데, 에디터에서는 시스템 폰트가
+        /// 메워 주므로 <b>빌드해야만 드러난다</b>
+        /// (<c>.claude/domain/presentation-and-audio.md</c> §5).
+        /// </summary>
+        [Test]
+        public void Prefab_BandLabel_HasKoreanFont()
+        {
+            var label = _prefab.transform.Find("BandLabel").GetComponent<TMP_Text>();
+
+            Assert.IsNotNull(label.font, "폰트가 비었다 — 한글이 두부가 된다");
         }
     }
 }
