@@ -98,6 +98,80 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.IsTrue(_service.CanPlace(_customerData, 0));
         }
 
+        // ── 한도는 머릿수가 아니라 인구수를 센다 ────────────────
+        //
+        // 인구수가 전부 1이면 새 식(합계 + 인구수 ≤ 상한)과 옛 식(머릿수 < 상한)이
+        // 정확히 같다. 위쪽 테스트들이 전부 통과한 채로 규칙이 바뀌므로, 인구수 2를
+        // 실제로 쓰는 아래 테스트들이 없으면 아무것도 검증되지 않는다.
+
+        [Test]
+        public void CanPlace_PopulationTwoWithTwoHeadroom_ReturnsTrue()
+        {
+            Rebuild(maxPlacedCustomers: 2);
+
+            Assert.IsTrue(_service.CanPlace(HeavyCustomer(), 0));
+        }
+
+        [Test]
+        public void CanPlace_PopulationTwoWithOneHeadroom_ReturnsFalse()
+        {
+            // 잔액은 넉넉하고 자리도 비어 있다. 막는 것이 한도임을 확정한다.
+            Rebuild(maxPlacedCustomers: 2);
+            _service.Place(_customerData, 0, NearTable);
+
+            var heavy = HeavyCustomer();
+
+            Assert.IsFalse(_service.CanPlace(heavy, 1), "한도 2에 인구수 1+2 는 넘는다");
+            Assert.IsNull(_service.OccupantOf(1), "자리는 비어 있다 — 점유가 막은 것이 아니다");
+            Assert.IsTrue(_wallet.CanAfford(heavy.RecruitCost), "잔액이 막은 것도 아니다");
+        }
+
+        [Test]
+        public void CanPlace_PopulationOneWithOneHeadroom_ReturnsTrue()
+        {
+            // 반례. 위 테스트가 «자리가 하나 남으면 무조건 거부» 로도 통과하지 않게 한다.
+            Rebuild(maxPlacedCustomers: 2);
+            _service.Place(_customerData, 0, NearTable);
+
+            Assert.IsTrue(_service.CanPlace(_customerData, 1));
+        }
+
+        [Test]
+        public void PlacedPopulation_TwoOnesAndOneTwo_ReturnsFour()
+        {
+            // 구체값을 박는다. 상수 3(머릿수)을 돌려주는 구현이 통과하지 못한다.
+            Rebuild(maxPlacedCustomers: 10);
+            _service.Place(_customerData, 0, NearTable);
+            _service.Place(_customerData, 1, NearTable);
+            _service.Place(HeavyCustomer(), 2, NearTable);
+
+            Assert.AreEqual(4, _service.PlacedPopulation);
+        }
+
+        [Test]
+        public void PlacedCount_PopulationTwoPlaced_StillCountsHeads()
+        {
+            // 머릿수를 세던 자리는 그대로다. AudioDirector 가 이 값의 증가로 배치음을
+            // 내는데, 의미를 갈아끼우면 소리는 그대로 한 번 나서 아무 테스트도 죽지 않는다.
+            Rebuild(maxPlacedCustomers: 10);
+            _service.Place(HeavyCustomer(), 0, NearTable);
+
+            Assert.AreEqual(1, _service.PlacedCount);
+            Assert.AreEqual(2, _service.PlacedPopulation);
+        }
+
+        [Test]
+        public void Remove_PopulationTwo_FreesTwo()
+        {
+            Rebuild(maxPlacedCustomers: 2);
+            _service.Place(HeavyCustomer(), 0, NearTable);
+
+            _service.Remove(0);
+
+            Assert.AreEqual(0, _service.PlacedPopulation);
+            Assert.IsTrue(_service.CanPlace(HeavyCustomer(), 1), "둘이 통째로 돌아와야 한다");
+        }
+
         // ── 배치 확정 ───────────────────────────────────────────
 
         [Test]
@@ -321,6 +395,23 @@ namespace SushiDefense.Tests.EditMode.Customers
 
             Assert.AreSame(customer, _service.OccupantOf(2));
             Assert.IsNull(_service.OccupantOf(0));
+        }
+
+        /// <summary>
+        /// 인구수 2인 손님. <see cref="_customerData"/> 를 재활용하지 않는 이유는 그것이
+        /// 스위트 전체가 공유하는 «인구수 1» 대조군이기 때문이다 — 값을 바꾸면 위쪽
+        /// 테스트들이 조용히 다른 것을 검증하게 된다.
+        /// </summary>
+        private CustomerData HeavyCustomer()
+        {
+            var data = ScriptableObject.CreateInstance<CustomerData>();
+            SerializedFieldSetter.SetFloat(data, "_reach", Reach);
+            SerializedFieldSetter.SetInt(data, "_maxSaturation", 5);
+            SerializedFieldSetter.SetTargetingBand(data, 100, 300);
+            SerializedFieldSetter.SetInt(data, "_population", 2);
+
+            _disposables.Add(data);
+            return data;
         }
 
         private void Rebuild(int maxPlacedCustomers, int initialBudget = AmpleBudget)
