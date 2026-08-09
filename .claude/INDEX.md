@@ -28,9 +28,9 @@ Unity 성능 최적화. **§0 에 WebGL 타깃 보정표** (DXT 압축·싱글 �
 - **when to read:** 성능·메모리·프레임 이슈, WebGL 빌드 크기·초기 로드 시간, 스프라이트 임포트 설정, 렌더·UI·오디오 튜닝
 
 ### [knowledge/unity-scripting-gotchas.md](knowledge/unity-scripting-gotchas.md)
-모델이 자주 틀리는 Unity 스크립팅 함정: 직렬화 (depth=7·null 부활·인라인 복제·SerializeReference·ISerializationCallbackReceiver), 코루틴 중단 조건 (enabled=false 안 멈춤·WaitForSecondsRealtime), IL2CPP Managed Code Stripping (link.xml·[Preserve]), **§4 에디터에서만 멀쩡한 것들** (폰트 폴백 없음·입력 백엔드 불일치·playOnAwake·Streaming 미지원·Resources 통째 포함·**전체화면은 브라우저가 소유**), **§5 생명주기 콜백은 만들자마자 돌지 않는다** (비활성 오브젝트의 `Awake` 지연 → 「두 번째부터 정상」 서명, 멱등 `Resolve`). **WebGL 은 IL2CPP 고정이라 §3 이 항상 해당되고, §4 는 전부 빌드해야 드러난다.**
-- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit, 두부, tofu, 폰트 폴백, font fallback, HasCharacters, TMP_FontAsset, ENABLE_LEGACY_INPUT_MANAGER, ENABLE_INPUT_SYSTEM, activeInputHandler, playOnAwake, AudioSource, 자동재생, autoplay, AudioClipLoadType, Streaming, CompressedInMemory, DecompressOnLoad, Resources 폴더, 빌드 크기, Awake 지연, deferred Awake, SetActive, 비활성 오브젝트, inactive GameObject, OnEnable, 지연 초기화, lazy init, Resolve, 멱등, idempotent, 간헐 버그, 두 번째부터 정상, 객체 풀 초기화, Screen.fullScreen, 전체화면, fullscreen, 비동기 반영, 두 번 눌러야
-- **when to read:** `[Serializable]` 필드·ScriptableObject·MonoBehaviour 직렬화 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·콘솔·WebGL 빌드 실패 (MissingMethod/TypeLoad), 리플렉션·JsonUtility 쓰는 코드 빌드 대비, **에디터에서는 되는데 빌드에서 안 되는 증상**, **「가끔 정상」·「두 번째부터 정상」 증상**, 전체화면·창 모드 토글 구현
+모델이 자주 틀리는 Unity 스크립팅 함정: 직렬화 (depth=7·null 부활·인라인 복제·SerializeReference·ISerializationCallbackReceiver), 코루틴 중단 조건 (enabled=false 안 멈춤·WaitForSecondsRealtime), IL2CPP Managed Code Stripping (link.xml·[Preserve]), **§4 에디터에서만 멀쩡한 것들** (폰트 폴백 없음·입력 백엔드 불일치·playOnAwake·Streaming 미지원·Resources 통째 포함·**전체화면은 브라우저가 소유**), **§5 생명주기 콜백은 만들자마자 돌지 않는다** (비활성 오브젝트의 `Awake` 지연 → 「두 번째부터 정상」 서명, 멱등 `Resolve`). **§6 uGUI 좌표·입력** (화면 픽셀 ↔ 캔버스 단위, 실행 순서 의존, 가상 입력 픽스처). **WebGL 은 IL2CPP 고정이라 §3 이 항상 해당되고, §4 는 전부 빌드해야 드러난다.**
+- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit, 두부, tofu, 폰트 폴백, font fallback, HasCharacters, TMP_FontAsset, ENABLE_LEGACY_INPUT_MANAGER, ENABLE_INPUT_SYSTEM, activeInputHandler, playOnAwake, AudioSource, 자동재생, autoplay, AudioClipLoadType, Streaming, CompressedInMemory, DecompressOnLoad, Resources 폴더, 빌드 크기, Awake 지연, deferred Awake, SetActive, 비활성 오브젝트, inactive GameObject, OnEnable, 지연 초기화, lazy init, Resolve, 멱등, idempotent, 간헐 버그, 두 번째부터 정상, 객체 풀 초기화, Screen.fullScreen, 전체화면, fullscreen, 비동기 반영, 두 번 눌러야, 지연 실행, 제스처, spriteBorder, 9-slice, Multiple 모드, 임포터, Sprite.border, TextureImporter, PointerEventData, delta, anchoredPosition, CanvasScaler, 배율, scaleFactor, ScreenPointToLocalPointInRectangle, 드래그 어긋남, IsPointerOverGameObject, 실행 순서, RaycastAll, InputTestFixture, QueueStateEvent, 가상 입력, 가상 마우스
+- **when to read:** `[Serializable]` 필드·ScriptableObject·MonoBehaviour 직렬화 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·콘솔·WebGL 빌드 실패 (MissingMethod/TypeLoad), 리플렉션·JsonUtility 쓰는 코드 빌드 대비, **에디터에서는 되는데 빌드에서 안 되는 증상**, **「가끔 정상」·「두 번째부터 정상」 증상**, 전체화면·창 모드 토글 구현, **uGUI 드래그가 손가락과 어긋날 때**, **입력을 테스트로 덮으려 할 때**, **임포터 설정이 화면에 반영되지 않을 때**
 
 ### [knowledge/csharp-dotnet.md](knowledge/csharp-dotnet.md)
 C#/.NET 언어 핵심.
@@ -81,7 +81,7 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 
 #### [domain/data-model.md](domain/data-model.md)
 초밥·손님·스테이지·점수/경제·시너지 버프의 보유 데이터. 정적(SO) ↔ 런타임 상태 분리. 🟢 기획 명시 / 🔵 추가 제안 구분.
-- **keywords:** 데이터 모델, data model, SushiData, SushiItem, CustomerData, CustomerRuntimeState, StageConfig, 필드, 스탯, 가격, 포화도, 특성, Trait, 집기 범위, 먹는 시간, 소화 시간, 영입 비용, RecruitCost, 최대 배치, 초기 예산, 영입 재화, 점수/10, 경제, 시너지, 버프, buff, 순차번호 카운터
+- **keywords:** 데이터 모델, data model, SushiData, SushiItem, CustomerData, CustomerRuntimeState, StageConfig, 필드, 스탯, 가격, 포화도, 특성, Trait, 집기 범위, 먹는 시간, 소화 시간, 영입 비용, RecruitCost, 최대 배치, 초기 예산, 영입 재화, 점수/10, 경제, 시너지, 버프, buff, 순차번호 카운터, 인구수, Population, PlacedPopulation, PlacedCount, 머릿수, 배치 한도, MaxPlacedCustomers, 자리 수
 - **when to read:** SO 스키마 설계·수정, 새 필드 추가 판단, 경제·보상 구현, 시너지 설계
 
 #### [domain/stage-and-run.md](domain/stage-and-run.md)
@@ -98,13 +98,13 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 화면·소리 계층(M5). 아이콘은 데이터가 정한다, 오디오 3층(값/판정/재생), 자동재생 게이트,
 연출 수치 vs 밸런스 수치, 임포트 규칙 두 종, 한글 정적 서브셋, 입력은 Input System,
 씬 조립에서 반복해 걸린 것, WebGL 실측.
-- **keywords:** 아이콘, Icon, 스프라이트, sprite, 픽셀 아트, pixel art, 임포트, import, PPU, Point 필터, 아틀라스, atlas, 오디오, audio, 사운드, sound, BGM, 효과음, SFX, AudioBankSO, SoundBudget, AudioUnlockGate, AudioDirector, 겹침, 쿨다운, 동시 재생, 자동재생, playOnAwake, 이펙트, VFX, EffectDirector, PopEffect, 풀, 폰트, font, TMP, TextMeshPro, 한글, 두부, 서브셋, charset, Canvas, CanvasScaler, HUD, 입력, Input System, Keyboard, Mouse, 클릭 배치, SlotPicker, WebGL, 초기 로드, 빌드 크기, Build Settings
+- **keywords:** 아이콘, Icon, 스프라이트, sprite, 픽셀 아트, pixel art, 임포트, import, PPU, Point 필터, 아틀라스, atlas, 오디오, audio, 사운드, sound, BGM, 효과음, SFX, AudioBankSO, SoundBudget, AudioUnlockGate, AudioDirector, 겹침, 쿨다운, 동시 재생, 자동재생, playOnAwake, 이펙트, VFX, EffectDirector, PopEffect, 풀, 폰트, font, TMP, TextMeshPro, 한글, 두부, 서브셋, charset, Canvas, CanvasScaler, HUD, 입력, Input System, Keyboard, Mouse, 클릭 배치, SlotPicker, WebGL, 초기 로드, 빌드 크기, Build Settings, 프리팹 오버라이드, prefab override, 씬 인스턴스, 카드 크기, 글자 잘림, 9-slice, spriteBorder
 - **when to read:** 화면 표시·소리·이펙트·폰트·입력을 만지기 직전, 새 스프라이트나 음원을 추가할 때, WebGL 빌드 크기를 볼 때
 
 #### [domain/in-stage-windows.md](domain/in-stage-windows.md)
 스테이지 위에 뜨는 창의 조정(M6). 우선순위는 **밀어내기가 아니라 거절**, 보상만 아래로 깔리는 양방향 예외, 실패 창은 메뉴 창의 재사용이고 **재개할 수 없는 창은 스스로 닫히지 않는다**, 클리어는 보상 뒤 자동 진행하되 런의 마지막만 남는다, 창과 멈춤의 대응이 1:1 이 아닌 것.
-- **keywords:** 창, window, 패널, panel, 겹침, 중첩, overlay, 우선순위, priority, 조정, arbiter, StageWindow, StageWindowArbiter, 메뉴, menu, StageMenuPresenter, StageMenuView, 일시정지, pause, PauseState, 재개, resume, 실패, 실패 창, failure, 클리어, 보상, reward, RewardSelectionPresenter, 덱 패널, DeckPanelPresenter, 토글, toggle, 출구, 다시 시작, restart, 나가기, quit, 전환, transition, IsRunFinale, 자동 진행, 손님 정보
-- **when to read:** 인스테이지 UI 창을 새로 만들거나 여닫는 코드를 만지기 직전, "창이 겹친다"·"창이 안 열린다"·"닫으면 나갈 수 없다" 증상, 클리어·실패 직후 화면 흐름을 바꿀 때
+- **keywords:** 창, window, 패널, panel, 겹침, 중첩, overlay, 우선순위, priority, 조정, arbiter, StageWindow, StageWindowArbiter, 메뉴, menu, StageMenuPresenter, StageMenuView, 일시정지, pause, PauseState, 재개, resume, 실패, 실패 창, failure, 클리어, 보상, reward, RewardSelectionPresenter, 덱 패널, DeckPanelPresenter, 토글, toggle, 출구, 다시 시작, restart, 나가기, quit, 전환, transition, IsRunFinale, 자동 진행, 손님 정보, CustomerInfo, CustomerInspectorPresenter, CustomerInspectorView, CustomerTapRouter, 닫는 경로, 안 닫힌다, 클릭, 탭, 가림, 아이콘 겹침
+- **when to read:** 인스테이지 UI 창을 새로 만들거나 여닫는 코드를 만지기 직전, "창이 겹친다"·"창이 안 열린다"·"창이 안 닫힌다"·"창이 버튼을 가린다"·"닫으면 나갈 수 없다" 증상, 클리어·실패 직후 화면 흐름을 바꿀 때
 
 #### [domain/spawn-composition.md](domain/spawn-composition.md)
 어떤 초밥이 얼마나 자주 벨트에 오르는가. **share 를 가격에서 유도**(`(덱 내 최저가/가격)^α`)하고 **credit 누적**으로 배출 순서를 만든다. 난수 없음, 가방(인스턴스 재고) 방식 아님.
