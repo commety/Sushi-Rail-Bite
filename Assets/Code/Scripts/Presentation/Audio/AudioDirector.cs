@@ -5,6 +5,7 @@ using SushiDefense.Run;
 using SushiDefense.Stages;
 using SushiDefense.UI;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SushiDefense.Audio
 {
@@ -40,6 +41,12 @@ namespace SushiDefense.Audio
 
         [SerializeField] private AudioSource _bgmSource;
 
+        /// <summary>
+        /// 이 화면이 트는 곡. 씬마다 다른 <b>유일한</b> 오디오 설정이라 여기 있다 —
+        /// 나머지 일곱 큐는 뱅크 하나를 그대로 공유한다.
+        /// </summary>
+        [SerializeField] private BgmTrack _bgmTrack = BgmTrack.Stage;
+
         private readonly AudioUnlockGate _gate = new();
 
         private SoundBudget _budget;
@@ -51,6 +58,9 @@ namespace SushiDefense.Audio
 
         /// <summary>배치 수는 변경 이벤트가 없어 값 변화를 지켜본다.</summary>
         private int _shownPlacedCount = -1;
+
+        /// <summary>틀기로 했지만 클립이 아직 안 풀려 미뤄 둔 배경음. 없으면 <c>null</c>.</summary>
+        private AudioCue _pendingBgm;
 
         /// <summary>실제로 재생한 횟수. 검증용이다.</summary>
         public int PlayedCount { get; private set; }
@@ -66,6 +76,13 @@ namespace SushiDefense.Audio
 
         /// <summary>첫 사용자 입력이 들어왔는가.</summary>
         public bool IsUnlocked => _gate.IsUnlocked;
+
+        /// <summary>
+        /// 이 화면이 틀 곡. 뱅크가 없으면 <c>null</c> 이며, 부르는 쪽은 아무것도 하지 않는다 —
+        /// 소리는 로직의 전제 조건이 아니다.
+        /// </summary>
+        public AudioCue BgmCue =>
+            _bank == null ? null : _bgmTrack == BgmTrack.Main ? _bank.MainBgm : _bank.Bgm;
 
         /// <summary>
         /// 이 판의 사건 출처를 물린다. 이미 물려 있으면 먼저 끊는다 — <c>Build()</c> 는
@@ -184,6 +201,26 @@ namespace SushiDefense.Audio
             SilenceUntilUnlocked();
         }
 
+        /// <summary>
+        /// <b>이미 열린 페이지로 들어왔으면 기다리지 않는다.</b> 잠금은 페이지 단위인데
+        /// 진행자는 씬마다 새로 태어나므로, 여기서 한 번 확인하지 않으면 화면을 옮길 때마다
+        /// <b>다시 클릭하기 전까지 음악이 없다</b> — 메인 → 스테이지 → 메인 세 구간 모두에서
+        /// 그랬다.
+        ///
+        /// <para>
+        /// <c>Awake</c> 가 아니라 <c>Start</c> 인 이유: 씬 진입점이 <see cref="Bind"/> 로
+        /// 참조를 물리는 시점이 <c>Awake</c> 와 같은 프레임이라, 더 이른 곳에서 시작하면
+        /// 뱅크가 아직 없을 수 있다.
+        /// </para>
+        /// </summary>
+        private void Start()
+        {
+            if (_gate.TryConsumeUnlockMoment())
+            {
+                StartBgm();
+            }
+        }
+
         private void OnDestroy()
         {
             Unbind();
@@ -225,6 +262,10 @@ namespace SushiDefense.Audio
         /// </summary>
         private void Update()
         {
+            UnlockOnAnyInput();
+            TryStartPendingBgm();
+            RefreshBgmVolume();
+
             if (_placement == null)
             {
                 return;
@@ -247,6 +288,74 @@ namespace SushiDefense.Audio
             // 자리에 앉히려면 클릭이 있어야 한다 — 배치가 곧 첫 제스처다.
             NotifyUserInput();
             Play(_bank != null ? _bank.CustomerPlaced : null, CustomerPlacedCue);
+        }
+
+        /// <summary>
+        /// <b>버튼만이 제스처인 것은 아니다.</b> 잠금을 푸는 길이 버튼 클릭과 손님 배치
+        /// 둘뿐이었을 때는, 제목 화면에서 <b>빈 곳을 아무리 눌러도 음악이 시작되지 않았다</b> —
+        /// 플레이어에게는 «음악이 안 나오는 게임» 으로 보인다.
+        ///
+        /// <para>
+        /// 브라우저가 요구하는 것은 «제스처» 이지 «버튼» 이 아니므로, 아무 입력이나 받는다.
+        /// <b>완전한 자동 재생은 불가능하다</b> — 그것은 우리가 고칠 수 있는 종류의 것이
+        /// 아니다.
+        /// </para>
+        /// <para>
+        /// 열린 뒤에는 <b>장치를 읽지도 않는다.</b> 매 프레임 도는 경로라 잠금이 풀린 뒤에도
+        /// 계속 확인하면 값을 쓰지도 않을 검사를 평생 돌리게 된다.
+        /// </para>
+        /// </summary>
+        private void UnlockOnAnyInput()
+        {
+            if (_gate.IsUnlocked || !AnyInputThisFrame())
+            {
+                return;
+            }
+
+            NotifyUserInput();
+        }
+
+        /// <summary>
+        /// 설정에서 배경음 볼륨을 끄는 동안 <b>지금 울리는 곡</b>에도 반영한다. 시작할 때만
+        /// 곱하면 슬라이더를 움직여도 다음 곡부터 적용되어, 플레이어에게는 설정이 고장 난
+        /// 것으로 보인다.
+        ///
+        /// <para>
+        /// <b>값이 달라진 프레임에만 쓴다.</b> 매 프레임 대입하면 소스가 계속 갱신되고,
+        /// 배포 타깃(WebGL)에서 그만큼 손해다 (<c>CustomerView.LateUpdate</c> 와 같은 방식).
+        /// </para>
+        /// </summary>
+        private void RefreshBgmVolume()
+        {
+            var cue = BgmCue;
+            if (_bgmSource == null || cue == null)
+            {
+                return;
+            }
+
+            var target = cue.Volume * VolumeMix.Bgm;
+            if (!Mathf.Approximately(_bgmSource.volume, target))
+            {
+                _bgmSource.volume = target;
+            }
+        }
+
+        private static bool AnyInputThisFrame()
+        {
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.press.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.anyKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            var touch = Touchscreen.current;
+            return touch != null && touch.primaryTouch.press.wasPressedThisFrame;
         }
 
         private void OnSushiEaten(CustomerLogic customer, SushiItem sushi)
@@ -293,19 +402,72 @@ namespace SushiDefense.Audio
                 return;
             }
 
-            _sfxSource.PlayOneShot(cue.Clip, cue.Volume);
+            _sfxSource.PlayOneShot(cue.Clip, cue.Volume * VolumeMix.Sfx);
             PlayedCount++;
         }
 
+        /// <summary>
+        /// 배경음을 <b>처음부터</b> 튼다. 아직 클립이 안 풀렸으면 미뤄 두고 다음 프레임에
+        /// 다시 시도한다.
+        ///
+        /// <para>
+        /// <b>미루는 이유.</b> 배포 타깃(WebGL)은 오디오를 비동기로 푼다 — 시작 직후에는
+        /// 아홉 클립이 모두 «아직 안 풀림» 이고, 그 상태에서 <c>Play</c> 하면 엔진이 요청만
+        /// 받아 두었다가 <b>다 풀린 시점으로 건너뛰어</b> 재생한다. 늦게 누를수록 더 뒤에서
+        /// 시작하는 것으로 들린다.
+        /// </para>
+        /// </summary>
         private void StartBgm()
         {
-            if (_bgmSource == null || _bank == null || !_bank.Bgm.HasClip)
+            var cue = BgmCue;
+            if (_bgmSource == null || cue == null || !cue.HasClip)
             {
                 return;
             }
 
-            _bgmSource.clip = _bank.Bgm.Clip;
-            _bgmSource.volume = _bank.Bgm.Volume;
+            _pendingBgm = cue;
+            TryStartPendingBgm();
+        }
+
+        /// <summary>
+        /// 미뤄 둔 배경음을 튼다. 풀리기 전이면 아무 일도 하지 않고 다음 프레임을 기다린다.
+        /// </summary>
+        private void TryStartPendingBgm()
+        {
+            if (_pendingBgm == null || _bgmSource == null)
+            {
+                return;
+            }
+
+            var clip = _pendingBgm.Clip;
+            if (clip == null)
+            {
+                _pendingBgm = null;
+                return;
+            }
+
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+            {
+                // 미리 풀도록 임포터가 지정해 두었지만, 그것은 «시작한다» 이지
+                // «끝났다» 가 아니다. 아직 시작조차 안 했으면 여기서 민다.
+                clip.LoadAudioData();
+                return;
+            }
+
+            if (clip.loadState == AudioDataLoadState.Loading)
+            {
+                return;
+            }
+
+            var cue = _pendingBgm;
+            _pendingBgm = null;
+
+            // 멈춘 뒤 0 으로 되돌린다. 이미 흐르고 있었다면 이어서 트는 것이 아니라
+            // **처음부터** 다시 튼다 — 배경음은 곡의 앞부분이 정체성이다.
+            _bgmSource.Stop();
+            _bgmSource.clip = clip;
+            _bgmSource.time = 0f;
+            _bgmSource.volume = cue.Volume * VolumeMix.Bgm;
             _bgmSource.loop = true;
             _bgmSource.Play();
             BgmStartCount++;

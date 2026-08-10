@@ -42,6 +42,62 @@ namespace SushiDefense.Tests.EditMode.Customers
             Assert.IsNotNull(_prefab, $"{PrefabPath} 를 로드하지 못했다");
         }
 
+        /// <summary>
+        /// <c>Animator</c> 는 <b>몸통 렌더러와 같은 오브젝트</b>여야 한다. 클립의 곡선이 빈
+        /// 경로(=«컨트롤러가 달린 오브젝트 자신»)에 묶여 있어서, 자식에 달면 아무것도
+        /// 움직이지 않는데 <b>예외도 경고도 나지 않는다.</b>
+        /// </summary>
+        [Test]
+        public void Prefab_Animator_SitsOnTheBodyRenderer()
+        {
+            Assert.IsNotNull(_prefab.GetComponent<Animator>(), "뿌리에 Animator 가 없다");
+            Assert.IsNotNull(_prefab.GetComponent<SpriteRenderer>(),
+                             "전제: 몸통 렌더러가 뿌리에 있다");
+            Assert.IsNotNull(_prefab.GetComponent<CustomerMotionView>(),
+                             "뿌리에 동작 재생기가 없다");
+        }
+
+        /// <summary>
+        /// 말풍선은 <b>꺼진 채로</b> 저장돼 있어야 한다. 켜 두면 자리에 앉는 손님이 전부
+        /// 고민하는 것으로 보이고, 조율자가 «대기 아님» 이라고 답해도 뷰는 <b>바뀐 프레임에만</b>
+        /// 쓰므로 첫 프레임의 오해가 그대로 남는다.
+        /// </summary>
+        [Test]
+        public void Prefab_ThinkingBubble_IsPresentButOff()
+        {
+            var thinking = _prefab.transform.Find(CustomerMotionView.ThinkingChildName);
+
+            Assert.IsNotNull(thinking, $"{CustomerMotionView.ThinkingChildName} 자식이 없다");
+            Assert.IsFalse(thinking.gameObject.activeSelf, "말풍선이 켜진 채로 저장됐다");
+        }
+
+        /// <summary>
+        /// 렌더러와 컨트롤러가 <b>둘 다</b> 있어야 무언가 보인다. 하나만 보면 «켜도 안 보이는»
+        /// 말풍선이 그대로 통과한다 — 포화도 칸에서 실제로 겪은 형태다.
+        /// </summary>
+        [Test]
+        public void Prefab_ThinkingBubble_HasSpriteAndController()
+        {
+            var thinking = _prefab.transform.Find(CustomerMotionView.ThinkingChildName);
+            var renderer = thinking.GetComponent<SpriteRenderer>();
+
+            Assert.IsNotNull(renderer, "말풍선에 렌더러가 없다");
+            Assert.IsNotNull(renderer.sprite, "말풍선의 그림이 비었다 — 켜도 첫 프레임이 빈다");
+            Assert.IsNotNull(thinking.GetComponent<Animator>()?.runtimeAnimatorController,
+                             "말풍선에 물릴 클립이 없다 — 떠도 움직이지 않는다");
+        }
+
+        /// <summary>말풍선도 몸통 <b>앞</b>에 그려져야 한다. 뒤면 몸통에 가려 안 보인다.</summary>
+        [Test]
+        public void Prefab_ThinkingBubble_DrawsInFrontOfTheBody()
+        {
+            var body = _prefab.GetComponent<SpriteRenderer>();
+            var thinking = _prefab.transform.Find(CustomerMotionView.ThinkingChildName)
+                                  .GetComponent<SpriteRenderer>();
+
+            Assert.Greater(thinking.sortingOrder, body.sortingOrder, "말풍선이 몸통 뒤에 있다");
+        }
+
         [Test]
         public void Prefab_HasSaturationBarChild()
         {

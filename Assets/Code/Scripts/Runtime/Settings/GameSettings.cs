@@ -26,8 +26,22 @@ namespace SushiDefense.Settings
         /// </summary>
         public const float DefaultMasterVolume = 1f;
 
-        /// <summary>전체 볼륨. <c>0</c>~<c>1</c> 이다.</summary>
+        /// <summary>전체 볼륨. <c>0</c>~<c>1</c> 이다. 아래 둘 위에 한 번 더 곱해진다.</summary>
         public float MasterVolume { get; private set; } = DefaultMasterVolume;
+
+        /// <summary>
+        /// 배경음 볼륨. <c>0</c>~<c>1</c> 이다.
+        ///
+        /// <para>
+        /// 마스터와 <b>나누는 이유</b>: 배경음만 줄이고 효과음은 그대로 두고 싶다는 요구가
+        /// 실제로 있다. 하나로 묶으면 그 요구를 「전체를 줄이고 게임을 조용히 한다」로만
+        /// 답할 수 있다.
+        /// </para>
+        /// </summary>
+        public float BgmVolume { get; private set; } = DefaultMasterVolume;
+
+        /// <summary>효과음 볼륨. <c>0</c>~<c>1</c> 이다.</summary>
+        public float SfxVolume { get; private set; } = DefaultMasterVolume;
 
         /// <summary>전체화면인가.</summary>
         public bool Fullscreen { get; private set; }
@@ -44,22 +58,54 @@ namespace SushiDefense.Settings
         /// </summary>
         public void SetMasterVolume(float value)
         {
-            // 숫자가 아닌 값은 자르기가 통하지 않는다 — 비교가 전부 false 라 그대로 들어가고,
-            // 그 뒤로는 볼륨이 영영 복구되지 않는다. 저장소가 손상된 값을 돌려줄 수 있으므로
-            // 실제로 도달 가능한 경로다. 무시하는 편이 임의의 값으로 덮는 것보다 낫다.
+            if (TryClamp(value, MasterVolume, out var clamped))
+            {
+                MasterVolume = clamped;
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>배경음 볼륨을 정한다. 범위 밖은 잘린다.</summary>
+        public void SetBgmVolume(float value)
+        {
+            if (TryClamp(value, BgmVolume, out var clamped))
+            {
+                BgmVolume = clamped;
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>효과음 볼륨을 정한다. 범위 밖은 잘린다.</summary>
+        public void SetSfxVolume(float value)
+        {
+            if (TryClamp(value, SfxVolume, out var clamped))
+            {
+                SfxVolume = clamped;
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 볼륨 하나를 자른다. 바뀐 것이 없으면 <c>false</c> — <b>자른 뒤의 값</b>으로
+        /// 판단하므로 슬라이더를 상한 밖에서 흔드는 동안 알림이 계속 나가지 않는다.
+        ///
+        /// <para>
+        /// 숫자가 아닌 값은 자르기가 통하지 않는다 — 비교가 전부 <c>false</c> 라 그대로
+        /// 들어가고, 그 뒤로는 볼륨이 영영 복구되지 않는다. 저장소가 손상된 값을 돌려줄 수
+        /// 있으므로 실제로 도달 가능한 경로다. 무시하는 편이 임의의 값으로 덮는 것보다 낫다.
+        /// </para>
+        /// </summary>
+        private static bool TryClamp(float value, float current, out float clamped)
+        {
+            clamped = current;
+
             if (float.IsNaN(value))
             {
-                return;
+                return false;
             }
 
-            var clamped = Math.Min(1f, Math.Max(0f, value));
-            if (MasterVolume == clamped)
-            {
-                return;
-            }
-
-            MasterVolume = clamped;
-            Changed?.Invoke();
+            clamped = Math.Min(1f, Math.Max(0f, value));
+            return clamped != current;
         }
 
         /// <summary>전체화면 여부를 정한다.</summary>

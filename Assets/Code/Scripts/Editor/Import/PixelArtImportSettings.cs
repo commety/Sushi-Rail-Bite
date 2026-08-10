@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -44,8 +45,29 @@ namespace SushiDefense.EditorTools.Import
         private static readonly string[] PixelArtRoots =
         {
             "Assets/Art/Sprites/",
+            "Assets/Art/Animations/",
             "Assets/Level/Placeholder/"
         };
+
+        /// <summary>
+        /// 칸이 가로로 이어 붙은 시트가 사는 곳. 폴더 통째로 시트인 곳은 여기 하나뿐이다.
+        /// </summary>
+        private const string SheetRoot = "Assets/Art/Animations/";
+
+        /// <summary>
+        /// 폴더가 아니라 <b>이름</b>으로 시트임을 밝히는 접미. 타일 세트는 스프라이트 폴더
+        /// 안에 낱장들과 섞여 살기 때문에 경로만으로는 갈리지 않는다.
+        ///
+        /// <para>
+        /// 이름 규칙에 기대는 것이 마음에 걸리지만, 대안은 파일 목록을 코드에 박는 것이고
+        /// 그러면 타일 세트를 하나 추가할 때마다 이 파일을 고쳐야 한다.
+        /// </para>
+        /// <para>
+        /// <b>구분자를 포함하지 않는다.</b> 원본 파일이 <c>belt_tileset</c> 과
+        /// <c>sushi_outgoing-tileset</c> 으로 갈려 있어, 구분자까지 박으면 둘 중 하나만 걸린다.
+        /// </para>
+        /// </summary>
+        private const string SheetSuffix = "tileset";
 
         /// <summary>이 경로가 픽셀 아트 규칙의 대상인가.</summary>
         public static bool AppliesTo(string assetPath)
@@ -73,7 +95,31 @@ namespace SushiDefense.EditorTools.Import
         /// </summary>
         public static PixelArtImportPlan PlanFor(string assetPath)
         {
-            return AppliesTo(assetPath) ? PixelArtImportPlan.PixelArt() : default;
+            if (!AppliesTo(assetPath))
+            {
+                return default;
+            }
+
+            return IsSheet(assetPath) ? PixelArtImportPlan.Sheet() : PixelArtImportPlan.PixelArt();
+        }
+
+        /// <summary>
+        /// 이 텍스처가 여러 칸으로 잘려야 하는가. 폴더로 한 번, 파일 이름으로 한 번 본다.
+        /// </summary>
+        public static bool IsSheet(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            if (assetPath.StartsWith(SheetRoot, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            var name = Path.GetFileNameWithoutExtension(assetPath);
+            return name.EndsWith(SheetSuffix, StringComparison.Ordinal);
         }
     }
 }

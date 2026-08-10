@@ -186,6 +186,67 @@ namespace SushiDefense.Tests.EditMode.UI
         /// 혼자 떠 있는 창은 가려지지 않는다. <b>반례를 함께 박는다</b> — 항상 <c>false</c> 를
         /// 돌려주는 구현도 이것만으로는 통과한다.
         /// </summary>
+        // ── 설정은 남의 위에 겹친다 (M7) ─────────────────────────────────
+
+        [Test]
+        public void TryOpen_SettingsWhileMenuIsOpen_KeepsTheMenu()
+        {
+            // 메뉴에서 여는 화면인데 메뉴를 밀어내면 닫았을 때 돌아갈 곳이 없다.
+            _arbiter.TryOpen(StageWindow.Menu);
+
+            Assert.IsTrue(_arbiter.TryOpen(StageWindow.Settings));
+            Assert.IsTrue(_arbiter.IsOpen(StageWindow.Menu));
+            CollectionAssert.IsEmpty(_closed, "메뉴에 닫으라는 요청이 갔다");
+        }
+
+        [Test]
+        public void TryOpen_SettingsWhileMenuIsOpen_CoversTheMenu()
+        {
+            // 겹치기만 하고 밑을 못 누르게 막지 않으면, 설정 뒤의 «나가기» 가 그대로 눌린다.
+            _arbiter.TryOpen(StageWindow.Menu);
+
+            _arbiter.TryOpen(StageWindow.Settings);
+
+            Assert.IsTrue(_arbiter.IsCovered(StageWindow.Menu));
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Settings));
+        }
+
+        [Test]
+        public void Close_Settings_RevealsTheMenuAgain()
+        {
+            _arbiter.TryOpen(StageWindow.Menu);
+            _arbiter.TryOpen(StageWindow.Settings);
+
+            _arbiter.Close(StageWindow.Settings);
+
+            Assert.IsTrue(_arbiter.IsOpen(StageWindow.Menu));
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Menu), "메뉴가 가려진 채로 남았다");
+        }
+
+        [Test]
+        public void TryOpen_DeckWhileSettingsIsOpen_IsRefused()
+        {
+            // 겹치는 창이라고 아무나 위로 올려 주는 것은 아니다. 설정이 가장 위다.
+            _arbiter.TryOpen(StageWindow.Settings);
+
+            Assert.IsFalse(_arbiter.TryOpen(StageWindow.Deck));
+        }
+
+        [Test]
+        public void TryOpen_SettingsOverRewardAndDeck_LeavesBothOpen()
+        {
+            // 겹침 예외가 둘(보상 밑 · 설정 위)이라 동시에 셋까지 뜬다. 그 이상은 없다.
+            _arbiter.TryOpen(StageWindow.Reward);
+            _arbiter.TryOpen(StageWindow.Deck);
+
+            _arbiter.TryOpen(StageWindow.Settings);
+
+            Assert.AreEqual(3, _arbiter.OpenCount);
+            Assert.IsTrue(_arbiter.IsCovered(StageWindow.Reward));
+            Assert.IsTrue(_arbiter.IsCovered(StageWindow.Deck));
+            Assert.IsFalse(_arbiter.IsCovered(StageWindow.Settings));
+        }
+
         [Test]
         public void IsCovered_OnlyWindow_ReturnsFalse()
         {

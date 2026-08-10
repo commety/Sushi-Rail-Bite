@@ -94,11 +94,16 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **keywords:** 손님 유형, 유형, kind, CustomerKind, 기본, 소식, 먹보, BigEater, SmallEater, Normal, 대역 배치, 대역 폭, 전문가, 범용가, 겹침, 경계값, 영입 비용, RecruitCost, 처리량, 유예, 대기, 밸런스, 포화도, 대역 라벨, BandLabel, 상시 표시, 머리 위, 실루엣, 정보 창, 구별
 - **when to read:** 손님 애셋 값을 만지기 직전, 새 손님 유형 추가, 새 초밥을 덱에 넣을 때(기본 대역과 함께 봐야 한다), "손님이 자꾸 논다" 증상, **손님 위 표시물을 더하거나 뺄 때**
 
+#### [domain/stage-scenery.md](domain/stage-scenery.md)
+스테이지 배경(M7). 타일맵 네 판과 정렬 순서·반 칸 오프셋, 타일 일곱 장의 뜻(원본 이름 ↔ 쓰임), 벽은 한 줄, 구멍은 화면 안에, 다시 칠하는 메뉴와 팔레트, **임포터가 자르기 모드를 언제만 건드리나**(낱장까지 못박아 UI 스프라이트 열 장이 도로 합쳐진 사고), `GetVersion()` 을 올려야 재임포트된다는 것, 애니메이션은 아직 재생되지 않는다는 것, 아이콘 참조가 끊기면 조용히 기본값이 남는다는 것.
+- **keywords:** 타일맵, tilemap, Tilemap, Grid, 타일, tile, Tile, 팔레트, palette, GridPalette, StageTilePlan, StageTileId, StageTileAssets, StageTilemapBuilder, 바닥, floor, 벽, wall, 창문, window, 장식물, decor, 구멍, mouth, 벨트 그림, belt art, 정렬 순서, sortingOrder, 오프셋, 배경, background, bg-wall, 화면비, aspect, 임포트, import, spriteImportMode, Multiple, Single, 시트, sheet, 자르기, slice, SpriteSheetSlicer, tileset, GetVersion, 재임포트, reimport, 애니메이션, animation, AnimationClip, AnimatorController, 클립, 프레임, frame, idle, picking, 아이콘, Icon, CustomerData.Icon, 깨진 참조, dangling
+- **when to read:** 스테이지 배경·타일맵을 만지기 직전, 새 그림 애셋을 넣을 때(임포트 규칙), 애니메이션을 실제로 붙일 때, "그림이 안 나온다"·"흐릿하다" 증상
+
 #### [domain/presentation-and-audio.md](domain/presentation-and-audio.md)
 화면·소리 계층(M5). 아이콘은 데이터가 정한다, 오디오 3층(값/판정/재생), 자동재생 게이트,
 연출 수치 vs 밸런스 수치, 임포트 규칙 두 종, 한글 정적 서브셋, 입력은 Input System,
 씬 조립에서 반복해 걸린 것, WebGL 실측.
-- **keywords:** 아이콘, Icon, 스프라이트, sprite, 픽셀 아트, pixel art, 임포트, import, PPU, Point 필터, 아틀라스, atlas, 오디오, audio, 사운드, sound, BGM, 효과음, SFX, AudioBankSO, SoundBudget, AudioUnlockGate, AudioDirector, 겹침, 쿨다운, 동시 재생, 자동재생, playOnAwake, 이펙트, VFX, EffectDirector, PopEffect, 풀, 폰트, font, TMP, TextMeshPro, 한글, 두부, 서브셋, charset, Canvas, CanvasScaler, HUD, 입력, Input System, Keyboard, Mouse, 클릭 배치, SlotPicker, WebGL, 초기 로드, 빌드 크기, Build Settings, 프리팹 오버라이드, prefab override, 씬 인스턴스, 카드 크기, 글자 잘림, 9-slice, spriteBorder
+- **keywords:** 아이콘, Icon, 스프라이트, sprite, 픽셀 아트, pixel art, 임포트, import, PPU, Point 필터, 아틀라스, atlas, 오디오, audio, 사운드, sound, BGM, 효과음, SFX, AudioBankSO, SoundBudget, AudioUnlockGate, AudioDirector, 겹침, 쿨다운, 동시 재생, 자동재생, playOnAwake, 이펙트, VFX, EffectDirector, PopEffect, 풀, 폰트, font, TMP, TextMeshPro, 한글, 두부, 서브셋, charset, Canvas, CanvasScaler, HUD, 입력, Input System, Keyboard, Mouse, 클릭 배치, SlotPicker, WebGL, 초기 로드, 빌드 크기, Build Settings, 프리팹 오버라이드, prefab override, 씬 인스턴스, 카드 크기, 글자 잘림, 9-slice, spriteBorder, 메인 배경음, MainBgm, BgmTrack, mp3, 클립 참조
 - **when to read:** 화면 표시·소리·이펙트·폰트·입력을 만지기 직전, 새 스프라이트나 음원을 추가할 때, WebGL 빌드 크기를 볼 때
 
 #### [domain/in-stage-windows.md](domain/in-stage-windows.md)

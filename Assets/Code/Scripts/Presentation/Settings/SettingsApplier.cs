@@ -1,3 +1,4 @@
+using SushiDefense.Audio;
 using SushiDefense.UI;
 using UnityEngine;
 
@@ -27,9 +28,10 @@ namespace SushiDefense.Settings
     /// </description></item>
     /// </list>
     /// <para>
-    /// 마스터 볼륨은 <c>AudioListener.volume</c> <b>한 곳</b>이다. 큐별 상대 볼륨은
-    /// <c>AudioBankSO</c> 가 이미 들고 있고 마스터는 그 위에 한 번 곱해지는 값이라,
-    /// 둘을 나눠 둔 덕에 이 클래스가 오디오 코드를 건드리지 않는다.
+    /// 볼륨은 세 층이다: 큐별 상대 볼륨(<c>AudioBankSO</c>) × 갈래별
+    /// (<see cref="VolumeMix"/>) × 마스터(<c>AudioListener.volume</c>). 마스터만 엔진에
+    /// 둘 곳이 있고 갈래별은 없어서 <b>가운데 층만</b> 우리가 든다 — 그래서 이 클래스가
+    /// 오디오 코드를 여전히 건드리지 않는다.
     /// </para>
     /// </summary>
     public sealed class SettingsApplier : ISettingsApplier
@@ -46,6 +48,11 @@ namespace SushiDefense.Settings
             }
 
             AudioListener.volume = settings.MasterVolume;
+
+            // 갈래별 볼륨은 엔진에 둘 곳이 없어 우리가 든다. 소리를 내는 진행자는 씬마다
+            // 새로 태어나므로, 값이 씬을 넘어 살아 있어야 스테이지로 넘어가도 유지된다.
+            VolumeMix.Bgm = settings.BgmVolume;
+            VolumeMix.Sfx = settings.SfxVolume;
 
             // 같은 값을 다시 쓰지 않는다 — 전체화면 전환은 브라우저에서 실제 창 조작이라
             // 값이 그대로인데도 깜빡임이 난다.

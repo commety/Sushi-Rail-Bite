@@ -51,6 +51,60 @@ namespace SushiDefense.Tests.EditMode.Data
             CollectionAssert.DoesNotContain(_catalog.AllCustomers, null);
         }
 
+        /// <summary>
+        /// 모든 카드가 <b>자기 그림</b>을 갖는지 본다. 손님은 유형을 실루엣으로만 구별하므로
+        /// (<c>.claude/domain/customer-kinds.md</c> §1) 그림이 비면 자리 셋이 똑같아진다.
+        ///
+        /// <para>
+        /// <b>이 단언은 실제로 깨진 적이 있다.</b> 손님 그림을 4방향으로 다시 그리면서 옛
+        /// 파일이 지워졌고, 세 손님의 아이콘 참조가 통째로 끊겼다. 끊긴 참조는
+        /// <c>null</c> 로 역직렬화되므로 예외도 로그도 없이 <b>프리팹의 placeholder 블록이
+        /// 그대로 남는다</b> — 화면을 보기 전에는 아무도 모른다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void EveryCard_HasItsOwnIcon()
+        {
+            var icons = new HashSet<UnityEngine.Sprite>();
+
+            foreach (var sushi in _catalog.AllSushi)
+            {
+                Assert.IsNotNull(sushi.Icon, $"{sushi.name} 에 그림이 없다");
+                Assert.IsTrue(icons.Add(sushi.Icon), $"{sushi.name} 이 남의 그림을 쓴다");
+            }
+
+            foreach (var customer in _catalog.AllCustomers)
+            {
+                Assert.IsNotNull(customer.Icon, $"{customer.name} 에 그림이 없다");
+                Assert.IsTrue(icons.Add(customer.Icon), $"{customer.name} 이 남의 그림을 쓴다");
+            }
+        }
+
+        /// <summary>
+        /// 손님마다 <b>자기 유형의</b> 동작 묶음이 붙어 있는지 본다.
+        ///
+        /// <para>
+        /// 아이콘과 같은 실패 모드다 — 끊긴 참조는 <c>null</c> 로 역직렬화되고, 그러면 그
+        /// 손님만 <b>먹어도 쉬어도 낱장 그림 그대로 서 있다.</b> 예외도 로그도 없다.
+        /// </para>
+        /// <para>
+        /// <b>«비어 있지 않다» 만 보지 않는다.</b> 셋이 같은 컨트롤러를 물어도 그것은 참이고,
+        /// 그러면 먹보가 소식가의 몸으로 움직인다 — 유형을 실루엣으로만 구별하는 이 게임에서
+        /// 그건 유형이 사라지는 것과 같다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void EveryCustomer_HasItsOwnMotions()
+        {
+            var motions = new HashSet<UnityEngine.RuntimeAnimatorController>();
+
+            foreach (var customer in _catalog.AllCustomers)
+            {
+                Assert.IsNotNull(customer.Motions, $"{customer.name} 에 동작이 없다");
+                Assert.IsTrue(motions.Add(customer.Motions), $"{customer.name} 이 남의 동작을 쓴다");
+            }
+        }
+
         [Test]
         public void Catalog_HasNoDuplicate()
         {

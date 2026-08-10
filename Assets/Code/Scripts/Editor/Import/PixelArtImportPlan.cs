@@ -14,9 +14,10 @@ namespace SushiDefense.EditorTools.Import
     /// </summary>
     public readonly struct PixelArtImportPlan
     {
-        private PixelArtImportPlan(bool isPixelArt)
+        private PixelArtImportPlan(SpriteImportMode spriteMode)
         {
-            IsPixelArt = isPixelArt;
+            IsPixelArt = true;
+            SpriteMode = spriteMode;
             FilterMode = FilterMode.Point;
             MipmapEnabled = false;
             PixelsPerUnit = PixelArtImportSettings.PixelsPerUnit;
@@ -57,10 +58,32 @@ namespace SushiDefense.EditorTools.Import
         /// <summary>스프라이트 폴더에 들어온 텍스처는 스프라이트다.</summary>
         public TextureImporterType TextureType { get; }
 
-        /// <summary>픽셀 아트에 적용할 계획.</summary>
+        /// <summary>
+        /// 한 장인가 여러 칸인가.
+        ///
+        /// <para>
+        /// <b>이것이 <see cref="Multiple"/> 이 아니면 칸이 아예 생기지 않는다.</b> 애니메이션
+        /// 시트를 <c>Single</c> 로 들이면 128×32 짜리 스프라이트 한 장이 되어, 클립을 만들
+        /// 프레임이 하나도 없다. 증상은 "왜 프레임이 안 보이지" 인데 원인은 임포트 설정이라
+        /// 애니메이션 창에서는 찾지 못한다.
+        /// </para>
+        /// </summary>
+        public SpriteImportMode SpriteMode { get; }
+
+        /// <summary>픽셀 아트 한 장에 적용할 계획.</summary>
         public static PixelArtImportPlan PixelArt()
         {
-            return new PixelArtImportPlan(true);
+            return new PixelArtImportPlan(SpriteImportMode.Single);
+        }
+
+        /// <summary>
+        /// 여러 칸이 가로로 이어 붙은 시트에 적용할 계획. 칸 크기는
+        /// <see cref="PixelArtImportSettings.PixelsPerUnit"/> 과 같다 — 이 게임에서 한 칸은
+        /// 곧 한 유닛이다.
+        /// </summary>
+        public static PixelArtImportPlan Sheet()
+        {
+            return new PixelArtImportPlan(SpriteImportMode.Multiple);
         }
     }
 }

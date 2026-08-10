@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -9,6 +10,7 @@ using SushiDefense.Run;
 using SushiDefense.Scoring;
 using SushiDefense.Stages;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace SushiDefense.Tests.PlayMode.Audio
 {
@@ -38,6 +40,10 @@ namespace SushiDefense.Tests.PlayMode.Audio
         [SetUp]
         public void SetUp()
         {
+            // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
+            AudioUnlockGate.ResetOnLoad();
+            VolumeMix.ResetOnLoad();
+
             _bank = NewBank();
 
             var go = NewObject("AudioDirector");
@@ -146,6 +152,98 @@ namespace SushiDefense.Tests.PlayMode.Audio
         }
 
         [Test]
+        public void BgmCue_DefaultTrack_IsTheStageBgm()
+        {
+            Assert.AreSame(_bank.Bgm, _director.BgmCue);
+        }
+
+        [Test]
+        public void BgmCue_MainTrack_IsTheMainBgm()
+        {
+            SetTrack(BgmTrack.Main);
+
+            Assert.AreSame(_bank.MainBgm, _director.BgmCue);
+        }
+
+        [Test]
+        public void NotifyUserInput_MainTrack_PlaysTheMainClip()
+        {
+            // "둘이 다르다" 만 보면 큐만 갈리고 실제 재생은 스테이지 곡인 구현도 통과한다.
+            SetTrack(BgmTrack.Main);
+
+            _director.NotifyUserInput();
+
+            Assert.AreSame(_bank.MainBgm.Clip, BgmSource().clip);
+            Assert.AreNotSame(_bank.Bgm.Clip, BgmSource().clip);
+        }
+
+        [Test]
+        public void NotifyUserInput_BgmVolumeHalved_StartsAtHalfTheCueVolume()
+        {
+            VolumeMix.Bgm = 0.5f;
+
+            _director.NotifyUserInput();
+
+            Assert.AreEqual(_bank.Bgm.Volume * 0.5f, BgmSource().volume, 0.001f);
+        }
+
+        [UnityTest]
+        public IEnumerator BgmVolume_ChangedWhilePlaying_FollowsWithoutRestarting()
+        {
+            // 시작할 때만 곱하면 슬라이더를 움직여도 다음 곡부터 적용되어, 플레이어에게는
+            // 설정이 고장 난 것으로 보인다.
+            _director.NotifyUserInput();
+            var started = _director.BgmStartCount;
+
+            VolumeMix.Bgm = 0.25f;
+            yield return null;
+
+            Assert.AreEqual(_bank.Bgm.Volume * 0.25f, BgmSource().volume, 0.001f);
+            Assert.AreEqual(started, _director.BgmStartCount, "볼륨을 바꿨더니 곡이 다시 시작됐다");
+        }
+
+        [Test]
+        public void SushiEaten_SfxSilenced_StillCountsAsPlayed()
+        {
+            // 효과음 볼륨은 «낼지 말지» 가 아니라 «얼마나 크게» 다. 0 이라고 예산에서
+            // 빼면 볼륨을 되올렸을 때 겹침 규칙이 달라진다.
+            VolumeMix.Sfx = 0f;
+            Bind();
+            _director.NotifyUserInput();
+
+            RaiseEaten();
+
+            Assert.AreEqual(1, _director.PlayedCount);
+        }
+
+        /// <summary>
+        /// 배경음은 <b>곡의 처음</b>부터 나야 한다. 배포 타깃(WebGL)이 오디오를 비동기로
+        /// 풀기 때문에, 안 풀린 채로 <c>Play</c> 하면 엔진이 다 풀린 시점으로 건너뛴다 —
+        /// 늦게 누를수록 더 뒤에서 시작하는 것으로 들린다.
+        /// </summary>
+        [Test]
+        public void NotifyUserInput_AfterTheSourceWasLeftRunning_RestartsFromTheTop()
+        {
+            var source = BgmSource();
+            source.clip = _bank.Bgm.Clip;
+            source.time = 0.05f;
+            source.Play();
+
+            _director.NotifyUserInput();
+
+            Assert.AreEqual(0f, source.time, 0.001f, "곡 중간에서 시작했다");
+            Assert.IsTrue(source.isPlaying);
+        }
+
+        [Test]
+        public void BgmCue_NoBank_IsNullInsteadOfThrowing()
+        {
+            SetField(_director, "_bank", null);
+
+            Assert.IsNull(_director.BgmCue);
+        }
+
+        [Test]
         public void NotifyUserInput_Twice_DoesNotRestartBgm()
         {
             Bind();
@@ -229,6 +327,20 @@ namespace SushiDefense.Tests.PlayMode.Audio
             ((System.Delegate)field.GetValue(target))?.DynamicInvoke(args);
         }
 
+        private void SetTrack(BgmTrack track)
+        {
+            typeof(AudioDirector)
+                .GetField("_bgmTrack", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(_director, track);
+        }
+
+        private AudioSource BgmSource()
+        {
+            return (AudioSource)typeof(AudioDirector)
+                .GetField("_bgmSource", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(_director);
+        }
+
         private static void SetField(Object target, string name, Object value)
         {
             var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -248,6 +360,7 @@ namespace SushiDefense.Tests.PlayMode.Audio
             SetCue(bank, "_stageCleared", 0.8f, 0f);
             SetCue(bank, "_stageFailed", 0.8f, 0f);
             SetCue(bank, "_bgm", 0.35f, 0f);
+            SetCue(bank, "_mainBgm", 0.3f, 0f);
 
             var max = typeof(AudioBankSO).GetField("_maxConcurrentSfx",
                 BindingFlags.Instance | BindingFlags.NonPublic);

@@ -22,6 +22,7 @@ namespace SushiDefense.Data
         [SerializeField, Min(0)] private int _recruitCost;
         [SerializeField, Min(1)] private int _population = 1;
         [SerializeField] private Sprite _icon;
+        [SerializeField] private RuntimeAnimatorController _motions;
 
         /// <summary>덱·저장에서 이 손님을 가리키는 안정적 키.</summary>
         public string Id => _id;
@@ -92,8 +93,26 @@ namespace SushiDefense.Data
         /// </summary>
         public int Population => _population;
 
-        /// <summary>테이블·UI 에 그릴 스프라이트.</summary>
+        /// <summary>테이블·UI 에 그릴 스프라이트. 손님이 <b>아무 동작도 하지 않을 때</b>의 모습이다.</summary>
         public Sprite Icon => _icon;
+
+        /// <summary>
+        /// 이 유형의 동작 클립 묶음 — 집기 · 먹기 · 소화. 비어 있으면 <see cref="Icon"/> 이
+        /// 그대로 서 있는다.
+        ///
+        /// <para>
+        /// <b>유형별 시트가 갈리므로 손님마다 다른 컨트롤러를 문다.</b> 코드가 유형으로
+        /// 분기해 컨트롤러를 고르지 않는 이유는 <see cref="Icon"/> 과 같다 — 손님을 추가할
+        /// 때마다 뷰를 고쳐야 하기 때문이다.
+        /// </para>
+        /// <para>
+        /// <b>먹기·소화 클립을 따로 두지 않았다.</b> 둘 다 같은 대기 클립을 <b>재생 속도만</b>
+        /// 바꿔 쓴다 (빠르면 먹는 것, 느리면 쉬는 것). 속도는 여기가 아니라
+        /// <c>CustomerMotionSpeed</c> 가 <see cref="EatSeconds"/>·<see cref="DigestSeconds"/>
+        /// 에서 유도한다 — <c>Runtime.Data</c> 는 계약이지 계산이 아니다.
+        /// </para>
+        /// </summary>
+        public RuntimeAnimatorController Motions => _motions;
 
         /// <summary>
         /// 음수·0 방어. <c>[Min]</c> 은 인스펙터 입력만 막으므로 여기서 한 번 더 조인다.

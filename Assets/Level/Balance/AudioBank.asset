@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: AudioBank
   m_EditorClassIdentifier: 
   _sushiEaten:
-    _clip: {fileID: 8300000, guid: d0b92dbe93b34427ba4fd7e1b9e3ac75, type: 3}
+    _clip: {fileID: 8300000, guid: 1047e3fe74e1e471a981bcbf6c8fd3be, type: 3}
     _volume: 0.5
     _cooldownSeconds: 0.06
   _customerPlaced:
@@ -25,11 +25,11 @@ MonoBehaviour:
     _volume: 0.7
     _cooldownSeconds: 0.0
   _stageAdvanced:
-    _clip: {fileID: 8300000, guid: 71b86c5044dca42d9a7a323ba80b6262, type: 3}
+    _clip: {fileID: 8300000, guid: 4c7bfaaddfa314c40b05f3542413812c, type: 3}
     _volume: 0.7
     _cooldownSeconds: 0.0
   _stageCleared:
-    _clip: {fileID: 8300000, guid: f80a6302f25594505959f12b2c070dd4, type: 3}
+    _clip: {fileID: 8300000, guid: c5f6a1184e04340028160645be52ccbf, type: 3}
     _volume: 0.8
     _cooldownSeconds: 0.0
   _stageFailed:
@@ -37,7 +37,11 @@ MonoBehaviour:
     _volume: 0.8
     _cooldownSeconds: 0.0
   _bgm:
-    _clip: {fileID: 8300000, guid: fefbb04155c23423ab076a8699def71d, type: 3}
+    _clip: {fileID: 8300000, guid: 8a8eec2430ff54b5e914d8e7555d8091, type: 3}
+    _volume: 0.35
+    _cooldownSeconds: 0.0
+  _mainBgm:
+    _clip: {fileID: 8300000, guid: 6d7de2f4183c4445daa46813387a42a1, type: 3}
     _volume: 0.35
     _cooldownSeconds: 0.0
   _uiClick:

@@ -36,6 +36,11 @@ namespace SushiDefense.Tests.PlayMode
         public IEnumerator SetUp()
         {
 #if UNITY_EDITOR
+            // 잠금은 페이지 단위(=`static`)라 앞 테스트가 연 것이 그대로 넘어온다.
+            // 되돌리지 않으면 «첫 입력 전에는 조용하다» 를 보는 단언이 실행 순서에 따라
+            // 깨진다.
+            SushiDefense.Audio.AudioUnlockGate.ResetOnLoad();
+
             var parameters = new UnityEngine.SceneManagement.LoadSceneParameters(
                 UnityEngine.SceneManagement.LoadSceneMode.Single);
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, parameters);
@@ -848,6 +853,110 @@ namespace SushiDefense.Tests.PlayMode
             var director = _stage.GetComponentInChildren<SushiDefense.Audio.AudioDirector>(true);
             Assert.IsNotNull(director, "씬에 AudioDirector 가 없다");
             Assert.IsFalse(director.IsBgmPlaying, "첫 입력 전에 배경음이 울리면 안 된다");
+
+            // **참조가 비어도 여기까지는 전부 통과한다.** 실제로 두 소스가 씬에서 통째로
+            // 비어 있었고, 스테이지에서는 배경음도 효과음도 한 번도 나지 않았다 — 예외도
+            // 로그도 없어 «메인에서 스테이지로 넘어가면 조용해진다» 로만 드러났다.
+            Assert.IsNotNull(AudioSourceOf(director, "_sfxSource"),
+                             "효과음 소스가 비어 있다 — 스테이지에서 효과음이 하나도 안 난다");
+            Assert.IsNotNull(AudioSourceOf(director, "_bgmSource"),
+                             "배경음 소스가 비어 있다 — 스테이지 음악이 영영 안 나온다");
+        }
+
+        private static AudioSource AudioSourceOf(SushiDefense.Audio.AudioDirector director,
+                                                 string field)
+        {
+            return (AudioSource)typeof(SushiDefense.Audio.AudioDirector)
+                .GetField(field, System.Reflection.BindingFlags.Instance
+                                 | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(director);
+        }
+
+        /// <summary>
+        /// HUD 글자가 <b>검정</b>인지 본다. 배경이 밝은 나무 바닥이 되면서 흰 글자는 거의
+        /// 읽히지 않았다 (M7 — 기획자 요청).
+        ///
+        /// <para>
+        /// 색은 씬에만 있고 코드 어디에도 없어서, 다른 어떤 테스트도 이것을 보지 않는다.
+        /// 라벨을 하나 더 만들면서 색을 빠뜨리는 것이 실제로 가능한 실수다.
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// 스테이지 메뉴에서 설정을 열면 <b>메뉴가 남은 채</b> 그 위에 겹치는지 본다.
+        ///
+        /// <para>
+        /// 조정자 테스트는 창 <b>이름</b>만 다루므로, 씬에 설정 화면이 없거나 부트스트랩이
+        /// 그것을 못 찾으면 전부 초록인 채로 버튼만 먹통이 된다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SettingsOpensOverTheMenu()
+        {
+            yield return null;
+
+            Assert.IsNotNull(_stage.Settings, "씬에 설정 화면이 없다 — 메뉴의 설정 버튼이 먹통이다");
+
+            _stage.Menu.Open();
+            _stage.Menu.OpenSettings();
+
+            yield return null;
+
+            Assert.IsTrue(_stage.Settings.IsOpen, "설정이 열리지 않았다");
+            Assert.IsTrue(_stage.Menu.IsOpen, "설정을 열었더니 메뉴가 닫혔다");
+            Assert.IsTrue(_stage.Windows.IsCovered(SushiDefense.UI.StageWindow.Menu),
+                          "메뉴가 가려지지 않아 뒤의 버튼이 그대로 눌린다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_ClosingSettings_LeavesTheMenuUsableAgain()
+        {
+            yield return null;
+
+            _stage.Menu.Open();
+            _stage.Menu.OpenSettings();
+            _stage.Settings.Close();
+
+            yield return null;
+
+            Assert.IsTrue(_stage.Menu.IsOpen);
+            Assert.IsFalse(_stage.Windows.IsCovered(SushiDefense.UI.StageWindow.Menu),
+                           "설정을 닫았는데 메뉴가 가려진 채로 남았다");
+        }
+
+        /// <summary>
+        /// 설정 화면이 <b>가장 마지막 형제</b>인지 본다. uGUI 는 계층 순서로 겹침을 정하므로,
+        /// 앞쪽에 있으면 «가장 위» 로 판정해 놓고 화면에서는 메뉴 뒤에 그려진다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SettingsPanel_DrawsAboveTheMenu()
+        {
+            yield return null;
+
+            var settings = Object.FindAnyObjectByType<SushiDefense.UI.SettingsView>(
+                FindObjectsInactive.Include);
+            var menu = Object.FindAnyObjectByType<SushiDefense.UI.StageMenuView>(
+                FindObjectsInactive.Include);
+
+            Assert.AreSame(settings.transform.parent, menu.transform.parent, "둘이 다른 캔버스에 있다");
+            Assert.Greater(settings.transform.GetSiblingIndex(), menu.transform.GetSiblingIndex(),
+                           "설정이 메뉴보다 앞쪽 형제라 메뉴 뒤에 그려진다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_HudLabels_AreBlack()
+        {
+            yield return null;
+
+            var hud = _stage.GetComponentInChildren<SushiDefense.UI.StageHudView>(true);
+            Assert.IsNotNull(hud, "씬에 StageHudView 가 없다");
+
+            var labels = hud.GetComponentsInChildren<TMPro.TMP_Text>(true);
+            Assert.IsNotEmpty(labels);
+
+            foreach (var label in labels)
+            {
+                Assert.AreEqual(Color.black, label.color, $"{label.name} 이 검정이 아니다");
+            }
         }
 
         [UnityTest]
@@ -1047,6 +1156,37 @@ namespace SushiDefense.Tests.PlayMode
             Assert.AreEqual("RemainingLabel", labels[0].name);
         }
 
+        /// <summary>
+        /// 씬에 앉은 손님이 <b>자기 유형의 동작</b>을 물고 있는지 본다.
+        ///
+        /// <para>
+        /// 프리팹과 밸런스 애셋이 각각 멀쩡해도 <b>둘이 만나는 곳은 씬</b>이다 —
+        /// <c>CustomerPrefabTests</c> 는 <c>Animator</c> 의 존재만, <c>CardCatalogAssetTests</c>
+        /// 는 컨트롤러의 존재만 본다. 실제로 물리는 순간은 <c>Bind</c> 뿐이라, 그 한 줄이
+        /// 빠지면 손님은 <b>먹어도 쉬어도 낱장 그림으로 서 있고</b> 예외는 나지 않는다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SeatedCustomer_CarriesItsMotions()
+        {
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+            slot.Occupy(logic, _stage.Coordinator);
+
+            yield return null;
+
+            var animator = slot.Occupant.GetComponent<Animator>();
+            Assert.IsNotNull(animator, "앉은 손님에게 Animator 가 없다 — 씬 조립을 확인하라");
+            Assert.AreSame(DefaultCustomer().Motions, animator.runtimeAnimatorController,
+                           "손님이 자기 유형의 동작을 물지 않았다");
+
+            var thinking = slot.Occupant.transform
+                .Find(SushiDefense.Customers.CustomerMotionView.ThinkingChildName);
+            Assert.IsNotNull(thinking, "말풍선 자식이 씬에서 사라졌다");
+            Assert.IsFalse(thinking.gameObject.activeSelf,
+                           "앉자마자 말풍선이 떠 있다 — 모든 손님이 고민하는 것으로 보인다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_PlacedCustomerEarnsRevenue()
         {
@@ -1061,6 +1201,44 @@ namespace SushiDefense.Tests.PlayMode
                             - DefaultCustomer().RecruitCost,
                             _stage.Wallet.Balance,
                             "잔액 = 초기 예산 − 영입 비용 + 매출/10");
+        }
+
+        /// <summary>
+        /// 자리에 앉은 손님이 <b>자기 그림</b>으로 나오는지 본다.
+        ///
+        /// <para>
+        /// <c>CustomerViewTests</c> 는 뷰에 아이콘을 직접 물려 주므로, 밸런스 애셋의 아이콘
+        /// 참조가 통째로 끊겨도 전부 초록이다 (<c>.claude/rules/tests.md</c> §1 — 하네스가
+        /// 지나치는 우회로). 실제로 손님 그림을 4방향으로 다시 그리며 옛 파일이 지워졌을 때
+        /// 세 유형의 아이콘이 끊긴 채 커밋됐고, 화면에는 <b>프리팹의 기본 그림</b>이 남았다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_PlacedCustomerWearsItsOwnArt()
+        {
+            // 서비스(`Placement.Place`)가 아니라 **컨트롤러**를 부른다. 서비스만 부르면
+            // 자리가 점유되지 않아 «손님 n/3» 은 오르는데 화면에는 아무것도 안 나타난다 —
+            // 그 우회로가 곧 이 테스트가 막으려는 사각지대다.
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var controller = Object.FindAnyObjectByType<
+                SushiDefense.Customers.CustomerPlacementController>();
+
+            // **기본 손님으로 확인하지 않는다.** 프리팹의 기본 그림이 마침 기본 손님의
+            // 아이콘이라, 아이콘 대입을 통째로 지워도 이 단언이 통과한다 — 실제로 그렇게
+            // 짰다가 주입에서 아무도 안 죽는 것을 보고 알았다.
+            var data = LoadCustomer("Customer.BigEater");
+            var prefabSprite = PrefabDefaultBodySprite();
+
+            Assert.IsNotNull(data.Icon, $"{data.name} 에 그림이 물려 있지 않다");
+            Assert.AreNotSame(prefabSprite, data.Icon,
+                              "이 손님의 그림이 프리팹 기본값과 같아 검증이 공허해진다");
+            Assert.IsTrue(controller.TryPlace(data, slot), "배치가 거부됐다");
+
+            yield return null;
+
+            Assert.IsNotNull(slot.Occupant, "자리에 시각 표현이 없다");
+            Assert.AreSame(data.Icon, slot.Occupant.ShownSprite,
+                           "자리가 손님의 그림 대신 프리팹 기본 그림을 그리고 있다");
         }
 
         [UnityTest]
@@ -1533,6 +1711,18 @@ namespace SushiDefense.Tests.PlayMode
         }
 
         private static SushiDefense.Data.CustomerData DefaultCustomer() => LoadCustomer("Customer.Standard");
+
+        /// <summary>손님 프리팹이 들고 태어나는 그림. 자리가 빌 때 되돌아가는 값이다.</summary>
+        private static Sprite PrefabDefaultBodySprite()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Code/Scripts/Presentation/Customers/Customer.prefab");
+            return prefab.GetComponent<SpriteRenderer>().sprite;
+#else
+            return null;
+#endif
+        }
 
         /// <summary>
         /// 밸런스 애셋을 이름으로 연다. 순수 로직 테스트에서는 금지된 방식이지만

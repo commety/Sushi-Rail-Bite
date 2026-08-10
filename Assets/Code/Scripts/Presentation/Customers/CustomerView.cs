@@ -1,3 +1,4 @@
+using SushiDefense.Belt;
 using SushiDefense.Data;
 using UnityEngine;
 
@@ -22,6 +23,11 @@ namespace SushiDefense.Customers
     /// 잃은 것이 하나 있다: <b>자리 셋을 나란히 놓고 비교할 수 없다.</b> 창은 한 번에 한
     /// 손님만 연다 — 실플레이에서 그것이 문제로 드러나면 되돌릴 자리가 여기다.
     /// </para>
+    /// <para>
+    /// <b>기다림은 색이 아니라 말풍선이 알린다</b> (M9). 몸통 색은 상태 셋만 나눠 갖고,
+    /// 대역 밖 초밥을 두고 고민하는 것은 머리 위 애니메이션이 맡는다 — 같은 사실을 두
+    /// 채널로 내보내면 상태 색이 통째로 대기에 묶인다.
+    /// </para>
     /// </summary>
     public sealed class CustomerView : MonoBehaviour
     {
@@ -35,14 +41,17 @@ namespace SushiDefense.Customers
         [SerializeField] private Color _eatingColor = new(1f, 0.85f, 0.3f);
         [SerializeField] private Color _digestingColor = new(0.5f, 0.55f, 0.65f);
 
-        /// <summary>대역 밖 초밥을 두고 더 좋은 것을 기다리는 중임을 나타내는 색.</summary>
-        [SerializeField] private Color _waitingColor = new(0.45f, 0.75f, 1f);
-
         /// <summary>포화도 칸. 없으면 표시만 빠진다 — 표시는 로직의 전제 조건이 아니다.</summary>
         [SerializeField] private SaturationBarView _saturationBar;
 
         /// <summary>소화중 배지. 없으면 표시만 빠진다.</summary>
         [SerializeField] private DigestingBadgeView _digestingBadge;
+
+        /// <summary>몸통 동작·말풍선 재생기. 없으면 낱장 그림만 서 있는다.</summary>
+        [SerializeField] private CustomerMotionView _motionView;
+
+        /// <summary>상태를 동작으로 옮기는 순수 계산. 뷰마다 하나씩 들고 있다.</summary>
+        private readonly CustomerMotionSelector _motions = new();
 
         private ClaimCoordinator _coordinator;
         private CustomerState _shownState = CustomerState.Idle;
@@ -88,9 +97,19 @@ namespace SushiDefense.Customers
         {
             Resolve();
 
+            // 앞 판의 조율자를 먼저 뗀다. Bind 는 자리를 갈아탈 때마다 불리므로, 놔두면
+            // 죽은 조율자의 집기 알림이 계속 들어온다 (`.claude/rules/scripts.md` §6).
+            Unsubscribe();
+
             Logic = logic;
             _coordinator = coordinator;
             _shownWaiting = false;
+            _motions.Reset();
+
+            if (_coordinator != null)
+            {
+                _coordinator.SushiClaimed += OnSushiClaimed;
+            }
 
             // 자리를 갈아탈 때 직전 손님의 칸·배지가 남으면, 방금 앉은 손님이 이미 찼거나
             // 소화 중인 것처럼 보인다. 로직이 null 인 경우에도 지나가야 하므로 앞에 둔다.
@@ -109,11 +128,53 @@ namespace SushiDefense.Customers
             if (logic == null)
             {
                 RestoreDefaultIcon();
+                BindMotions(null, _defaultSprite);
                 return;
             }
 
-            ShowIcon(logic.State.Data);
-            Apply(logic.State.State, false);
+            var data = logic.State.Data;
+            BindMotions(data, ShowIcon(data));
+            Apply(logic.State.State);
+        }
+
+        /// <summary>
+        /// 동작 재생기에 이 유형의 클립과 «동작 없음» 그림을 물린다.
+        /// 재생기가 없으면 낱장 그림만 서 있고 나머지는 그대로 돈다.
+        /// </summary>
+        private void BindMotions(CustomerData data, Sprite resting)
+        {
+            if (_motionView != null)
+            {
+                _motionView.Bind(data, resting);
+            }
+        }
+
+        /// <summary>
+        /// 이 손님이 초밥을 집었다. <b>같은 조율자를 보는 다른 자리의 사건도 함께 오므로</b>
+        /// 자기 손님인지 먼저 가른다 — 안 가르면 자리 넷이 한꺼번에 집는 시늉을 한다.
+        /// </summary>
+        private void OnSushiClaimed(CustomerLogic customer, SushiItem sushi)
+        {
+            if (customer != Logic)
+            {
+                return;
+            }
+
+            _motions.NotifyPicked(_motionView != null ? _motionView.PickingSeconds : 0f);
+        }
+
+        private void Unsubscribe()
+        {
+            if (_coordinator != null)
+            {
+                _coordinator.SushiClaimed -= OnSushiClaimed;
+                _coordinator = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            Unsubscribe();
         }
 
         /// <summary>
@@ -125,12 +186,23 @@ namespace SushiDefense.Customers
         /// <b>유형은 실루엣이 맡고 색은 상태가 그대로 쓴다.</b>
         /// </para>
         /// </summary>
-        private void ShowIcon(CustomerData data)
+        /// <returns>
+        /// 실제로 나가 있는 그림. 동작이 끝나고 되돌아갈 곳이라 <b>대입한 값이 아니라
+        /// 남은 값</b>을 돌려준다 — 아이콘이 비면 프리팹의 그림이 그 자리를 지킨다.
+        /// </returns>
+        private Sprite ShowIcon(CustomerData data)
         {
-            if (_body != null && data.Icon != null)
+            if (_body == null)
+            {
+                return null;
+            }
+
+            if (data.Icon != null)
             {
                 _body.sprite = data.Icon;
             }
+
+            return _body.sprite;
         }
 
         /// <summary>
@@ -182,6 +254,13 @@ namespace SushiDefense.Customers
 
             _defaultSprite = _body != null ? _body.sprite : null;
 
+            // 동작 재생기는 같은 오브젝트에 산다 — Animator 가 몸통 렌더러와 같은 곳에
+            // 있어야 클립의 빈 경로가 그 렌더러를 가리킨다.
+            if (_motionView == null)
+            {
+                _motionView = GetComponent<CustomerMotionView>();
+            }
+
             // 인스펙터가 비면 자기 하위에서 이름으로 찾는다. 씬 전역 탐색이 아니다 (§4.3).
             _saturationBar = ResolveChild(_saturationBar, SaturationBarName);
             _digestingBadge = ResolveChild(_digestingBadge, DigestingBadgeName);
@@ -217,9 +296,24 @@ namespace SushiDefense.Customers
             var state = Logic.State.State;
             var waiting = _coordinator != null && _coordinator.IsWaiting(Logic);
 
-            if (state != _shownState || waiting != _shownWaiting)
+            // 색과 말풍선은 **다른 축**이라 따로 본다. 하나로 묶으면 기다림이 바뀔 때마다
+            // 색까지 다시 쓰게 되고, 그러면 «바뀐 프레임에만 쓴다» 가 무너진다.
+            if (state != _shownState)
             {
-                Apply(state, waiting);
+                Apply(state);
+            }
+
+            if (waiting != _shownWaiting)
+            {
+                ApplyWaiting(waiting);
+            }
+
+            // 동작은 시간이 흐르는 축이라 변화 감지 밖이다. 재생기 쪽에서 바뀐 프레임에만
+            // 쓰므로 매 프레임 물어도 할당이 없다 (§4.3).
+            var motion = _motions.Advance(state, Time.deltaTime);
+            if (_motionView != null)
+            {
+                _motionView.Show(motion);
             }
 
             RefreshDigestCountdown(state);
@@ -263,13 +357,23 @@ namespace SushiDefense.Customers
         }
 
         /// <summary>
-        /// 대기 색은 <b>Idle 일 때만</b> 쓴다. 먹는 중·소화 중이 대기보다 정보가 크고,
-        /// 조율자도 그 상태에서는 대기로 판정하지 않는다 — 두 겹으로 막아 둔다.
+        /// 기다림은 <b>말풍선 하나로만</b> 알린다. 한때 몸통을 파랗게 칠했는데, 그러면 상태
+        /// 색 채널이 통째로 대기에 묶여 먹기·소화가 묻힌다 — 손님 위 애니메이션이 훨씬
+        /// 읽기 쉬우므로 몸통은 상태 색을 그대로 지킨다.
         /// </summary>
-        private void Apply(CustomerState state, bool waiting)
+        private void ApplyWaiting(bool waiting)
+        {
+            _shownWaiting = waiting;
+
+            if (_motionView != null)
+            {
+                _motionView.ShowThinking(waiting);
+            }
+        }
+
+        private void Apply(CustomerState state)
         {
             _shownState = state;
-            _shownWaiting = waiting;
 
             // 배지는 소화에만 뜬다. 대기와 소화는 둘 다 "지금 안 먹는 상태" 라 뭉뚱그리기
             // 쉬운데, 그러면 배지가 거의 항상 떠 있어 아무것도 알려 주지 않는다.
@@ -292,7 +396,7 @@ namespace SushiDefense.Customers
             {
                 CustomerState.Eating => _eatingColor,
                 CustomerState.Digesting => _digestingColor,
-                _ => waiting ? _waitingColor : _idleColor
+                _ => _idleColor
             };
         }
     }

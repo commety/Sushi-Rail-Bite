@@ -37,6 +37,8 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
         private CustomerData _customerData;
         private CustomerView _view;
+        private CustomerMotionView _motionView;
+        private GameObject _thinking;
         private SpriteRenderer _body;
         private CustomerLogic _logic;
         private CustomerAppetiteMachine _appetite;
@@ -52,6 +54,18 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
             var go = NewObject("Customer");
             _body = go.AddComponent<SpriteRenderer>();
+
+            // 말풍선과 재생기를 **실제로 세운다.** 없이 두면 «기다림이 화면에 나간다» 가
+            // 구현과 무관하게 늘 참이 되어, 배선이 통째로 끊겨도 전부 초록이다
+            // (`.claude/rules/tests.md` §1 «테스트가 편하려고 만든 우회로»).
+            _thinking = new GameObject(CustomerMotionView.ThinkingChildName);
+            _thinking.transform.SetParent(go.transform, false);
+            _thinking.AddComponent<SpriteRenderer>();
+            _thinking.SetActive(false);
+
+            // 재생기가 뷰보다 먼저 있어야 한다 — CustomerView.Resolve 는 Awake 에서 돌고,
+            // AddComponent 는 그 자리에서 Awake 를 부른다.
+            _motionView = go.AddComponent<CustomerMotionView>();
             _view = go.AddComponent<CustomerView>();
 
             var state = new CustomerRuntimeState(_customerData, 0);
@@ -249,8 +263,18 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Assert.AreNotEqual(idle, digesting);
         }
 
+        /// <summary>
+        /// 기다림은 <b>몸통 색을 건드리지 않는다</b> (M9). 한때 파랗게 칠했는데, 그러면 상태
+        /// 색 채널이 통째로 대기에 묶여 먹기·소화가 묻힌다 — 지금은 말풍선이 그 몫이다.
+        ///
+        /// <para>
+        /// <b>«색이 안 바뀐다» 만 보지 않는다.</b> 대기 판정 자체가 안 걸리면 그것도 참이라,
+        /// 조율자가 실제로 대기로 판정했다는 전제를 같은 테스트에 함께 박는다
+        /// (<c>.claude/rules/tests.md</c> §3).
+        /// </para>
+        /// </summary>
         [Test]
-        public void LateUpdate_WaitingCustomer_ShowsDistinctColor()
+        public void LateUpdate_WaitingCustomer_LeavesTheBodyColorAlone()
         {
             // 조율자를 실제로 돌려 대기 판정을 만든다. 밖에서 플래그를 세우면 뷰가
             // 실제로 만날 일 없는 조합을 검증하게 된다.
@@ -265,7 +289,7 @@ namespace SushiDefense.Tests.PlayMode.Customers
 
             Assert.IsTrue(stage.Coordinator.IsWaiting(waiting), "전제: 조율자가 대기로 판정했다");
             Assert.IsTrue(_view.ShownWaiting);
-            Assert.AreNotEqual(idle, _body.color, "대기가 대기 아님과 구분되지 않는다");
+            Assert.AreEqual(idle, _body.color, "기다림이 몸통 색을 덮었다 — 말풍선이 알릴 몫이다");
         }
 
         [Test]
@@ -281,6 +305,148 @@ namespace SushiDefense.Tests.PlayMode.Customers
             Pump();
 
             Assert.IsFalse(_view.ShownWaiting);
+        }
+
+        /// <summary>
+        /// 기다림이 <b>화면에 실제로 나가는지</b> 본다. <c>ShownWaiting</c> 만 보면 뷰가 값을
+        /// 들고만 있고 말풍선에 전하지 않아도 통과한다.
+        ///
+        /// <para>
+        /// 켜짐과 꺼짐을 한 테스트에 함께 박는다 — 켜짐만 보면 «항상 켠다» 구현이 통과한다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void LateUpdate_WaitingCustomer_RaisesAndLowersTheThinkingBubble()
+        {
+            SetBand(400, 500);
+            using var stage = new Stage(_assets, _customerData);
+            var waiting = stage.PlaceAt(0f);
+            _view.Bind(waiting, stage.Coordinator);
+
+            stage.Coordinator.Tick(1f);
+            Pump();
+
+            Assert.IsTrue(stage.Coordinator.IsWaiting(waiting), "전제: 조율자가 대기로 판정했다");
+            Assert.IsTrue(_thinking.activeSelf, "고민 중인데 말풍선이 안 뜬다");
+
+            // 자리를 뜨면 대기 판정이 사라진다. 그때 말풍선이 남으면 빈 자리 위에 떠 있다.
+            stage.Coordinator.RemoveCustomer(waiting);
+            Pump();
+
+            Assert.IsFalse(stage.Coordinator.IsWaiting(waiting), "전제: 대기 판정이 풀렸다");
+            Assert.IsFalse(_thinking.activeSelf, "대기가 끝났는데 말풍선이 남았다");
+        }
+
+        [Test]
+        public void Bind_Placed_KeepsTheThinkingBubbleDown()
+        {
+            _thinking.SetActive(true);
+
+            _view.Bind(_logic, null);
+
+            Assert.IsFalse(_thinking.activeSelf,
+                           "앉자마자 고민하는 것으로 보인다 — 앞 손님의 말풍선이 남았다");
+        }
+
+        /// <summary>
+        /// 상태가 몸통 동작까지 <b>흘러가는지</b> 본다. 재생기까지 닿지 않으면 손님이 먹고
+        /// 쉬는 동안에도 낱장 그림이 그대로 서 있다.
+        ///
+        /// <para>
+        /// 식욕 머신을 직접 돌린다 — 조율자를 거치면 <b>집기</b>가 먼저 얹혀 먹는 동작이
+        /// 가려진다. 그쪽은 <see cref="LateUpdate_JustClaimed_ShowsThePickingMotion"/> 의 몫이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void LateUpdate_EatingAndDigesting_ShowTheirOwnMotions()
+        {
+            _view.Bind(_logic, null);
+
+            _appetite.BeginEating(1);
+            Pump();
+            var eating = _motionView.ShownMotion;
+
+            // 한 입에 포화되므로 먹기가 끝나면 소화로 넘어간다.
+            _appetite.Tick(1f);
+            Pump();
+
+            Assert.AreEqual(CustomerMotion.Eating, eating);
+            Assert.AreEqual(CustomerMotion.Digesting, _motionView.ShownMotion);
+        }
+
+        /// <summary>
+        /// 배정 확정이 <b>뷰까지 닿는지</b> 본다. 이 구독이 끊기면 손님이 초밥을 집는 동작
+        /// 없이 곧장 씹기 시작하는데, 예외도 로그도 나지 않는다.
+        /// </summary>
+        [Test]
+        public void LateUpdate_JustClaimed_ShowsThePickingMotion()
+        {
+            SetBand(100, 300);
+            using var stage = new Stage(_assets, _customerData);
+            var eater = stage.PlaceAt(0f);
+            _view.Bind(eater, stage.Coordinator);
+
+            stage.Coordinator.Tick(1f);
+            Pump();
+
+            Assert.AreEqual(CustomerState.Eating, _view.ShownState, "전제: 실제로 먹기 시작했다");
+            Assert.AreEqual(CustomerMotion.Picking, _motionView.ShownMotion);
+        }
+
+        /// <summary>
+        /// 남의 자리에서 일어난 배정은 <b>먹고 있는 이 손님을 건드리지 않는다.</b> 조율자의
+        /// 사건은 자리 넷에 모두 오므로, 거르지 않으면 옆 사람이 집을 때마다 이 손님이
+        /// 먹다 말고 집는 동작을 다시 시작한다.
+        ///
+        /// <para>
+        /// <b>배치를 두 번 틀렸다.</b> 이 손님을 <c>Idle</c> 로 두면
+        /// <see cref="CustomerMotionSelector"/> 가 집기를 어차피 버리고, 집기 시간을 아주
+        /// 짧게 잡으면 그 한 프레임 안에 소진된다 — 둘 다 거르는 코드를 통째로 지워도
+        /// 통과했다 (<c>.claude/rules/tests.md</c> §3 «다른 장치가 주입을 가릴 수 있다»).
+        /// </para>
+        /// <para>
+        /// 그래서 이 손님은 <b>집기 없이 먹는 중</b>이어야 한다 — 조율자를 거치지 않고
+        /// 식욕 머신으로 직접 먹기 시작시키고, 조율자는 <b>옆 손님의 사건만</b> 내보낸다.
+        /// 그 상태에서 집는 동작이 나오면 그것은 남의 사건이 새어 들어온 것뿐이다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void LateUpdate_AnotherCustomerClaimed_DoesNotShowPicking()
+        {
+            SetBand(100, 300);
+
+            // 한 입을 오래 먹어야 남의 배정이 «먹는 중» 에 도착한다.
+            SetPrivate(_customerData, "_eatSeconds", 60f);
+
+            using var stage = new Stage(_assets, _customerData);
+            var other = stage.PlaceAt(0f);
+
+            // 이 뷰의 손님은 조율자가 모른다 — 그래야 조율자가 내보내는 배정 사건이
+            // 전부 «남의 것» 이 된다.
+            _view.Bind(_logic, stage.Coordinator);
+            _appetite.BeginEating(1);
+            Pump();
+
+            Assert.AreEqual(CustomerMotion.Eating, _motionView.ShownMotion,
+                            "전제: 집기 없이 먹는 중이다");
+
+            stage.Coordinator.Tick(1f);
+            Pump();
+
+            Assert.AreEqual(CustomerState.Eating, other.State.State,
+                            "전제: 다른 손님이 실제로 집었다");
+            Assert.AreEqual(CustomerMotion.Eating, _motionView.ShownMotion,
+                            "옆 사람이 집었는데 이 손님이 집는 동작을 한다");
+        }
+
+        [Test]
+        public void LateUpdate_IdleCustomer_ShowsNoMotion()
+        {
+            _view.Bind(_logic, null);
+
+            Pump();
+
+            Assert.AreEqual(CustomerMotion.None, _motionView.ShownMotion);
         }
 
         [Test]
@@ -332,10 +498,23 @@ namespace SushiDefense.Tests.PlayMode.Customers
         /// </summary>
         private void SetIcon(Sprite icon)
         {
-            var field = typeof(CustomerData).GetField(
-                "_icon", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(field, "직렬화 필드 '_icon' 을 찾지 못했습니다 — 이름이 바뀌었는지 확인하세요.");
-            field.SetValue(_customerData, icon);
+            SetPrivate(_customerData, "_icon", icon);
+        }
+
+        /// <summary>
+        /// 직렬화 필드를 밀어 넣는다. <c>SerializedObject</c> 가 아니라 리플렉션인 이유는
+        /// 그쪽이 <c>UnityEditor</c> 의존이라 플레이어에서 조용히 아무 일도 하지 않기
+        /// 때문이다 — 테스트가 통과한 채로 검증을 잃는 형태가 된다.
+        /// </summary>
+        private static void SetPrivate(Object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(
+                fieldName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.IsNotNull(field, $"직렬화 필드 '{fieldName}' 을 찾지 못했습니다 — "
+                                    + "이름이 바뀌었는지 확인하세요.");
+            field.SetValue(target, value);
         }
 
         /// <summary>
