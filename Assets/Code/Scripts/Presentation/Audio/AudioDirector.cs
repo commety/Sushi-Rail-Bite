@@ -59,6 +59,9 @@ namespace SushiDefense.Audio
         /// <summary>배치 수는 변경 이벤트가 없어 값 변화를 지켜본다.</summary>
         private int _shownPlacedCount = -1;
 
+        /// <summary>틀기로 했지만 클립이 아직 안 풀려 미뤄 둔 배경음. 없으면 <c>null</c>.</summary>
+        private AudioCue _pendingBgm;
+
         /// <summary>실제로 재생한 횟수. 검증용이다.</summary>
         public int PlayedCount { get; private set; }
 
@@ -260,6 +263,7 @@ namespace SushiDefense.Audio
         private void Update()
         {
             UnlockOnAnyInput();
+            TryStartPendingBgm();
             RefreshBgmVolume();
 
             if (_placement == null)
@@ -402,6 +406,17 @@ namespace SushiDefense.Audio
             PlayedCount++;
         }
 
+        /// <summary>
+        /// 배경음을 <b>처음부터</b> 튼다. 아직 클립이 안 풀렸으면 미뤄 두고 다음 프레임에
+        /// 다시 시도한다.
+        ///
+        /// <para>
+        /// <b>미루는 이유.</b> 배포 타깃(WebGL)은 오디오를 비동기로 푼다 — 시작 직후에는
+        /// 아홉 클립이 모두 «아직 안 풀림» 이고, 그 상태에서 <c>Play</c> 하면 엔진이 요청만
+        /// 받아 두었다가 <b>다 풀린 시점으로 건너뛰어</b> 재생한다. 늦게 누를수록 더 뒤에서
+        /// 시작하는 것으로 들린다.
+        /// </para>
+        /// </summary>
         private void StartBgm()
         {
             var cue = BgmCue;
@@ -410,7 +425,48 @@ namespace SushiDefense.Audio
                 return;
             }
 
-            _bgmSource.clip = cue.Clip;
+            _pendingBgm = cue;
+            TryStartPendingBgm();
+        }
+
+        /// <summary>
+        /// 미뤄 둔 배경음을 튼다. 풀리기 전이면 아무 일도 하지 않고 다음 프레임을 기다린다.
+        /// </summary>
+        private void TryStartPendingBgm()
+        {
+            if (_pendingBgm == null || _bgmSource == null)
+            {
+                return;
+            }
+
+            var clip = _pendingBgm.Clip;
+            if (clip == null)
+            {
+                _pendingBgm = null;
+                return;
+            }
+
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+            {
+                // 미리 풀도록 임포터가 지정해 두었지만, 그것은 «시작한다» 이지
+                // «끝났다» 가 아니다. 아직 시작조차 안 했으면 여기서 민다.
+                clip.LoadAudioData();
+                return;
+            }
+
+            if (clip.loadState == AudioDataLoadState.Loading)
+            {
+                return;
+            }
+
+            var cue = _pendingBgm;
+            _pendingBgm = null;
+
+            // 멈춘 뒤 0 으로 되돌린다. 이미 흐르고 있었다면 이어서 트는 것이 아니라
+            // **처음부터** 다시 튼다 — 배경음은 곡의 앞부분이 정체성이다.
+            _bgmSource.Stop();
+            _bgmSource.clip = clip;
+            _bgmSource.time = 0f;
             _bgmSource.volume = cue.Volume * VolumeMix.Bgm;
             _bgmSource.loop = true;
             _bgmSource.Play();

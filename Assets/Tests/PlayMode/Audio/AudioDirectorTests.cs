@@ -216,6 +216,25 @@ namespace SushiDefense.Tests.PlayMode.Audio
             Assert.AreEqual(1, _director.PlayedCount);
         }
 
+        /// <summary>
+        /// 배경음은 <b>곡의 처음</b>부터 나야 한다. 배포 타깃(WebGL)이 오디오를 비동기로
+        /// 풀기 때문에, 안 풀린 채로 <c>Play</c> 하면 엔진이 다 풀린 시점으로 건너뛴다 —
+        /// 늦게 누를수록 더 뒤에서 시작하는 것으로 들린다.
+        /// </summary>
+        [Test]
+        public void NotifyUserInput_AfterTheSourceWasLeftRunning_RestartsFromTheTop()
+        {
+            var source = BgmSource();
+            source.clip = _bank.Bgm.Clip;
+            source.time = 0.05f;
+            source.Play();
+
+            _director.NotifyUserInput();
+
+            Assert.AreEqual(0f, source.time, 0.001f, "곡 중간에서 시작했다");
+            Assert.IsTrue(source.isPlaying);
+        }
+
         [Test]
         public void BgmCue_NoBank_IsNullInsteadOfThrowing()
         {
