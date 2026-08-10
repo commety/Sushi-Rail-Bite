@@ -82,17 +82,14 @@ SushiRailBite/Art/Rebuild Stage Tilemap
 **규칙을 고치면 `PixelArtTextureImporter.GetVersion()` 을 올린다.** 안 올리면 이미 들어온
 텍스처는 다시 임포트되지 않아, 코드는 맞는데 화면만 옛 설정으로 남는다.
 
-## 6. 애니메이션은 아직 아무도 재생하지 않는다 (M7)
+## 6. 애니메이션 (M9 에서 재생 시작)
 
-`SushiRailBite/Art/Rebuild Customer Animations` 가 `Assets/Level/Animations/` 에 클립
-일곱과 유형별 컨트롤러 셋을 만든다. 프레임 순서는 시트의 **왼→오** 이며 `SpriteSheetSlicer`
-가 정한다.
+`SushiRailBite/Art/Rebuild Customer Animations` 가 `Assets/Level/Animations/` 에 클립과
+컨트롤러를 만든다. 프레임 순서는 시트의 **왼→오** 이며 `SpriteSheetSlicer` 가 정한다.
 
-- 손님 유형마다 `Idle` ↔ `Picking` 두 상태, 조건은 `bool Picking` 하나.
-- **프리팹에 `Animator` 를 달지 않았고 코드도 이 값을 흔들지 않는다.** 붙일 때 손님 상태를
-  새로 판정하지 말 것 — `CustomerLogic` 이 이미 들고 있다.
-- `picking` 시트는 **뒷모습**이다. 지금 몸통에 나가는 그림은 `front` 한 장뿐이라
-  (`CustomerData.Icon`), 붙이는 순간 앞뒤가 섞인다. 방향 처리와 함께 가야 한다.
+굽는 것까지가 여기 이야기이고, **무엇을 언제 어떤 속도로 재생하는지는**
+[`customer-motions.md`](customer-motions.md) 에 있다 — `-idle` 시트가 대기 동작이 아니라는
+것부터 그쪽이다.
 
 ## 7. 손님 그림은 `CustomerData.Icon` 이 정한다
 

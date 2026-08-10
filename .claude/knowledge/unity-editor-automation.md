@@ -118,6 +118,8 @@ Prefab.Close
 - **JsonUtility 한계**: Dictionary / polymorphic 타입 직렬화 약함. 새 op은 구조체(POCO)로 args/result 정의 필수.
 - **`ScriptableObject` 애셋을 만드는 op이 없다**: `Asset.CreatePrefab` 은 씬 GameObject 전용이다. `.asset` YAML 을 직접 쓰고 **Unity가 `.meta` 를 생성하게** 한다 — RULES.md RULE-03 위반이 아니다(금지는 `.meta` 를 손대는 것). `m_Script` 의 guid 는 그 타입의 `.cs.meta` 에서 베낀다. 다른 애셋을 참조해야 하면 **2-pass**: ① 참조 대상들을 먼저 쓰고 임포트 → ② 생성된 `.meta` 에서 guid 를 읽어 참조하는 애셋을 쓴다. 임포트는 `/run bridge` 든 테스트 실행이든 Unity 를 한 번 띄우면 된다.
 - **Sprite Atlas 는 확장자가 `.spriteatlasv2` 다** (Unity 6). `.spriteatlas` 로 쓰면 Unity 가 받아들이긴 하지만 `.meta` 가 `NativeFormatImporter` + `mainObjectFileID: 0` 이 되어 **아틀라스가 아닌 파일**이 된다. 본문 YAML 은 손으로 쓸 수 있으나 설정(필터·밉맵·압축·회전·타이트 패킹)이 `.meta` 의 `SpriteAtlasImporter` 안에 있어 RULE-03 상 에이전트가 못 바꾼다 — **사람이 인스펙터에서 만드는 편이 낫다.**
+- **`continue` 로 건너뛰는 배선 루프는 처리 건수를 로그로 남긴다.** 헤드리스에서는 Console 을 볼 수 없어, 짝을 못 찾고 **0건 처리한 실행과 전부 처리한 실행이 같은 성공 로그**로 보인다. 손님 3종에 컨트롤러를 물리는 루프가 실제로 조용히 0건을 처리했고, 카운트를 찍고 나서야 드러났다. **`ok: true` 는 op 이 예외 없이 끝났다는 뜻이지 일이 됐다는 뜻이 아니다.**
+- **inbox 봉투는 `{id, op, argsJson}` 이고 `argsJson` 은 객체가 아니라 JSON *문자열* 이다.** `{"args": {...}}` 로 쓰면 `argsJson` 이 `null` → `"{}"` 로 대체되어, 실제 원인과 무관한 **`Type not found: ` (타입 이름이 빈 채)** 가 나온다. 정본은 [`Protocol.cs`](../../Assets/Editor/ClaudeBridge/Protocol.cs) 의 `Command` 다.
 - **Linear 컬러 스페이스에서 `RenderTextureReadWrite.sRGB` 는 색을 한 번 더 인코딩한다.** SVG 의 색은 이미 sRGB 표기이고 셰이더는 그대로 흘려보내므로, 결과 PNG 가 통째로 밝게 뜬다 (`#4A90D9` → `#93C6EE`). `SvgOps` 는 `Linear` 로 잡아 저자가 쓴 색이 그대로 남게 한다. **생성한 스프라이트는 눈으로 보지 말고 픽셀 값을 대조한다** — "좀 밝은가?" 로는 구분되지 않는다.
 
 ## 확장 가이드

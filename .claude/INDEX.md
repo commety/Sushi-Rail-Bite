@@ -29,7 +29,7 @@ Unity 성능 최적화. **§0 에 WebGL 타깃 보정표** (DXT 압축·싱글 �
 
 ### [knowledge/unity-scripting-gotchas.md](knowledge/unity-scripting-gotchas.md)
 모델이 자주 틀리는 Unity 스크립팅 함정: 직렬화 (depth=7·null 부활·인라인 복제·SerializeReference·ISerializationCallbackReceiver), 코루틴 중단 조건 (enabled=false 안 멈춤·WaitForSecondsRealtime), IL2CPP Managed Code Stripping (link.xml·[Preserve]), **§4 에디터에서만 멀쩡한 것들** (폰트 폴백 없음·입력 백엔드 불일치·playOnAwake·Streaming 미지원·Resources 통째 포함·**전체화면은 브라우저가 소유**), **§5 생명주기 콜백은 만들자마자 돌지 않는다** (비활성 오브젝트의 `Awake` 지연 → 「두 번째부터 정상」 서명, 멱등 `Resolve`). **§6 uGUI 좌표·입력** (화면 픽셀 ↔ 캔버스 단위, 실행 순서 의존, 가상 입력 픽스처). **WebGL 은 IL2CPP 고정이라 §3 이 항상 해당되고, §4 는 전부 빌드해야 드러난다.**
-- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit, 두부, tofu, 폰트 폴백, font fallback, HasCharacters, TMP_FontAsset, ENABLE_LEGACY_INPUT_MANAGER, ENABLE_INPUT_SYSTEM, activeInputHandler, playOnAwake, AudioSource, 자동재생, autoplay, AudioClipLoadType, Streaming, CompressedInMemory, DecompressOnLoad, Resources 폴더, 빌드 크기, Awake 지연, deferred Awake, SetActive, 비활성 오브젝트, inactive GameObject, OnEnable, 지연 초기화, lazy init, Resolve, 멱등, idempotent, 간헐 버그, 두 번째부터 정상, 객체 풀 초기화, Screen.fullScreen, 전체화면, fullscreen, 비동기 반영, 두 번 눌러야, 지연 실행, 제스처, spriteBorder, 9-slice, Multiple 모드, 임포터, Sprite.border, TextureImporter, PointerEventData, delta, anchoredPosition, CanvasScaler, 배율, scaleFactor, ScreenPointToLocalPointInRectangle, 드래그 어긋남, IsPointerOverGameObject, 실행 순서, RaycastAll, InputTestFixture, QueueStateEvent, 가상 입력, 가상 마우스
+- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, MissingMethodException, JsonUtility strip, Activator.CreateInstance, MakeGenericMethod, Reflection.Emit, 두부, tofu, 폰트 폴백, font fallback, HasCharacters, TMP_FontAsset, ENABLE_LEGACY_INPUT_MANAGER, ENABLE_INPUT_SYSTEM, activeInputHandler, playOnAwake, AudioSource, 자동재생, autoplay, AudioClipLoadType, Streaming, CompressedInMemory, DecompressOnLoad, Resources 폴더, 빌드 크기, Awake 지연, deferred Awake, SetActive, 비활성 오브젝트, inactive GameObject, OnEnable, 지연 초기화, lazy init, Resolve, 멱등, idempotent, 간헐 버그, 두 번째부터 정상, 객체 풀 초기화, Screen.fullScreen, 전체화면, fullscreen, 비동기 반영, 두 번 눌러야, 지연 실행, 제스처, spriteBorder, 9-slice, Multiple 모드, 임포터, Sprite.border, TextureImporter, PointerEventData, delta, anchoredPosition, CanvasScaler, 배율, scaleFactor, ScreenPointToLocalPointInRectangle, 드래그 어긋남, IsPointerOverGameObject, 실행 순서, RaycastAll, InputTestFixture, QueueStateEvent, 가상 입력, 가상 마우스, Animator, 덮어쓰기, 애니메이션 소유권, 스프라이트 안 바뀜, m_Sprite, enabled false, 시트 개명, 칸 이름, internalID, 재임포트, ForceUpdate, 참조 끊김
 - **when to read:** `[Serializable]` 필드·ScriptableObject·MonoBehaviour 직렬화 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·콘솔·WebGL 빌드 실패 (MissingMethod/TypeLoad), 리플렉션·JsonUtility 쓰는 코드 빌드 대비, **에디터에서는 되는데 빌드에서 안 되는 증상**, **「가끔 정상」·「두 번째부터 정상」 증상**, 전체화면·창 모드 토글 구현, **uGUI 드래그가 손가락과 어긋날 때**, **입력을 테스트로 덮으려 할 때**, **임포터 설정이 화면에 반영되지 않을 때**
 
 ### [knowledge/csharp-dotnet.md](knowledge/csharp-dotnet.md)
@@ -49,7 +49,7 @@ P. Adragna, *Software debugging techniques*, CERN School of Computing 2007. 방�
 
 ### [knowledge/unity-editor-automation.md](knowledge/unity-editor-automation.md)
 ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지침.
-- **keywords:** ClaudeBridge, unity_call, unity_batch_flush, bridge-run, editor automation, headless, batchmode, prefab stage, prefab variant, nested prefab, inbox, outbox, Component.SetRectTransform, Prefab.Open, Prefab.CreateVariant, InstantiatePrefab, make-asset, run editor, run bridge
+- **keywords:** ClaudeBridge, unity_call, unity_batch_flush, bridge-run, editor automation, headless, batchmode, prefab stage, prefab variant, nested prefab, inbox, outbox, Component.SetRectTransform, Prefab.Open, Prefab.CreateVariant, InstantiatePrefab, make-asset, run editor, run bridge, argsJson, 봉투, envelope, Protocol.cs, Type not found, 0건 처리, 조용한 실패, 처리 건수
 - **when to read:** Unity 씬/프리팹/컴포넌트 조작이 필요할 때, 에이전트가 Editor 작업을 자동 실행하려 할 때, ClaudeBridge op 추가·확장 작업
 
 ---
@@ -95,9 +95,14 @@ ClaudeBridge 스택 (C# op + Python MCP + /run + /make-asset 연동) 운용 지�
 - **when to read:** 손님 애셋 값을 만지기 직전, 새 손님 유형 추가, 새 초밥을 덱에 넣을 때(기본 대역과 함께 봐야 한다), "손님이 자꾸 논다" 증상, **손님 위 표시물을 더하거나 뺄 때**
 
 #### [domain/stage-scenery.md](domain/stage-scenery.md)
-스테이지 배경(M7). 타일맵 네 판과 정렬 순서·반 칸 오프셋, 타일 일곱 장의 뜻(원본 이름 ↔ 쓰임), 벽은 한 줄, 구멍은 화면 안에, 다시 칠하는 메뉴와 팔레트, **임포터가 자르기 모드를 언제만 건드리나**(낱장까지 못박아 UI 스프라이트 열 장이 도로 합쳐진 사고), `GetVersion()` 을 올려야 재임포트된다는 것, 애니메이션은 아직 재생되지 않는다는 것, 아이콘 참조가 끊기면 조용히 기본값이 남는다는 것.
+스테이지 배경(M7). 타일맵 네 판과 정렬 순서·반 칸 오프셋, 타일 일곱 장의 뜻(원본 이름 ↔ 쓰임), 벽은 한 줄, 구멍은 화면 안에, 다시 칠하는 메뉴와 팔레트, **임포터가 자르기 모드를 언제만 건드리나**(낱장까지 못박아 UI 스프라이트 열 장이 도로 합쳐진 사고), `GetVersion()` 을 올려야 재임포트된다는 것, 아이콘 참조가 끊기면 조용히 기본값이 남는다는 것. **클립을 굽는 것까지가 여기이고, 무엇을 언제 재생하는지는 [customer-motions.md](domain/customer-motions.md) 다.**
 - **keywords:** 타일맵, tilemap, Tilemap, Grid, 타일, tile, Tile, 팔레트, palette, GridPalette, StageTilePlan, StageTileId, StageTileAssets, StageTilemapBuilder, 바닥, floor, 벽, wall, 창문, window, 장식물, decor, 구멍, mouth, 벨트 그림, belt art, 정렬 순서, sortingOrder, 오프셋, 배경, background, bg-wall, 화면비, aspect, 임포트, import, spriteImportMode, Multiple, Single, 시트, sheet, 자르기, slice, SpriteSheetSlicer, tileset, GetVersion, 재임포트, reimport, 애니메이션, animation, AnimationClip, AnimatorController, 클립, 프레임, frame, idle, picking, 아이콘, Icon, CustomerData.Icon, 깨진 참조, dangling
-- **when to read:** 스테이지 배경·타일맵을 만지기 직전, 새 그림 애셋을 넣을 때(임포트 규칙), 애니메이션을 실제로 붙일 때, "그림이 안 나온다"·"흐릿하다" 증상
+- **when to read:** 스테이지 배경·타일맵을 만지기 직전, 새 그림 애셋을 넣을 때(임포트 규칙), 클립을 다시 구울 때, "그림이 안 나온다"·"흐릿하다" 증상
+
+#### [domain/customer-motions.md](domain/customer-motions.md)
+손님 몸통 동작(M9). **`-idle` 시트가 대기 동작이 아니라는 것**(먹기·소화 둘 다의 재료이고 갈리는 건 배속뿐), 아무 동작도 없을 때 `Animator` 를 끄는 이유는 성능이 아니라 **소유권**이라는 것, 배속을 `EatSeconds`·`DigestSeconds` 에서 유도해 유형별 성격이 따라 나온다는 것, **기다림은 색이 아니라 말풍선**이라는 것, 시트 개명이 만든 시한부 참조, 테스트 배치가 두 번 빗나간 기록.
+- **keywords:** 애니메이션, animation, Animator, 클립, clip, 컨트롤러, controller, idle 시트, picking, 집기, 먹는 모션, 소화 모션, 말풍선, thinking-interface, 고민, 대기, 배속, speed, 씹는 속도, chewCycles, restCycles, CustomerMotion, CustomerMotionSelector, CustomerMotionSpeed, CustomerMotionView, CustomerMotionWiring, CustomerData.Motions, 낱장, 정적 스프라이트, 소유권, 시트 개명, internalID, 재임포트
+- **when to read:** 손님 동작·연출을 만지기 직전, 애니메이션 시트를 추가하거나 이름을 바꿀 때, "손님이 안 움직인다"·"먹는데 그림이 그대로다" 증상, 손님 위 표시물을 더하거나 뺄 때
 
 #### [domain/presentation-and-audio.md](domain/presentation-and-audio.md)
 화면·소리 계층(M5). 아이콘은 데이터가 정한다, 오디오 3층(값/판정/재생), 자동재생 게이트,
