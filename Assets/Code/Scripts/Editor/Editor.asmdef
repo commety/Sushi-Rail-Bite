@@ -1,0 +1,7 @@
+{
+  "name": "Editor",
+  "rootNamespace": "SushiDefense.EditorTools",
+  "references": ["Runtime", "Runtime.Data", "Presentation"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

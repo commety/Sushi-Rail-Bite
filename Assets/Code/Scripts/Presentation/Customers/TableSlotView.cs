@@ -1,0 +1,133 @@
+using SushiDefense.Data;
+using UnityEngine;
+
+namespace SushiDefense.Customers
+{
+    /// <summary>
+    /// 손님을 놓는 고정 자리. 점유 여부와 벨트 좌표를 들고 있고, 배치 규칙은 갖지 않는다 —
+    /// "놓을 수 있나" 는 <c>CustomerPlacementService</c> 가 답한다 (step-08).
+    /// </summary>
+    public sealed class TableSlotView : MonoBehaviour
+    {
+        [SerializeField] private int _slotIndex;
+        [SerializeField] private float _beltPosition;
+
+        /// <summary>
+        /// 이 자리에 미리 놓아 둔 손님 시각 표현. 비어 있을 때는 꺼져 있다.
+        ///
+        /// <para>
+        /// 배치할 때마다 <c>Instantiate</c> 하지 않는 이유: 프로덕션에서 오브젝트를 새로 만드는
+        /// 지점은 <c>SushiPoolBehaviour</c> 하나로 유지한다 (<c>CLAUDE.md</c> §3.4).
+        /// 자리 수는 스테이지마다 고정이라 미리 놓아 두는 편이 단순하다.
+        /// </para>
+        /// </summary>
+        [SerializeField] private CustomerView _seatVisual;
+
+        /// <summary>스테이지 안에서 이 자리를 가리키는 번호.</summary>
+        public int SlotIndex => _slotIndex;
+
+        /// <summary>집기 범위 판정의 기준이 되는 1차원 벨트 좌표.</summary>
+        public float BeltPosition => _beltPosition;
+
+        /// <summary>지금 손님이 앉아 있는가.</summary>
+        public bool IsOccupied => Occupant != null;
+
+        /// <summary>앉아 있는 손님의 뷰. 비어 있으면 <c>null</c>.</summary>
+        public CustomerView Occupant { get; private set; }
+
+        /// <summary>시각 표현을 이미 챙겼나. 명시 주입도 이 값을 세운다.</summary>
+        private bool _resolved;
+
+        /// <summary>스테이지 정의에서 자리 정보를 받는다. 화면 위치도 함께 맞춘다.</summary>
+        public void Bind(TableSlotDefinition definition)
+        {
+            _slotIndex = definition.SlotIndex;
+            _beltPosition = definition.BeltPosition;
+            transform.localPosition = definition.Position;
+        }
+
+        private void Awake()
+        {
+            Resolve();
+            Vacate();
+        }
+
+        /// <summary>
+        /// 자리에 딸린 시각 표현을 챙긴다. 씬을 스크립트로 조립할 때 참조를 일일이 물리지
+        /// 않아도 되게, 비어 있으면 자기 자식에서 찾는다. 씬 전역 탐색이 아니다 (§4.3).
+        ///
+        /// <para>
+        /// <b><see cref="Awake"/> 에만 두지 않는다.</b> <see cref="Occupy"/> 는 참조가 비면
+        /// <b>조용히 아무 일도 하지 않는다</b> — 손님은 배치 서비스에 등록돼 «손님 n/3» 은
+        /// 오르는데 화면에는 아무것도 안 나타나고, 예외도 로그도 없다. 이 프로젝트의 씬은
+        /// 네 자리 모두 인스펙터 참조가 비어 있어 <b>이 폴백이 유일한 연결</b>이므로,
+        /// 여기가 실행 순서에 기대면 그 증상이 «아주 가끔» 나타난다
+        /// (<c>CustomerView.Resolve</c>·<c>SaturationBarView.Resolve</c> 와 같은 방어다).
+        /// </para>
+        /// </summary>
+        private void Resolve()
+        {
+            if (_resolved)
+            {
+                return;
+            }
+
+            _resolved = true;
+
+            if (_seatVisual == null)
+            {
+                _seatVisual = GetComponentInChildren<CustomerView>(true);
+            }
+        }
+
+        /// <summary>인스펙터 없이 자리 시각 표현을 물린다. 테스트·부트스트랩용이다.</summary>
+        public void Initialize(int slotIndex, float beltPosition, CustomerView seatVisual)
+        {
+            // 명시 주입이 폴백을 이긴다. 이 줄이 없으면 <c>null</c> 을 넘겨 «시각 표현 없음»
+            // 을 만들려던 쪽이 자식에서 찾아낸 것을 도로 물게 된다.
+            _resolved = true;
+            _slotIndex = slotIndex;
+            _beltPosition = beltPosition;
+            _seatVisual = seatVisual;
+            Vacate();
+        }
+
+        /// <summary>
+        /// 손님을 앉힌다. 자리에 딸린 시각 표현을 켜고 로직을 물린다.
+        /// <paramref name="coordinator"/> 는 뷰가 "기다리는 중" 을 물어볼 곳이며,
+        /// 자리 자체는 그 값을 쓰지 않고 넘기기만 한다.
+        /// </summary>
+        public void Occupy(CustomerLogic logic, ClaimCoordinator coordinator)
+        {
+            Resolve();
+            Occupant = _seatVisual;
+
+            if (_seatVisual == null)
+            {
+                return;
+            }
+
+            // 켜는 것이 먼저다. 꺼진 오브젝트의 Awake 는 아직 돌지 않았으므로, 물리는 것을
+            // 앞에 두면 뷰가 자기 렌더러·포화도 칸을 아직 못 챙긴 채로 값을 받는다.
+            // 뷰 쪽에도 같은 사고를 막는 장치가 있지만(CustomerView.Resolve), 순서를 바로
+            // 잡아 두면 그것이 두 번째 그물로 남는다.
+            _seatVisual.gameObject.SetActive(true);
+            _seatVisual.Bind(logic, coordinator);
+        }
+
+        /// <summary>자리를 비운다.</summary>
+        public void Vacate()
+        {
+            Resolve();
+            Occupant = null;
+
+            if (_seatVisual == null)
+            {
+                return;
+            }
+
+            _seatVisual.Bind(null, null);
+            _seatVisual.gameObject.SetActive(false);
+        }
+    }
+}

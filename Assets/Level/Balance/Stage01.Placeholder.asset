@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e81b376d6e58545a6b41f16df164340d, type: 3}
+  m_Name: Stage01.Placeholder
+  m_EditorClassIdentifier: 
+  _stageNumber: 1
+  _displayName: Stage 01 (Placeholder)
+  _targetRevenue: 5000
+  _timeLimitSeconds: 60
+  _maxPlacedCustomers: 3
+  _initialRecruitBudget: 60
+  _beltSpeed: 2
+  _spawnIntervalSeconds: 1.5
+  _beltLength: 20
+  _recognitionLatchSeconds: 1
+  _sparsityExponent: 1
+  _tableSlots:
+  - _slotIndex: 0
+    _position: {x: -4, y: -2}
+    _beltPosition: 5
+  - _slotIndex: 1
+    _position: {x: 0, y: -2}
+    _beltPosition: 10
+  - _slotIndex: 2
+    _position: {x: 4, y: -2}
+    _beltPosition: 15
+  _spawnTable:
+  - _sushi: {fileID: 11400000, guid: b793657f3432b475a9c8cc77f579b52f, type: 2}
+  - _sushi: {fileID: 11400000, guid: 744437b36d9a54f0ea5fa7241b1d5f06, type: 2}
+  - _sushi: {fileID: 11400000, guid: e96f5bd3e10134fbd89d260ed9096605, type: 2}
+  - _sushi: {fileID: 11400000, guid: ae8103942209a49cbb52ee3812269b21, type: 2}
+  - _sushi: {fileID: 11400000, guid: a361b8b927ca344ff9e4242f978b873e, type: 2}
+  _bonusObjectives: []

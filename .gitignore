@@ -109,6 +109,32 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
+# WebGL 빌드 중 Burst 가 프로젝트 루트에 흘리는 중간 산출물 (lib_burst_generated.*).
+# 빌드마다 재생성되고, 실제 플레이어는 ../builds/ 로 나간다.
+/Data/
+
+# PlayMode 테스트가 돌 때마다 Unity 가 다시 쓰는 로컬 설정.
+# 공유할 프로젝트 설정이 아니라 에디터가 마지막 씬 템플릿 상태를 기억하는 파일이라,
+# 커밋하면 테스트를 돌린 사람마다 diff 가 생긴다. RULE-06 상 에이전트가 만질 수도 없다.
+/[Pp]roject[Ss]ettings/SceneTemplateSettings.json
+
 # environment
 .env
 .env.*
+
+# only macOS
+.DS_Store
+
+# Python — ClaudeBridge MCP 서버(scripts/claude-bridge-mcp)와 chiptune-synth
+# `uv run` 이 .venv 를 만들고, 파이썬 실행이 __pycache__ 를 남긴다. 커밋 대상 아님.
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ClaudeBridge 런타임 큐 — 에이전트↔Unity 커맨드/결과가 오가는 임시 파일
+.claude-bridge/inbox/
+.claude-bridge/outbox/
+.claude-bridge/logs/
+# 테스트 러너 산출물 — NUnit XML·Unity 로그. 재생성되므로 커밋 대상 아님.
+tests/results/
