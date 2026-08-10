@@ -1,0 +1,9 @@
+# 이 브랜치는 배포 산출물만 담는다. Git LFS 를 절대 켜지 않는다 —
+# GitHub Pages 는 LFS 파일을 내용이 아니라 포인터 텍스트로 서빙하므로,
+# .wasm/.data 가 LFS 로 들어가면 사이트가 통째로 죽는다.
+* -filter -diff -merge
+
+# Unity 산출물은 바이너리로 취급한다 (줄바꿈 변환 금지).
+*.data   binary
+*.wasm   binary
+*.js     -text

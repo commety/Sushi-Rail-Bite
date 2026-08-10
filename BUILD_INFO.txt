@@ -1,0 +1,12 @@
+Build ID     : main-release-v-1-0-0-6710076-WebGL-20260810-165535
+Label        : main     # "main" = primary worktree; otherwise = worktree dir name
+Project dir  : Sushi-Rail-Bite
+Project path : /Users/yoonhoeseong/Sushi-Rail-Bite
+Branch       : release/v-1-0-0
+Commit       : 67100769ce762213883528dbc164e97c7518ed46
+Short SHA    : 6710076
+Dirty        : no
+Platform     : WebGL
+Unity        : 6000.5.6f1
+Built at     : 2026-08-10T07:55:35Z
+Host         : yunhoeseong-ui-Macmini.local
