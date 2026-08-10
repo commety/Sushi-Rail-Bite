@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Customer.Standard
   m_EditorClassIdentifier: 
   _id: customer-standard
-  _displayName: 기본
-  _description: 무난하게 먹는 기본 손님.
+  _displayName: "\uAE30\uBCF8"
+  _description: "\uBB34\uB09C\uD558\uAC8C \uBA39\uB294 \uAE30\uBCF8 \uC190\uB2D8."
   _kind: 0
   _reach: 3
   _targetingMin: 100
@@ -25,3 +25,4 @@ MonoBehaviour:
   _recruitCost: 20
   _population: 1
   _icon: {fileID: 21300000, guid: dc43844d629f4d49809132892ed92963, type: 3}
+  _motions: {fileID: 9100000, guid: 1a83f751a23c34cd7bfeb80a978d2794, type: 2}

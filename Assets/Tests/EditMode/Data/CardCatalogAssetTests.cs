@@ -80,6 +80,31 @@ namespace SushiDefense.Tests.EditMode.Data
             }
         }
 
+        /// <summary>
+        /// 손님마다 <b>자기 유형의</b> 동작 묶음이 붙어 있는지 본다.
+        ///
+        /// <para>
+        /// 아이콘과 같은 실패 모드다 — 끊긴 참조는 <c>null</c> 로 역직렬화되고, 그러면 그
+        /// 손님만 <b>먹어도 쉬어도 낱장 그림 그대로 서 있다.</b> 예외도 로그도 없다.
+        /// </para>
+        /// <para>
+        /// <b>«비어 있지 않다» 만 보지 않는다.</b> 셋이 같은 컨트롤러를 물어도 그것은 참이고,
+        /// 그러면 먹보가 소식가의 몸으로 움직인다 — 유형을 실루엣으로만 구별하는 이 게임에서
+        /// 그건 유형이 사라지는 것과 같다.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void EveryCustomer_HasItsOwnMotions()
+        {
+            var motions = new HashSet<UnityEngine.RuntimeAnimatorController>();
+
+            foreach (var customer in _catalog.AllCustomers)
+            {
+                Assert.IsNotNull(customer.Motions, $"{customer.name} 에 동작이 없다");
+                Assert.IsTrue(motions.Add(customer.Motions), $"{customer.name} 이 남의 동작을 쓴다");
+            }
+        }
+
         [Test]
         public void Catalog_HasNoDuplicate()
         {

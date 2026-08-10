@@ -1156,6 +1156,37 @@ namespace SushiDefense.Tests.PlayMode
             Assert.AreEqual("RemainingLabel", labels[0].name);
         }
 
+        /// <summary>
+        /// 씬에 앉은 손님이 <b>자기 유형의 동작</b>을 물고 있는지 본다.
+        ///
+        /// <para>
+        /// 프리팹과 밸런스 애셋이 각각 멀쩡해도 <b>둘이 만나는 곳은 씬</b>이다 —
+        /// <c>CustomerPrefabTests</c> 는 <c>Animator</c> 의 존재만, <c>CardCatalogAssetTests</c>
+        /// 는 컨트롤러의 존재만 본다. 실제로 물리는 순간은 <c>Bind</c> 뿐이라, 그 한 줄이
+        /// 빠지면 손님은 <b>먹어도 쉬어도 낱장 그림으로 서 있고</b> 예외는 나지 않는다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SeatedCustomer_CarriesItsMotions()
+        {
+            var slot = Object.FindAnyObjectByType<SushiDefense.Customers.TableSlotView>();
+            var logic = _stage.Placement.Place(DefaultCustomer(), slot.SlotIndex, slot.BeltPosition);
+            slot.Occupy(logic, _stage.Coordinator);
+
+            yield return null;
+
+            var animator = slot.Occupant.GetComponent<Animator>();
+            Assert.IsNotNull(animator, "앉은 손님에게 Animator 가 없다 — 씬 조립을 확인하라");
+            Assert.AreSame(DefaultCustomer().Motions, animator.runtimeAnimatorController,
+                           "손님이 자기 유형의 동작을 물지 않았다");
+
+            var thinking = slot.Occupant.transform
+                .Find(SushiDefense.Customers.CustomerMotionView.ThinkingChildName);
+            Assert.IsNotNull(thinking, "말풍선 자식이 씬에서 사라졌다");
+            Assert.IsFalse(thinking.gameObject.activeSelf,
+                           "앉자마자 말풍선이 떠 있다 — 모든 손님이 고민하는 것으로 보인다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_PlacedCustomerEarnsRevenue()
         {

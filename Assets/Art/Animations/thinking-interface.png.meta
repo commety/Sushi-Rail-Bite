@@ -1,7 +1,25 @@
 fileFormatVersion: 2
 guid: 08eee4c5ba694a95a54276504d89ffa1
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: 8808815585052982600
+    second: thinking-interface_0
+  - first:
+      213: -8440615095116155144
+    second: thinking-interface_1
+  - first:
+      213: -8804820176825098028
+    second: thinking-interface_2
+  - first:
+      213: 4105052648777109761
+    second: thinking-interface_3
+  - first:
+      213: -5786659108818691809
+    second: thinking-interface_4
+  - first:
+      213: 244198874704507258
+    second: thinking-interface_5
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -110,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: eating-interface_0
+      name: thinking-interface_0
       rect:
         serializedVersion: 2
         x: 0
@@ -125,14 +143,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5fd75afb5e6145320800000000000000
-      internalID: 2545684865389788661
+      spriteID: 84df10f7a133f3a70800000000000000
+      internalID: 8808815585052982600
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: eating-interface_1
+      name: thinking-interface_1
       rect:
         serializedVersion: 2
         x: 32
@@ -147,14 +165,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 76e4f76b6d8bdbb60800000000000000
-      internalID: 7763564564980911719
+      spriteID: 8f63dc19a49ecda80800000000000000
+      internalID: -8440615095116155144
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: eating-interface_2
+      name: thinking-interface_2
       rect:
         serializedVersion: 2
         x: 64
@@ -169,14 +187,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 84aec5561809763c0800000000000000
-      internalID: -4366362428286637496
+      spriteID: 4d0e529f2befec580800000000000000
+      internalID: -8804820176825098028
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: eating-interface_3
+      name: thinking-interface_3
       rect:
         serializedVersion: 2
         x: 96
@@ -191,14 +209,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 51280ec7f3c6b9450800000000000000
-      internalID: 6096585540509925909
+      spriteID: 101d2a272a318f830800000000000000
+      internalID: 4105052648777109761
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: eating-interface_4
+      name: thinking-interface_4
       rect:
         serializedVersion: 2
         x: 128
@@ -213,14 +231,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 6726194d6a40ff690800000000000000
-      internalID: -7566323734381763978
+      spriteID: f1955961338a1bfa0800000000000000
+      internalID: -5786659108818691809
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: eating-interface_5
+      name: thinking-interface_5
       rect:
         serializedVersion: 2
         x: 160
@@ -235,8 +253,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 4756e005297e34500800000000000000
-      internalID: 379401409223615860
+      spriteID: a71ff4d2591936300800000000000000
+      internalID: 244198874704507258
       vertices: []
       indices: 
       edges: []
@@ -261,6 +279,12 @@ TextureImporter:
       eating-interface_3: 6096585540509925909
       eating-interface_4: -7566323734381763978
       eating-interface_5: 379401409223615860
+      thinking-interface_0: 8808815585052982600
+      thinking-interface_1: -8440615095116155144
+      thinking-interface_2: -8804820176825098028
+      thinking-interface_3: 4105052648777109761
+      thinking-interface_4: -5786659108818691809
+      thinking-interface_5: 244198874704507258
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

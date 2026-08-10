@@ -11,10 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4eb45a57eddac4f2693ce88a67a57a85, type: 3}
   m_Name: Customer.BigEater
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   _id: customer-big-eater
-  _displayName: 먹보
-  _description: 빠르게 많이 먹지만 싼 초밥만 노린다.
+  _displayName: "\uBA39\uBCF4"
+  _description: "\uBE60\uB974\uAC8C \uB9CE\uC774 \uBA39\uC9C0\uB9CC \uC2FC \uCD08\uBC25\uB9CC
+    \uB178\uB9B0\uB2E4."
   _kind: 2
   _reach: 3
   _targetingMin: 100
@@ -25,3 +26,4 @@ MonoBehaviour:
   _recruitCost: 60
   _population: 2
   _icon: {fileID: 21300000, guid: 104289c553f474529af363a8c992b69c, type: 3}
+  _motions: {fileID: 9100000, guid: 7e7b6ff5579854e74b883c73104b5fea, type: 2}

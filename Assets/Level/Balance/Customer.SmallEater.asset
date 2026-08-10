@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Customer.SmallEater
   m_EditorClassIdentifier: 
   _id: customer-small-eater
-  _displayName: 소식
-  _description: 적게 먹지만 비싼 초밥을 노린다.
+  _displayName: "\uC18C\uC2DD"
+  _description: "\uC801\uAC8C \uBA39\uC9C0\uB9CC \uBE44\uC2FC \uCD08\uBC25\uC744
+    \uB178\uB9B0\uB2E4."
   _kind: 1
   _reach: 3
   _targetingMin: 250
@@ -25,3 +26,4 @@ MonoBehaviour:
   _recruitCost: 40
   _population: 1
   _icon: {fileID: 21300000, guid: 1fa2b578badb483491af399086213b64, type: 3}
+  _motions: {fileID: 9100000, guid: 9d9fd5988905148469e36c600e4fcc9a, type: 2}
