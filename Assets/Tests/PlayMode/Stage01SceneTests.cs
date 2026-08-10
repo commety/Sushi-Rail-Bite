@@ -881,6 +881,67 @@ namespace SushiDefense.Tests.PlayMode
         /// 라벨을 하나 더 만들면서 색을 빠뜨리는 것이 실제로 가능한 실수다.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 스테이지 메뉴에서 설정을 열면 <b>메뉴가 남은 채</b> 그 위에 겹치는지 본다.
+        ///
+        /// <para>
+        /// 조정자 테스트는 창 <b>이름</b>만 다루므로, 씬에 설정 화면이 없거나 부트스트랩이
+        /// 그것을 못 찾으면 전부 초록인 채로 버튼만 먹통이 된다.
+        /// </para>
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SettingsOpensOverTheMenu()
+        {
+            yield return null;
+
+            Assert.IsNotNull(_stage.Settings, "씬에 설정 화면이 없다 — 메뉴의 설정 버튼이 먹통이다");
+
+            _stage.Menu.Open();
+            _stage.Menu.OpenSettings();
+
+            yield return null;
+
+            Assert.IsTrue(_stage.Settings.IsOpen, "설정이 열리지 않았다");
+            Assert.IsTrue(_stage.Menu.IsOpen, "설정을 열었더니 메뉴가 닫혔다");
+            Assert.IsTrue(_stage.Windows.IsCovered(SushiDefense.UI.StageWindow.Menu),
+                          "메뉴가 가려지지 않아 뒤의 버튼이 그대로 눌린다");
+        }
+
+        [UnityTest]
+        public IEnumerator Play_Scene_ClosingSettings_LeavesTheMenuUsableAgain()
+        {
+            yield return null;
+
+            _stage.Menu.Open();
+            _stage.Menu.OpenSettings();
+            _stage.Settings.Close();
+
+            yield return null;
+
+            Assert.IsTrue(_stage.Menu.IsOpen);
+            Assert.IsFalse(_stage.Windows.IsCovered(SushiDefense.UI.StageWindow.Menu),
+                           "설정을 닫았는데 메뉴가 가려진 채로 남았다");
+        }
+
+        /// <summary>
+        /// 설정 화면이 <b>가장 마지막 형제</b>인지 본다. uGUI 는 계층 순서로 겹침을 정하므로,
+        /// 앞쪽에 있으면 «가장 위» 로 판정해 놓고 화면에서는 메뉴 뒤에 그려진다.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_Scene_SettingsPanel_DrawsAboveTheMenu()
+        {
+            yield return null;
+
+            var settings = Object.FindAnyObjectByType<SushiDefense.UI.SettingsView>(
+                FindObjectsInactive.Include);
+            var menu = Object.FindAnyObjectByType<SushiDefense.UI.StageMenuView>(
+                FindObjectsInactive.Include);
+
+            Assert.AreSame(settings.transform.parent, menu.transform.parent, "둘이 다른 캔버스에 있다");
+            Assert.Greater(settings.transform.GetSiblingIndex(), menu.transform.GetSiblingIndex(),
+                           "설정이 메뉴보다 앞쪽 형제라 메뉴 뒤에 그려진다");
+        }
+
         [UnityTest]
         public IEnumerator Play_Scene_HudLabels_AreBlack()
         {

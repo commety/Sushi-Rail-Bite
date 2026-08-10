@@ -25,7 +25,13 @@ namespace SushiDefense.UI
         /// <summary>지금 초밥 덱 보기.</summary>
         Deck = 2,
 
-        /// <summary>인스테이지 메뉴. 멈춤이 곧 이 창이라 가장 위다.</summary>
-        Menu = 3
+        /// <summary>인스테이지 메뉴. 멈춤이 곧 이 창이다.</summary>
+        Menu = 3,
+
+        /// <summary>
+        /// 설정. <b>메뉴 위에 겹쳐 뜨는 유일한 창</b>이라 가장 위다 — 메뉴에서 여는
+        /// 화면인데 메뉴를 밀어내면 닫았을 때 돌아갈 곳이 없다.
+        /// </summary>
+        Settings = 4
     }
 }

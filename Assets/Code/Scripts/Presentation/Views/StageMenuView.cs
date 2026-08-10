@@ -37,6 +37,7 @@ namespace SushiDefense.UI
         [SerializeField] private Button _resumeButton;
         [SerializeField] private Button _restartButton;
         [SerializeField] private Button _quitButton;
+        [SerializeField] private Button _settingsButton;
 
         private StageMenuPresenter _presenter;
 
@@ -68,7 +69,8 @@ namespace SushiDefense.UI
         /// (<c>SettingsView.Initialize</c> 와 같은 이유다).
         /// </summary>
         public void InitializeButtons(Button openButton, Button closeButton, Button resumeButton,
-                                      Button restartButton, Button quitButton)
+                                      Button restartButton, Button quitButton,
+                                      Button settingsButton = null)
         {
             UnsubscribeAll();
 
@@ -77,6 +79,7 @@ namespace SushiDefense.UI
             _resumeButton = resumeButton;
             _restartButton = restartButton;
             _quitButton = quitButton;
+            _settingsButton = settingsButton;
 
             SubscribeAll();
         }
@@ -129,6 +132,7 @@ namespace SushiDefense.UI
             Subscribe(_resumeButton, OnResume);
             Subscribe(_restartButton, OnRestart);
             Subscribe(_quitButton, OnQuit);
+            Subscribe(_settingsButton, OnSettings);
         }
 
         private void UnsubscribeAll()
@@ -138,6 +142,7 @@ namespace SushiDefense.UI
             Unsubscribe(_resumeButton, OnResume);
             Unsubscribe(_restartButton, OnRestart);
             Unsubscribe(_quitButton, OnQuit);
+            Unsubscribe(_settingsButton, OnSettings);
         }
 
         private static void Subscribe(Button button, UnityEngine.Events.UnityAction action)
@@ -183,6 +188,11 @@ namespace SushiDefense.UI
         private void OnQuit()
         {
             _presenter?.QuitToMain();
+        }
+
+        private void OnSettings()
+        {
+            _presenter?.OpenSettings();
         }
 
         private void SetPanelActive(bool active)

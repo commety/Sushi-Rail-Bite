@@ -50,6 +50,16 @@ namespace SushiDefense.UI
         /// </summary>
         public bool CanResume { get; private set; } = true;
 
+        /// <summary>
+        /// 설정을 열어 달라. <b>이걸 듣는 쪽이 무엇을 열지 정한다.</b>
+        ///
+        /// <para>
+        /// 메뉴가 설정 화면을 직접 알면 EditMode 로 메뉴를 세울 때마다 설정까지 만들어야
+        /// 한다 — <c>MainMenuPresenter.SettingsRequested</c> 와 같은 방향 전환이다.
+        /// </para>
+        /// </summary>
+        public event Action SettingsRequested;
+
         public StageMenuPresenter(IStageMenuView view, PauseState pause,
                                   IStageRestarter restarter, ISceneRouter router,
                                   StageWindowArbiter windows)
@@ -160,6 +170,16 @@ namespace SushiDefense.UI
         /// 아깝다는 판단이 서면 그때 넣는다.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 설정을 열어 달라. <b>메뉴는 그대로 둔다</b> — 설정은 메뉴 위에 겹쳐 뜨고,
+        /// 닫으면 메뉴로 돌아온다. 무엇을 여는지는 씬 진입점이 정한다
+        /// (<c>MainMenuPresenter.SettingsRequested</c> 와 같은 형태다).
+        /// </summary>
+        public void OpenSettings()
+        {
+            SettingsRequested?.Invoke();
+        }
+
         public void QuitToMain()
         {
             Close();

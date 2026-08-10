@@ -13,10 +13,11 @@ namespace SushiDefense.UI
     /// 기존 전부를 고쳐야 한다 — <b>규칙을 아는 곳을 하나로</b> 둔다.
     /// </para>
     /// <para>
-    /// <b>보상 선택만 예외다.</b> 보상 위에는 창 하나를 더 겹칠 수 있다. 보상은 «닫으면
-    /// 다음 판» 이라 임의로 내릴 수 없는 창이고, 그 위에서 덱을 확인하고 고르는 것이
-    /// 자연스러운 조작이기 때문이다. 예외가 <b>보상 하나뿐</b>인 덕에 «동시에 떠 있는 창은
-    /// 최대 둘» 이 불변식으로 유지된다.
+    /// <b>예외가 둘 있고, 서로 거울상이다.</b> 보상 위에는 창 하나를 더 겹칠 수 있다 —
+    /// 보상은 «닫으면 다음 판» 이라 임의로 내릴 수 없는 창이고, 그 위에서 덱을 확인하고
+    /// 고르는 것이 자연스러운 조작이기 때문이다. 반대로 설정은 <b>남의 위에</b> 겹친다 —
+    /// 메뉴에서 여는 화면인데 메뉴를 밀어내면 닫았을 때 돌아갈 곳이 없다. 예외가 각각
+    /// 하나뿐인 덕에 «동시에 떠 있는 창은 최대 셋» 이 불변식으로 유지된다.
     /// </para>
     /// <para>
     /// <b>창을 직접 내리지 않는다.</b> 밀려난 창에게 <see cref="CloseRequested"/> 로 알리기만
@@ -34,6 +35,17 @@ namespace SushiDefense.UI
 
         /// <summary>위에 창 하나를 더 허용하는 유일한 창.</summary>
         private const StageWindow Underlay = StageWindow.Reward;
+
+        /// <summary>
+        /// 남의 <b>위에 겹쳐</b> 뜨는 유일한 창. 아무것도 밀어내지 않고 올라간다.
+        ///
+        /// <para>
+        /// 설정은 메뉴에서 여는 화면이라, 메뉴를 밀어내면 닫았을 때 돌아갈 곳이 없다.
+        /// <see cref="Underlay"/> 의 거울상이며, 둘이 각각 하나뿐인 덕에 <b>동시에 떠 있는
+        /// 창은 최대 셋</b>(보상 + 하나 + 설정)으로 묶인다.
+        /// </para>
+        /// </summary>
+        private const StageWindow Overlay = StageWindow.Settings;
 
         private readonly List<StageWindow> _open = new();
 
@@ -178,7 +190,10 @@ namespace SushiDefense.UI
 
             // 밑에 깔리는 창은 거절당하지 않는다. 보상은 «닫으면 다음 판» 이라 나중에
             // 다시 열 방법이 없어, 여기서 막으면 클리어 보상이 통째로 사라진다.
-            if (window == Underlay)
+            //
+            // 위에 겹치는 창도 같다. 밀어내지 않으므로 밑의 창이 그대로 남고, 우선순위가
+            // 가장 높아 아래는 전부 «가려짐» 이 된다 — 눌리지 않게 하는 것은 그쪽 몫이다.
+            if (window == Underlay || window == Overlay)
             {
                 _open.Add(window);
                 RefreshCoverage();

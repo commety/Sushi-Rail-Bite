@@ -6,6 +6,7 @@ using SushiDefense.Effects;
 using SushiDefense.Navigation;
 using SushiDefense.Run;
 using SushiDefense.Scoring;
+using SushiDefense.Settings;
 using SushiDefense.Stages;
 using SushiDefense.UI;
 using UnityEngine;
@@ -58,6 +59,12 @@ namespace SushiDefense
         [SerializeField] private EffectDirector _effectDirector;
         [SerializeField] private CustomerHandView _hand;
         [SerializeField] private CustomerInspectorView _inspectorView;
+
+        /// <summary>
+        /// 스테이지 안에서 여는 설정 화면. 없으면 메뉴에 설정 버튼만 안 먹는다 —
+        /// 설정은 판이 돌아가는 데 필요한 것이 아니다.
+        /// </summary>
+        [SerializeField] private SettingsView _settingsView;
         [SerializeField] private CustomerTapRouter _tapRouter;
 
         /// <summary>
@@ -156,6 +163,9 @@ namespace SushiDefense
         /// 런 수명이므로 조정자만 판마다 새로 만들면 열려 있던 창을 잊는다.
         /// </summary>
         public StageWindowArbiter Windows { get; private set; }
+
+        /// <summary>스테이지 안의 설정 화면 로직. 검증용이다.</summary>
+        public SettingsPresenter Settings { get; private set; }
 
         /// <summary>인스펙터 없이 참조를 물린다. 테스트용 진입점이다.</summary>
         public void Initialize(StageConfig stageConfig, SushiPoolBehaviour viewPool,
@@ -288,6 +298,7 @@ namespace SushiDefense
             BuildTransition();
             BuildDeckPanel();
             BuildStageMenu();
+            BuildSettings();
             BuildInspector();
         }
 
@@ -482,6 +493,48 @@ namespace SushiDefense
 
             Menu = new StageMenuPresenter(_stageMenuView, Pause, this, _sceneRouter, Windows);
             _stageMenuView.Bind(Menu);
+            Menu.SettingsRequested += OnSettingsRequested;
+        }
+
+        /// <summary>
+        /// 스테이지 안의 설정 화면을 세운다. <b>메인 화면과 같은 부품을 그대로 쓴다</b> —
+        /// 저장 위치도 적용 방법도 같아야 하고, 갈라 두면 한쪽만 고치는 사고가 난다.
+        ///
+        /// <para>
+        /// 프레젠터를 <b>여기서 만든다.</b> 화면을 열 때 만들면 그 전까지 저장된 볼륨이
+        /// 적용되지 않아, 설정을 한 번도 안 연 판에서만 소리가 다르다.
+        /// </para>
+        /// </summary>
+        private void BuildSettings()
+        {
+            if (_settingsView == null)
+            {
+                return;
+            }
+
+            Settings = new SettingsPresenter(_settingsView, new GameSettings(),
+                                             new PlayerPrefsSettingsStore(), new SettingsApplier());
+            _settingsView.Bind(Settings);
+            Settings.Closed += OnSettingsClosed;
+        }
+
+        /// <summary>
+        /// 메뉴가 설정을 요청했다. <b>메뉴는 그대로 둔다</b> — 설정은 메뉴 위에 겹쳐 뜨고
+        /// (<c>StageWindow.Settings</c>), 조정자가 밑의 메뉴를 «가려짐» 으로 바꿔 준다.
+        /// </summary>
+        private void OnSettingsRequested()
+        {
+            if (Settings == null || !Windows.TryOpen(StageWindow.Settings))
+            {
+                return;
+            }
+
+            Settings.Open();
+        }
+
+        private void OnSettingsClosed()
+        {
+            Windows.Close(StageWindow.Settings);
         }
 
         /// <summary>
@@ -506,6 +559,9 @@ namespace SushiDefense
                 case StageWindow.CustomerInfo:
                     Inspector?.Close();
                     break;
+                case StageWindow.Settings:
+                    Settings?.Close();
+                    break;
             }
         }
 
@@ -529,6 +585,7 @@ namespace SushiDefense
                 StageWindow.Deck => _deckPanelView,
                 StageWindow.Reward => _rewardView,
                 StageWindow.CustomerInfo => _inspectorView,
+                StageWindow.Settings => _settingsView,
                 _ => null
             };
 
@@ -724,6 +781,11 @@ namespace SushiDefense
                 _hand = GetComponentInChildren<CustomerHandView>(true);
             }
 
+            if (_settingsView == null)
+            {
+                _settingsView = GetComponentInChildren<SettingsView>(true);
+            }
+
             if (_inspectorView == null)
             {
                 _inspectorView = GetComponentInChildren<CustomerInspectorView>(true);
@@ -808,6 +870,17 @@ namespace SushiDefense
             {
                 Transition.StageAdvanced -= OnStageAdvanced;
                 Transition = null;
+            }
+
+            if (Menu != null)
+            {
+                Menu.SettingsRequested -= OnSettingsRequested;
+            }
+
+            if (Settings != null)
+            {
+                Settings.Closed -= OnSettingsClosed;
+                Settings = null;
             }
 
             Deck = null;
