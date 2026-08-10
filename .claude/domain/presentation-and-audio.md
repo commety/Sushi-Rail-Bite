@@ -17,7 +17,7 @@ globs: ["Assets/Code/Scripts/Presentation/**/*.cs", "Assets/Code/Scripts/Editor/
 - 풀에서 **반납할 때 그림을 되돌린다.** 남겨 두면 재사용 첫 프레임에 직전 초밥이 번쩍인다
 
 구분 축이 둘이다 — **접시 테두리 = 가격 티어**, **네타 색 = 종류**. 손님은 **실루엣**으로만
-구분한다. 색은 `CustomerView` 가 상태 틴트(Idle/Eating/Digesting/대기)로 이미 쓰고 있어서,
+구분한다. 색은 `CustomerView` 가 상태 틴트(Idle/Eating/Digesting)로 이미 쓰고 있어서,
 유형까지 색에 태우면 두 정보가 같은 채널에서 싸운다.
 
 > **티어 색을 고를 때 네타 팔레트를 함께 본다.** 3티어 접시를 `#D94A5A` 로 잡았다가 참치
